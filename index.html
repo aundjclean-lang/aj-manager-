@@ -366,6 +366,18 @@ if (!DATA.r1) DATA.r1 = {};
 // Vorarbeiter setup runs after saveData is defined
 var currentTab = '';
 
+
+function saveAllPw() {
+  var hotels = Object.keys(HOTELS);
+  hotels.forEach(function(h) {
+    var inp = document.getElementById('pw_'+h.replace(/ /g,'_'));
+    if (inp && inp.value.trim()) {
+      setHotelPw(h, inp.value.trim());
+    }
+  });
+  toast('\u2713 Passw\u00f6rter gespeichert!','ok');
+}
+
 function saveData() { localStorage.setItem('aj4', JSON.stringify(DATA)); }
 
 // Vorarbeiter Voreinstellungen
@@ -457,15 +469,15 @@ function buildVoraHotelList() {
 }
 
 function showVoraPw() {
-  var name = (document.getElementById('v-name').value||'').trim();
-  if (!name) { toast('Name eingeben!','err'); return; }
-  var storedPw = DATA.pw ? DATA.pw[name] : null;
-  if (storedPw) {
-    var wrap = document.getElementById('v-pw-wrap');
-    if (wrap) { wrap.style.display=''; document.getElementById('v-pw').focus(); }
-  } else {
-    showVoraHotels();
-  }
+  var name  = (document.getElementById('v-name').value||'').trim();
+  var hotel = gv('v-hotel');
+  if (!name)  { toast('Name eingeben!','err'); return; }
+  if (!hotel) { toast('Hotel ausw\u00e4hlen!','err'); return; }
+  // Always show password field
+  var wrap = document.getElementById('v-pw-wrap');
+  if (wrap) { wrap.style.display=''; }
+  var pwInp = document.getElementById('v-pw');
+  if (pwInp) { pwInp.placeholder='Passwort f\u00fcr '+hotel; pwInp.focus(); }
 }
 
 function showVoraHotels() {
