@@ -367,6 +367,14 @@ if (!DATA.r1) DATA.r1 = {};
 var currentTab = '';
 
 
+
+function saveChefWa() {
+  var nr = (document.getElementById('chef-wa-inp')&&document.getElementById('chef-wa-inp').value||'').trim();
+  localStorage.setItem('aj_chef_wa', nr);
+  CHEF_WA_NR = nr;
+  toast('\u2713 WhatsApp Nummer gespeichert!','ok');
+}
+
 function saveAllPw() {
   var hotels = Object.keys(HOTELS);
   hotels.forEach(function(h) {
@@ -771,6 +779,51 @@ function pgDash() {
   c.innerHTML = html;
 }
 
+
+// ═══════════════════════════════
+// WHATSAPP TAGESBERICHT AN CHEF
+// ═══════════════════════════════
+var CHEF_WA_NR = localStorage.getItem('aj_chef_wa') || '';
+
+function sendBerichtWA() {
+  var hotel = USER.hotel;
+  var datum = document.getElementById('ta-datum') ? document.getElementById('ta-datum').value : new Date().toLocaleDateString('de-DE');
+  
+  var text = '\uD83D\uDCCB *TAGESBERICHT*\n';
+  text += '*'+hotel+'*\n';
+  text += 'Datum: '+datum+'\n';
+  text += 'Vorarbeiter: '+USER.name+'\n';
+  text += '\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n';
+
+  // Collect data from TA rows
+  var totalZi=0, totalIst=0;
+  for (var ri=0; ri<TA_ROWS; ri++) {
+    var nm  = document.getElementById('ta_nm_'+ri);
+    var zi  = document.getElementById('ta_zi_'+ri);
+    var ist = document.getElementById('ta_ist_'+ri);
+    if (!nm||!nm.value) continue;
+    var ziV  = zi?zi.value:'0';
+    var istV = ist?ist.value:'0';
+    if (!ziV&&!istV) continue;
+    text += '\uD83D\uDC64 '+nm.value+': '+ziV+' Zi / '+istV+' Std\n';
+    totalZi  += parseInt(ziV)||0;
+    totalIst += parseFloat(istV)||0;
+  }
+  text += '\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n';
+  text += '*GESAMT: '+totalZi+' Zimmer / '+totalIst.toFixed(2)+' Std*\n';
+  text += '\nA&J Cleaning Services GmbH';
+
+  // Send to Chef
+  var nr = CHEF_WA_NR.replace(/[^0-9]/g,'');
+  if (nr) {
+    window.open('https://wa.me/'+nr+'?text='+encodeURIComponent(text),'_blank');
+  } else {
+    // No number set - open WA without number (user selects contact)
+    window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
+  }
+}
+
+
 // ═══════════════════════════════
 // TAGESABRECHNUNG
 // ═══════════════════════════════
@@ -838,6 +891,7 @@ function pgTa() {
   html += '</tr></thead><tbody id="ta-body"></tbody></table></div>';
   html += '<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
   html += '<button class="btn primary" onclick="saveTa()">&#128228; Speichern</button>';
+  html += '<button class="btn sm" onclick="sendBerichtWA()" style="background:rgba(37,211,102,0.12);border-color:rgba(37,211,102,0.4);color:#25d366;margin-left:6px">&#128279; Bericht an Chef</button>';
   html += '<button class="btn sm" onclick="window.print()">&#128424; Drucken</button>';
   html += '<span id="ta-auto-info" style="font-size:0.62rem;color:#5dbf8a;margin-left:4px"></span>';
   html += '</div></div>';
