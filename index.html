@@ -602,7 +602,7 @@ function autoFillVora() {
   }
 }
 
-var SHEETS_URL = localStorage.getItem('aj_sheets_url') || '';
+var SHEETS_URL = localStorage.getItem('aj_sheets_url') || 'https://script.google.com/macros/s/AKfycbzaCFh2wcF7wGsoLMzGKokqu04_NCoOxb2zT2fmAAmfV8t_fSJOWtBk6rzlDLhxal7B3w/exec';
 function saveSheetsUrl(url) {
   SHEETS_URL = url.trim();
   localStorage.setItem('aj_sheets_url', SHEETS_URL);
