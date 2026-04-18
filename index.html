@@ -333,8 +333,8 @@ var HOTELS = {
   'McDreams Dusseldorf':    {nr:'1004',ziH:3.5,grH:3.5,ckMin:4,pub:0,zpma:15},
   'McDreams Essen':         {nr:'1005',ziH:3.5,grH:3.5,ckMin:4,pub:0,zpma:15},
   'McDreams MG':            {nr:'1006',ziH:3.5,grH:3.5,ckMin:4,pub:0,zpma:15},
-  'Four Points Ratingen':   {nr:'1007',ziH:3.0,grH:3.0,ckMin:4,pub:0,zpma:15},
-  'Ramada Ratingen':        {nr:'1008',ziH:3.0,grH:3.0,ckMin:4,pub:0,zpma:15},
+  'Four Points Ratingen':   {nr:'1007',ziH:2.5,grH:2.5,ckMin:4,pub:0,zpma:15},
+  'Ramada Ratingen':        {nr:'1008',ziH:2.5,grH:2.5,ckMin:4,pub:0,zpma:15},
   'FOUR Essen City Centre': {nr:'1009',ziH:2.5,grH:2.5,ckMin:4,pub:0,zpma:15},
   'Spark by Hilton Essen':  {nr:'1010',ziH:3.0,grH:3.0,ckMin:4,pub:1,miniMin:3,zpma:15}
 };
@@ -383,6 +383,26 @@ function saveChefWa() {
 // ═══════════════════════════════
 // VORARBEITER NAMEN - GOOGLE SHEETS
 // ═══════════════════════════════
+
+function loadVoraNamesUI() {
+  if (!SHEETS_URL) { toast('Keine Google Sheets URL!','err'); return; }
+  toast('Lade Namen...','ok',1500);
+  fetch(SHEETS_URL+'?action=get_vora_names')
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d.status==='ok'&&d.names){
+        Object.keys(d.names).forEach(function(h){
+          VORA_NAMES[h]=d.names[h];
+          localStorage.setItem('aj_vora_'+h, d.names[h]);
+          var inp=document.getElementById('vora_nm_'+h.replace(/ /g,'_'));
+          if(inp) inp.value=d.names[h];
+        });
+        toast('\u2713 Namen geladen!','ok');
+      }
+    })
+    .catch(function(){ toast('Offline - lokale Namen','info'); });
+}
+
 function loadVoraNamesFromSheets() {
   if (!SHEETS_URL) return;
   fetch(SHEETS_URL + '?action=get_vora_names', {method:'GET', mode:'cors'})
@@ -433,6 +453,84 @@ function saveAllPw() {
     }
   });
   toast('\u2713 Passw\u00f6rter gespeichert!','ok');
+}
+
+
+function printSz() {
+  var hotel = USER.hotel;
+  var maName = USER.name;
+  var mon = gv('sz-mon') || new Date().toISOString().slice(0,7);
+  var cfg = getCfg(hotel);
+  var tage = [];
+  var totIst=0, totZi=0;
+  for (var d=1; d<=31; d++) {
+    var zi  = gv('sz_zi_'+d)||'';
+    var ist = gv('sz_ist_'+d)||'';
+    var von = gv('sz_vo_'+d)||gv('sz_von_'+d)||'';
+    var bis = gv('sz_bis_'+d)||'';
+    var pau = gv('sz_pau_'+d)||'';
+    if (!zi&&!ist) continue;
+    tage.push({d:d,von:von,bis:bis,pau:pau||'0,50',ist:ist,zi:zi});
+    totIst += parseFloat(ist)||0;
+    totZi  += parseInt(zi)||0;
+  }
+  var rows = tage.map(function(t) {
+    return '<tr><td>'+t.d+'</td><td>'+(t.von||'-')+'</td><td>'+(t.bis||'-')+'</td>'
+      +'<td>'+t.pau+'</td><td class="hi">'+(t.ist||'-')+'</td><td class="zi">'+(t.zi||'-')+'</td></tr>';
+  }).join('');
+
+  var css = '*{margin:0;padding:0;box-sizing:border-box}'
+    +'body{font-family:Arial,sans-serif;font-size:10pt;color:#111;padding:12mm 10mm}'
+    +'.hdr{display:flex;justify-content:space-between;border-bottom:2.5px solid #0d1b2a;padding-bottom:8px;margin-bottom:10px}'
+    +'.logo{font-size:20pt;font-weight:900;color:#0d1b2a}'
+    +'.logo span{display:block;font-size:5.5pt;letter-spacing:0.3em;text-transform:uppercase;color:#999;margin-top:2px}'
+    +'.meta{display:grid;grid-template-columns:1fr 1fr 1fr;border:1px solid #333;margin-bottom:10px}'
+    +'.mc{padding:5px 8px;border-right:1px solid #ccc}'
+    +'.mc:last-child{border-right:none}'
+    +'.mc label{display:block;font-size:6pt;letter-spacing:0.2em;text-transform:uppercase;color:#999;margin-bottom:1px}'
+    +'.mc span{font-size:9pt;font-weight:700;color:#0d1b2a}'
+    +'table{width:100%;border-collapse:collapse}'
+    +'thead th{background:#0d1b2a;color:#c8a84b;padding:5px 3px;text-align:center;font-size:7pt;border:1px solid #0d1b2a}'
+    +'tbody td{padding:4px 3px;border:1px solid #ddd;text-align:center;font-size:9pt}'
+    +'td.hi{font-weight:700;color:#1b5e20;background:#e8f5e9!important}'
+    +'td.zi{font-weight:700;color:#0d47a1}'
+    +'.ges td{background:#0d1b2a!important;color:#c8a84b!important;font-weight:700!important;border-top:2px solid #c8a84b!important}'
+    +'.sig{display:flex;gap:28px;margin-top:16px}'
+    +'.sig-box{flex:1;border-top:1.5px solid #333;padding-top:5px;font-size:7pt;color:#888}'
+    +'.footer{margin-top:10px;padding-top:6px;border-top:1px solid #ddd;font-size:6.5pt;color:#aaa;display:flex;justify-content:space-between}'
+    +'@media print{@page{margin:8mm;size:A4}body{padding:0}}';
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
+    +'<div class="hdr"><div><div class="logo">A&amp;J<span>Cleaning Services GmbH</span></div></div>'
+    +'<div style="text-align:right"><b style="font-size:12pt">STUNDENZETTEL</b><br><span style="font-size:8pt;color:#555">Stauffenbergstr. 14-20 &middot; 51379 Leverkusen</span></div></div>'
+    +'<div class="meta">'
+    +'<div class="mc"><label>Mitarbeiter</label><span>'+maName+'</span></div>'
+    +'<div class="mc"><label>Hotel</label><span>'+hotel+'</span></div>'
+    +'<div class="mc"><label>Monat / Ist-Std / Zimmer</label><span style="color:#1b5e20">'+mon+' &nbsp; '+totIst.toFixed(2)+' h &nbsp; '+totZi+' Zi</span></div>'
+    +'</div>'
+    +'<table><thead><tr><th>Tag</th><th>AZ von</th><th>AZ bis</th><th>Pause</th><th>Ist-Std</th><th>Zimmer</th></tr></thead>'
+    +'<tbody>'+rows
+    +'<tr class="ges"><td colspan="4" style="text-align:right;padding-right:8px;font-size:7pt">GESAMT</td>'
+    +'<td>'+totIst.toFixed(2)+' h</td><td>'+totZi+'</td></tr>'
+    +'</tbody></table>'
+    +'<div class="sig">'
+    +'<div class="sig-box">Unterschrift Mitarbeiter</div>'
+    +'<div class="sig-box">Unterschrift Vorarbeiter</div>'
+    +'</div>'
+    +'<div class="footer">'
+    +'<span>A&amp;J Cleaning Services GmbH &middot; HRB 126631 Amtsgericht K&ouml;ln</span>'
+    +'<span>'+new Date().toLocaleDateString('de-DE')+'</span>'
+    +'</div>'
+    +'</body></html>';
+
+  var printDiv = document.getElementById('print-area');
+  if (!printDiv) { printDiv=document.createElement('div'); printDiv.id='print-area'; document.body.appendChild(printDiv); }
+  var app = document.getElementById('app-screen');
+  printDiv.innerHTML = '<style>'+css+'</style>'+html.replace(/<!DOCTYPE.*<body>/s,'').replace('</body></html>','');
+  printDiv.style.display='block';
+  if(app) app.style.display='none';
+  window.print();
+  setTimeout(function(){ printDiv.style.display='none'; printDiv.innerHTML=''; if(app) app.style.display='block'; },1500);
 }
 
 function saveData() { localStorage.setItem('aj4', JSON.stringify(DATA)); }
@@ -579,7 +677,14 @@ function selectHotelDirect(hotel, name) {
 }
 
 function loginChef() {
-  USER = {role:'chef', hotel:'', name:'Akram'};
+  var pw = gv('chef-pw').trim();
+  var correctChefPw = localStorage.getItem('aj_chef_pw2') || 'AJ2026!';
+  if (pw !== correctChefPw) {
+    var err = document.getElementById('chef-pw-err');
+    if (err) { err.style.display='block'; err.textContent='Falsches Passwort!'; }
+    toast('Falsches Passwort!','err'); return;
+  }
+  USER = {role:'chef', hotel:'RS Hotel Bruhl', name:'Akram'};
   startApp();
 }
 function loginVora() {
@@ -588,7 +693,8 @@ function loginVora() {
   var pw    = gv('v-pw').trim();
   if (!hotel) { toast('Hotel ausw\u00e4hlen!','err'); return; }
   if (!name)  { toast('Name eingeben!','err'); return; }
-  if (pw !== 'Vorarbeiter') {
+  var correctVoraPw = localStorage.getItem('aj_vora_pw') || 'Vorarbeiter';
+  if (pw !== correctVoraPw) {
     var errEl = document.getElementById('v-pw-err');
     if (errEl) { errEl.style.display='block'; errEl.textContent='Falsches Passwort!'; }
     toast('Falsches Passwort!','err'); return;
@@ -605,6 +711,14 @@ function doLogout() {
 function startApp() {
   // Load latest Vorarbeiter names from Google Sheets
   loadVoraNamesFromSheets();
+  // Track login in Google Sheets
+  if (USER && USER.role === 'vora') {
+    sendToSheets('login', {
+      hotel: USER.hotel,
+      name: USER.name,
+      zeit: new Date().toLocaleString('de-DE')
+    });
+  }
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').classList.add('show');
   document.getElementById('tb-user').textContent = USER.name;
@@ -1342,7 +1456,7 @@ function pgSz() {
   html += '<div class="sig-row"><button class="btn sm" onclick="sigClear(\'sig2\',\'sig2h\',\'sig2s\')">L&ouml;schen</button>';
   html += '<span class="sig-ok" id="sig2s"></span></div></div>';
 
-  html += '<div style="margin-top:10px"><button class="btn primary" style="width:100%;padding:11px" onclick="saveSz()">&#128228; Unterschreiben &amp; Senden</button></div>';
+  html += '<div style="margin-top:10px"><button class="btn primary" style="width:100%;padding:11px" onclick="saveSz()" style="margin-right:6px">&#128228; Unterschreiben &amp; Senden</button></div>';
 
   c.innerHTML = html;
   szBuildRows(thisM, cfg);
@@ -2495,134 +2609,170 @@ function sigClear(id, hintId, statId) {
 // ═══════════════════════════════
 // ADMIN PANEL
 // ═══════════════════════════════
-function pgAdmin() {
+
+// ═══════════════════════════════
+// MINIBAR (Spark by Hilton Essen)
+// ═══════════════════════════════
+var MB_MIN_PRO_ZI = 4;
+var MB_PREIS_ZI   = 1.50;
+
+function pgMb() {
   var c = document.getElementById('content');
+  var hotel = USER.hotel;
+  var now = new Date();
+  var today = now.getDate()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
+  var thisM = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  if (!DATA.mb) DATA.mb = {};
+  if (!DATA.mb[hotel]) DATA.mb[hotel] = {};
+  var saved = DATA.mb[hotel][thisM] || [];
+  var totZi=0, totStd=0, totBet=0;
+  saved.forEach(function(e){ totZi+=parseInt(e.zi||0); totStd+=parseFloat(e.std||0); totBet+=parseFloat(e.betrag||0); });
 
-  // Collect all known MA names
-  var allMa = [];
-  Object.keys(DATA.ma).forEach(function(hotel) {
-    DATA.ma[hotel].forEach(function(m) {
-      if (allMa.indexOf(m.name) < 0) allMa.push(m.name);
-    });
-  });
-  // Also from SZ data
-  Object.keys(DATA.sz).forEach(function(hotel) {
-    Object.keys(DATA.sz[hotel]).forEach(function(mn) {
-      if (allMa.indexOf(mn) < 0) allMa.push(mn);
-    });
-  });
+  var html = '<div class="card" style="padding:10px 12px">';
+  html += '<span style="font-size:0.82rem;color:var(--gold);font-weight:600">&#127866; Minibar &mdash; Spark by Hilton Essen</span>';
+  html += '<div style="font-size:0.6rem;color:rgba(200,168,75,0.6);margin-top:4px">'+MB_MIN_PRO_ZI+' Min/Zi &middot; '+MB_PREIS_ZI.toFixed(2)+' &euro;/Zi</div></div>';
 
-  var html = '<div class="card"><div class="card-title">&#128274; Admin Panel</div>';
+  html += '<div class="stats">';
+  html += '<div class="stat"><span class="stat-v">'+totZi+'</span><span class="stat-l">Zimmer</span></div>';
+  html += '<div class="stat"><span class="stat-v">'+totStd.toFixed(1)+'</span><span class="stat-l">Std</span></div>';
+  html += '<div class="stat"><span class="stat-v">'+totBet.toFixed(0)+'</span><span class="stat-l">Betrag &euro;</span></div>';
+  html += '</div>';
 
-  // Chef password change
-  html += '<div style="background:var(--navy3);border:1px solid var(--border2);border-radius:3px;padding:14px;margin-bottom:14px">';
-  html += '<div style="font-size:0.72rem;font-weight:600;color:var(--gold);margin-bottom:10px;letter-spacing:0.1em;text-transform:uppercase">Chef-Passwort &auml;ndern</div>';
+  html += '<div class="card"><div class="card-title">&#127866; Eintrag</div>';
   html += '<div class="frow">';
-  html += '<div class="ff"><label class="lbl">Neues Passwort</label><input class="inp" type="password" id="admin-chef-pw1" placeholder="Neues Passwort"></div>';
-  html += '<div class="ff"><label class="lbl">Wiederholen</label><input class="inp" type="password" id="admin-chef-pw2" placeholder="Wiederholen"></div>';
+  html += '<div class="ff" style="max-width:110px"><label class="lbl">Datum</label><input class="inp" id="mb-dat" value="'+today+'"></div>';
+  html += '<div class="ff" style="max-width:80px"><label class="lbl">Zimmer</label><input class="inp" id="mb-zi" type="number" min="0" placeholder="0" oninput="mbCalc()"></div>';
+  html += '<div class="ff" style="max-width:90px"><label class="lbl">Std (auto)</label><input class="inp" id="mb-std" readonly style="color:#90caf9;font-weight:700" placeholder="&ndash;"></div>';
+  html += '<div class="ff" style="max-width:100px"><label class="lbl">Betrag (auto)</label><input class="inp" id="mb-bet" readonly style="color:#81c784;font-weight:700" placeholder="&ndash;"></div>';
+  html += '<div class="ff"><label class="lbl">Mitarbeiter</label><input class="inp" id="mb-ma" placeholder="Name"></div>';
   html += '</div>';
-  html += '<button class="btn primary sm" onclick="changeChefPw()">&#10003; Passwort &auml;ndern</button>';
-  html += '</div>';
+  html += '<button class="btn primary" onclick="mbAdd()">+ Speichern</button></div>';
 
-  // Vorarbeiter passwords
-  html += '<div style="font-size:0.72rem;font-weight:600;color:var(--gold);margin-bottom:10px;letter-spacing:0.1em;text-transform:uppercase">Vorarbeiter Passw&ouml;rter</div>';
-
-  if (!allMa.length) {
-    html += '<div class="empty">Erst Mitarbeiter anlegen</div>';
+  html += '<div class="card" style="padding:8px"><div style="overflow-x:auto"><table class="tbl">';
+  html += '<thead><tr><th>Datum</th><th>Zimmer</th><th>Std</th><th style="color:#81c784">Betrag</th><th>MA</th><th></th></tr></thead><tbody>';
+  if (!saved.length) {
+    html += '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">Keine Eintr&auml;ge</td></tr>';
   } else {
-    html += '<div style="display:flex;flex-direction:column;gap:8px" id="admin-ma-list">';
-    allMa.forEach(function(mn) {
-      var hasPw = !!DATA.pw[mn];
-      var assigned = DATA.hotels[mn] || [];
-      html += '<div style="background:var(--navy3);border:1px solid var(--border);border-radius:2px;padding:10px;margin-bottom:4px">';
-      // Top row: name + pw
-      html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">';
-      html += '<span style="font-weight:600;color:var(--cream);min-width:120px;font-size:0.82rem">'+mn+'</span>';
-      html += '<span class="badge '+(hasPw?'b-ok':'b-warn')+'">'+(hasPw?'&#10003; Aktiv':'Kein PW')+'</span>';
-      html += '<input type="password" id="pw-'+mn.replace(/ /g,'_')+'" placeholder="Neues Passwort" class="inp" style="flex:1;min-width:100px">';
-      html += '<button class="btn sm primary" onclick="setVoraPw(this)" data-name="'+mn+'" style="white-space:nowrap">PW setzen</button>';
-      if (hasPw) html += '<button class="btn sm danger" onclick="resetVoraPw(this)" data-name="'+mn+'">&#10005;</button>';
-      html += '</div>';
-      // Hotels row
-      html += '<div style="font-size:0.56rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:5px">Zugewiesene Hotels:</div>';
-      html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
-      Object.keys(HOTELS).forEach(function(hk) {
-        var isAssigned = assigned.indexOf(hk) >= 0;
-        html += '<label style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:'+(isAssigned?'var(--cream)':'var(--muted)')+';cursor:pointer;padding:4px 6px;border:1px solid '+(isAssigned?'var(--gold)':'var(--border)')+';border-radius:2px;background:'+(isAssigned?'rgba(200,168,75,0.08)':'transparent')+'">';
-        html += '<input type="checkbox" class="hotel-cb-'+mn.replace(/ /g,'_')+'" value="'+hk+'" '+(isAssigned?'checked':'')+' style="accent-color:var(--gold)">';
-        html += HOTELS[hk].nr+' '+hk;
-        html += '</label>';
-      });
-      html += '</div>';
-      html += '<button class="btn sm" onclick="saveHotels(this)" data-name="'+mn+'" style="margin-top:6px;border-color:var(--gold)">Hotels speichern</button>';
-      html += '</div>';
+    saved.forEach(function(e,i) {
+      html += '<tr><td style="font-size:0.76rem">'+e.dat+'</td>';
+      html += '<td style="text-align:center"><span class="badge b-gold">'+e.zi+'</span></td>';
+      html += '<td style="text-align:center;color:#90caf9">'+parseFloat(e.std).toFixed(2)+' h</td>';
+      html += '<td style="text-align:center;font-weight:700;color:#81c784">'+parseFloat(e.betrag).toFixed(2)+' &euro;</td>';
+      html += '<td style="font-size:0.76rem;color:var(--muted)">'+(e.ma||'&ndash;')+'</td>';
+      html += '<td><button class="btn danger sm" onclick="mbDel(\''+thisM+'\','+i+')">&#10005;</button></td></tr>';
     });
-    html += '</div>';
   }
-
-  // Add new MA with password
-  html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">';
-  html += '<div style="font-size:0.72rem;font-weight:600;color:var(--gold);margin-bottom:10px;letter-spacing:0.1em;text-transform:uppercase">Neuen Vorarbeiter anlegen</div>';
-  html += '<div class="frow">';
-  html += '<div class="ff"><label class="lbl">Name</label><input class="inp" id="admin-new-name" placeholder="Vor- und Nachname"></div>';
-  html += '<div class="ff" style="max-width:140px"><label class="lbl">Passwort</label><input class="inp" type="password" id="admin-new-pw" placeholder="Passwort"></div>';
-  html += '</div>';
-  html += '<div style="margin-bottom:10px"><label class="lbl" style="margin-bottom:6px">Hotels zuweisen</label>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-  Object.keys(HOTELS).forEach(function(hk) {
-    html += '<label style="display:flex;align-items:center;gap:6px;font-size:0.76rem;color:var(--cream);cursor:pointer;background:var(--navy3);border:1px solid var(--border);padding:6px 8px;border-radius:2px">';
-    html += '<input type="checkbox" class="admin-hotel-cb" value="'+hk+'" style="accent-color:var(--gold)">';
-    html += HOTELS[hk].nr+' '+hk;
-    html += '</label>';
-  });
-  html += '</div></div>';
-  html += '<button class="btn primary" onclick="adminAddMa()">+ Vorarbeiter anlegen</button>';
-  html += '</div>';
-
-  // ── Hotels verwalten ──
-  html += '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">';
-  html += '<div style="font-size:0.72rem;font-weight:600;color:var(--gold);margin-bottom:10px;letter-spacing:0.1em;text-transform:uppercase">&#127970; Hotels verwalten</div>';
-
-  // Existing hotels
-  html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">';
-  Object.keys(HOTELS).forEach(function(hk) {
-    var h = HOTELS[hk];
-    html += '<div style="background:var(--navy3);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    html += '<span style="font-size:0.62rem;color:var(--gold);font-weight:700;min-width:36px">'+h.nr+'</span>';
-    html += '<span style="font-size:0.78rem;color:var(--cream);flex:1">'+hk+'</span>';
-    html += '<span style="font-size:0.58rem;color:var(--muted)">'+h.ziH+' Zi/h</span>';
-    html += '<button class="btn sm danger" onclick="adminDelHotel(this)" data-hk="'+hk+'">&#10005;</button>';
-    html += '</div>';
-  });
-  html += '</div>';
-
-  // Add new hotel
-  html += '<div style="background:var(--navy3);border:1px solid var(--border2);border-radius:3px;padding:14px">';
-  html += '<div style="font-size:0.65rem;color:var(--gold);font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.1em">Neues Hotel hinzuf&uuml;gen</div>';
-  html += '<div class="frow">';
-  html += '<div class="ff" style="max-width:70px"><label class="lbl">Nr.</label><input class="inp" id="nh-nr" placeholder="1011"></div>';
-  html += '<div class="ff"><label class="lbl">Name</label><input class="inp" id="nh-name" placeholder="z.B. Mercure K&ouml;ln"></div>';
-  html += '</div>';
-  html += '<div class="frow">';
-  html += '<div class="ff"><label class="lbl">Zi/h (Standard)</label><input class="inp" type="number" id="nh-zih" value="3.0" step="0.5"></div>';
-  html += '<div class="ff"><label class="lbl">Typ</label>';
-  html += '<select class="inp" id="nh-typ">';
-  html += '<option value="standard">Standard (Zimmer + GR)</option>';
-  html += '<option value="rs">RS-Typ (DZ + Apt + Sessel)</option>';
-  html += '<option value="mc">McDreams (Zimmer + GR + Check)</option>';
-  html += '</select></div>';
-  html += '</div>';
-  html += '<div class="frow">';
-  html += '<div class="ff" style="max-width:80px"><label class="lbl">Zi/MA (Dienstplan)</label><input class="inp" type="number" id="nh-zpma" value="15"></div>';
-  html += '<div class="ff" style="max-width:80px"><label class="lbl">Check Min/Zi</label><input class="inp" type="number" id="nh-ckmin" value="4"></div>';
-  html += '</div>';
-  html += '<button class="btn primary" onclick="adminAddHotel()">+ Hotel hinzuf&uuml;gen</button>';
-  html += '</div>';
-  html += '</div>';
-
-  html += '</div>';
+  html += '</tbody><tfoot><tr style="background:var(--navy3);border-top:2px solid var(--gold)">';
+  html += '<td style="padding:6px 7px;font-weight:700;color:var(--cream)">GESAMT</td>';
+  html += '<td style="text-align:center;font-weight:700;color:var(--gold)">'+totZi+'</td>';
+  html += '<td style="text-align:center;font-weight:700;color:#90caf9">'+totStd.toFixed(2)+' h</td>';
+  html += '<td style="text-align:center;font-weight:700;color:#81c784">'+totBet.toFixed(2)+' &euro;</td>';
+  html += '<td colspan="2"></td></tr></tfoot></table></div></div>';
   c.innerHTML = html;
 }
+
+
+
+function mbUpdatePreis() {
+  var val = parseFloat(document.getElementById('mb-preis-inp')&&document.getElementById('mb-preis-inp').value)||1.50;
+  MB_PREIS_ZI = val;
+  localStorage.setItem('aj_mb_preis', val);
+  mbCalc();
+}
+
+function mbUpdateMin() {
+  var val = parseInt(document.getElementById('mb-min-inp')&&document.getElementById('mb-min-inp').value)||4;
+  MB_MIN_PRO_ZI = val;
+  localStorage.setItem('aj_mb_min', val);
+  mbCalc();
+}
+
+function mbCalc() {
+  var zi=parseFloat(gv('mb-zi'))||0;
+  var std=zi*MB_MIN_PRO_ZI/60; var bet=zi*MB_PREIS_ZI;
+  var se=document.getElementById('mb-std'); var be=document.getElementById('mb-bet');
+  if(se) se.value=std>0?std.toFixed(2)+' h':'';
+  if(be) be.value=bet>0?bet.toFixed(2)+' €':'';
+}
+
+function mbAdd() {
+  var hotel=USER.hotel; var zi=gv('mb-zi')||''; var dat=gv('mb-dat')||''; var ma=gv('mb-ma')||'';
+  if(!zi){toast('Zimmer eingeben!','err');return;}
+  var std=(parseFloat(zi)||0)*MB_MIN_PRO_ZI/60; var bet=(parseFloat(zi)||0)*MB_PREIS_ZI;
+  var mon=''; if(dat.indexOf('.')>=0){var p=dat.split('.');mon=(p[2]||new Date().getFullYear())+'-'+String(p[1]||1).padStart(2,'0');}else mon=new Date().toISOString().slice(0,7);
+  if(!DATA.mb) DATA.mb={};
+  if(!DATA.mb[hotel]) DATA.mb[hotel]={};
+  if(!DATA.mb[hotel][mon]) DATA.mb[hotel][mon]=[];
+  DATA.mb[hotel][mon].push({dat:dat,zi:zi,std:std.toFixed(2),betrag:bet.toFixed(2),ma:ma});
+  saveData(); toast('✓ Minibar gespeichert!','ok'); pgMb();
+}
+
+function mbDel(mon,idx) {
+  var hotel=USER.hotel;
+  if(!DATA.mb||!DATA.mb[hotel]||!DATA.mb[hotel][mon]) return;
+  DATA.mb[hotel][mon].splice(idx,1); saveData(); pgMb();
+}
+
+function pgAdmin() {
+  var c = document.getElementById('content');
+  var html = '';
+
+  // ── VORARBEITER NAMEN ──
+  html += '<div class="card" style="padding:12px 14px">';
+  html += '<div style="font-size:0.75rem;font-weight:600;color:var(--gold);letter-spacing:0.1em;margin-bottom:10px">&#128100; Vorarbeiter Namen</div>';
+  Object.keys(HOTELS).forEach(function(h) {
+    var cur = VORA_NAMES[h] || '';
+    html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">';
+    html += '<span style="font-size:0.65rem;color:var(--muted);min-width:145px;flex-shrink:0">'+h+'</span>';
+    html += '<input class="inp" id="vn_'+h.replace(/ /g,'_')+'" value="'+cur+'" placeholder="Name..." style="flex:1;font-size:0.8rem;min-width:0">';
+    html += '<button class="btn danger sm" onclick="delVoraName(\''+h+'\')" style="padding:4px 8px;font-size:0.7rem;flex-shrink:0">&#10005;</button>';
+    html += '</div>';
+  });
+  html += '<button class="btn primary" onclick="saveVoraNames()" style="width:100%;margin-top:6px">&#128190; Speichern</button>';
+  html += '</div>';
+
+  // ── PASSWÖRTER ──
+  html += '<div class="card" style="padding:12px 14px">';
+  html += '<div style="font-size:0.75rem;font-weight:600;color:var(--gold);letter-spacing:0.1em;margin-bottom:10px">&#128274; Passw&#246;rter</div>';
+  html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">';
+  html += '<span style="font-size:0.68rem;color:var(--muted);min-width:120px">Vorarbeiter PW</span>';
+  html += '<input class="inp" id="vora-pw-inp" value="'+( localStorage.getItem('aj_vora_pw')||'Vorarbeiter')+'" style="flex:1;font-size:0.82rem">';
+  html += '</div>';
+  html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">';
+  html += '<span style="font-size:0.68rem;color:var(--muted);min-width:120px">Chef PW</span>';
+  html += '<input class="inp" id="chef-pw-inp" value="'+(localStorage.getItem('aj_chef_pw2')||'AJ2026!')+'" style="flex:1;font-size:0.82rem">';
+  html += '</div>';
+  html += '<button class="btn primary" onclick="savePws()" style="width:100%;margin-top:4px">&#128274; Passw&#246;rter speichern</button>';
+  html += '</div>';
+
+  // ── GOOGLE SHEETS ──
+  var sheetsUrl = localStorage.getItem('aj_sheets_url') || SHEETS_URL || '';
+  html += '<div class="card" style="padding:12px 14px">';
+  html += '<div style="font-size:0.75rem;font-weight:600;color:var(--gold);letter-spacing:0.1em;margin-bottom:8px">&#128279; Google Sheets URL</div>';
+  html += '<input class="inp" id="sheets-url-inp" value="'+sheetsUrl+'" placeholder="https://script.google.com/..." style="width:100%;font-size:0.7rem;margin-bottom:6px">';
+  html += '<button class="btn primary sm" onclick="saveAndTestSheets()">Speichern &amp; Testen</button>';
+  html += '<div id="sheets-status" style="font-size:0.65rem;margin-top:5px;color:var(--muted)">'+( sheetsUrl?'<span style="color:#5dbf8a">&#10003; URL gespeichert</span>':'Noch keine URL') +'</div>';
+  html += '</div>';
+
+  c.innerHTML = html;
+}
+
+function delVoraName(hotel) {
+  VORA_NAMES[hotel] = '';
+  localStorage.removeItem('aj_vora_'+hotel);
+  var inp = document.getElementById('vn_'+hotel.replace(/ /g,'_'));
+  if (inp) inp.value = '';
+  toast('\u2713 Name gel\u00f6scht!','ok');
+}
+
+function savePws() {
+  var voraPw = document.getElementById('vora-pw-inp')&&document.getElementById('vora-pw-inp').value.trim();
+  var chefPw = document.getElementById('chef-pw-inp')&&document.getElementById('chef-pw-inp').value.trim();
+  if (voraPw) localStorage.setItem('aj_vora_pw', voraPw);
+  if (chefPw) localStorage.setItem('aj_chef_pw2', chefPw);
+  toast('\u2713 Passw\u00f6rter gespeichert!','ok');
+}
+
 
 function adminDelHotel(btn) {
   var hk = btn.getAttribute('data-hk');
@@ -2937,6 +3087,20 @@ function dienstplanPdf() {
 // ═══════════════════════════════
 // R1CLEAN LEISTUNGSÜBERSICHT + STUNDENZETTEL
 // ═══════════════════════════════
+
+var R1_PREISE = {
+  'RS Hotel Bruhl':         9.00,
+  'Atrium Apart Bruhl':    10.50,
+  'McDreams Wuppertal':     6.50,
+  'McDreams Dusseldorf':    6.50,
+  'McDreams Essen':         6.50,
+  'McDreams MG':            6.50,
+  'Four Points Ratingen':   9.00,
+  'Ramada Ratingen':        9.00,
+  'FOUR Essen City Centre': 9.00,
+  'Spark by Hilton Essen':  6.50
+};
+
 function pgR1() {
   var c = document.getElementById('content');
   var hotel = USER.hotel;
