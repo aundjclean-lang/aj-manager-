@@ -362,6 +362,9 @@ if (!DATA.pw) DATA.pw = {};
 if (!DATA.hotels) DATA.hotels = {};
 if (!DATA.r1) DATA.r1 = {};
 
+// Load Vorarbeiter names from Sheets on page load
+setTimeout(function(){ loadVoraNamesFromSheets(); }, 1000);
+
 // Vorarbeiter Voreinstellungen (werden nur gesetzt wenn noch nicht vorhanden)
 // Vorarbeiter setup runs after saveData is defined
 var currentTab = '';
@@ -373,6 +376,52 @@ function saveChefWa() {
   localStorage.setItem('aj_chef_wa', nr);
   CHEF_WA_NR = nr;
   toast('\u2713 WhatsApp Nummer gespeichert!','ok');
+}
+
+
+
+// ═══════════════════════════════
+// VORARBEITER NAMEN - GOOGLE SHEETS
+// ═══════════════════════════════
+function loadVoraNamesFromSheets() {
+  if (!SHEETS_URL) return;
+  fetch(SHEETS_URL + '?action=get_vora_names', {method:'GET', mode:'cors'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.status==='ok' && d.names) {
+        Object.keys(d.names).forEach(function(h){
+          if (d.names[h]) VORA_NAMES[h] = d.names[h];
+        });
+      }
+    })
+    .catch(function(){});
+}
+
+function saveVoraNamesToSheets(names) {
+  if (!SHEETS_URL) return;
+  fetch(SHEETS_URL, {
+    method:'POST', mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({type:'save_vora_names', names:names})
+  }).then(function(){
+    toast('\u2713 Namen in Google Sheets gespeichert!','ok');
+  }).catch(function(){});
+}
+
+function saveVoraNames() {
+  var hotels = Object.keys(HOTELS);
+  var allNames = {};
+  hotels.forEach(function(h) {
+    var inp = document.getElementById('vora_nm_'+h.replace(/ /g,'_'));
+    if (inp) {
+      var val = inp.value.trim();
+      localStorage.setItem('aj_vora_'+h, val);
+      VORA_NAMES[h] = val;
+      allNames[h] = val;
+    }
+  });
+  // Save to Google Sheets so all devices get updated names
+  saveVoraNamesToSheets(allNames);
 }
 
 function saveAllPw() {
@@ -477,15 +526,14 @@ function buildVoraHotelList() {
 }
 
 function showVoraPw() {
-  var name  = (document.getElementById('v-name').value||'').trim();
   var hotel = gv('v-hotel');
-  if (!name)  { toast('Name eingeben!','err'); return; }
+  var name  = (document.getElementById('v-name')&&document.getElementById('v-name').value||'').trim();
   if (!hotel) { toast('Hotel ausw\u00e4hlen!','err'); return; }
-  // Always show password field
+  if (!name)  { toast('Name eingeben!','err'); return; }
   var wrap = document.getElementById('v-pw-wrap');
   if (wrap) { wrap.style.display=''; }
   var pwInp = document.getElementById('v-pw');
-  if (pwInp) { pwInp.placeholder='Passwort f\u00fcr '+hotel; pwInp.focus(); }
+  if (pwInp) { pwInp.value=''; pwInp.focus(); }
 }
 
 function showVoraHotels() {
@@ -537,8 +585,14 @@ function loginChef() {
 function loginVora() {
   var hotel = gv('v-hotel');
   var name  = gv('v-name').trim();
+  var pw    = gv('v-pw').trim();
   if (!hotel) { toast('Hotel ausw\u00e4hlen!','err'); return; }
   if (!name)  { toast('Name eingeben!','err'); return; }
+  if (pw !== 'Vorarbeiter') {
+    var errEl = document.getElementById('v-pw-err');
+    if (errEl) { errEl.style.display='block'; errEl.textContent='Falsches Passwort!'; }
+    toast('Falsches Passwort!','err'); return;
+  }
   USER = {role:'vora', hotel:hotel, name:name};
   startApp();
 }
@@ -549,6 +603,8 @@ function doLogout() {
   document.getElementById('vora-form').style.display = 'none';
 }
 function startApp() {
+  // Load latest Vorarbeiter names from Google Sheets
+  loadVoraNamesFromSheets();
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').classList.add('show');
   document.getElementById('tb-user').textContent = USER.name;
@@ -610,7 +666,7 @@ function autoFillVora() {
   var hotel = gv('v-hotel');
   var nameInp = document.getElementById('v-name');
   if (!nameInp) return;
-  var preset = VORA_NAMES[hotel] || '';
+  var preset = localStorage.getItem('aj_vora_'+hotel) || VORA_NAMES[hotel] || '';
   if (preset) {
     nameInp.value = preset;
     nameInp.style.color = 'var(--gold)';
