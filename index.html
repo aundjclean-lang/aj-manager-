@@ -272,45 +272,6 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 </head>
 <body>
-<script>
-// All login functions defined early for iOS Safari compatibility
-function showStep(id){
-  var steps=['step1','step-vora','step-chef'];
-  for(var i=0;i<steps.length;i++){
-    var el=document.getElementById(steps[i]);
-    if(el) el.style.display=(steps[i]===id)?'':'none';
-  }
-}
-function loginChef_real(){
-window._loginChef=loginChef_real;
-  if(window._loginChef) return window._loginChef();
-  // Wait for main script
-  var t=0;
-  var wait=setInterval(function(){
-    t++;
-    if(window._loginChef){clearInterval(wait);window._loginChef();}
-    if(t>20) clearInterval(wait);
-  },100);
-}
-function doVoraLogin_real(){
-window._doVoraLogin=doVoraLogin_real;
-  if(window._doVoraLogin) return window._doVoraLogin();
-  var t=0;
-  var wait=setInterval(function(){
-    t++;
-    if(window._doVoraLogin){clearInterval(wait);window._doVoraLogin();}
-    if(t>20) clearInterval(wait);
-  },100);
-}
-function initVoraLogin_real(){
-window._initVoraLogin=initVoraLogin_real;
-  if(window._initVoraLogin) return window._initVoraLogin();
-}
-function doLogout_real(){
-window._doLogout=doLogout_real;
-  if(window._doLogout) return window._doLogout();
-}
-</script>
 
 <div id="debug-msg" style="position:fixed;top:0;left:0;right:0;background:#0d1b2a;color:#c8a84b;padding:8px;font-family:Arial,sans-serif;font-size:13px;z-index:99999;display:none"></div>
 <script>
@@ -3125,43 +3086,26 @@ window.open(‘https://wa.me/?text=’+encodeURIComponent(text),’_blank’);
 </script>
 
 <script>
-// Attach all login events after DOM is ready
-(function attachLoginEvents(){
-  function safe(id, fn){
-    var el = document.getElementById(id);
-    if(el){ el.onclick = fn; return true; }
-    return false;
-  }
+(function(){
   function attach(){
-    safe('btn-teamleader', function(){
-      showStep('step-vora');
-      if(typeof initVoraLogin_real==='function') initVoraLogin_real();
-      else if(typeof initVoraLogin==='function') initVoraLogin();
-    });
-    safe('btn-chef-login', function(){ showStep('step-chef'); });
-    safe('btn-do-chef-login', function(){
-      if(typeof loginChef_real==='function') loginChef_real();
-      else if(typeof loginChef==='function') loginChef();
-    });
-    safe('btn-do-vora-login', function(){
-      if(typeof doVoraLogin_real==='function') doVoraLogin_real();
-      else if(typeof doVoraLogin==='function') doVoraLogin();
-    });
-    safe('btn-back-from-vora', function(){ showStep('step1'); });
-    safe('btn-back-from-chef', function(){ showStep('step1'); });
-    safe('btn-logout', function(){
-      if(typeof doLogout_real==='function') doLogout_real();
-      else if(typeof doLogout==='function') doLogout();
-    });
+    var m = {
+      'btn-teamleader': function(){ showStep('step-vora'); initVoraLogin(); },
+      'btn-chef-login': function(){ showStep('step-chef'); },
+      'btn-do-chef-login': function(){ loginChef(); },
+      'btn-do-vora-login': function(){ doVoraLogin(); },
+      'btn-back-from-vora': function(){ showStep('step1'); },
+      'btn-back-from-chef': function(){ showStep('step1'); },
+      'btn-logout': function(){ doLogout(); }
+    };
+    for(var id in m){
+      (function(id, fn){
+        var el = document.getElementById(id);
+        if(el) el.onclick = fn;
+      })(id, m[id]);
+    }
   }
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded', attach);
-  } else {
-    attach();
-  }
-  // Also retry after main script loads
-  setTimeout(attach, 500);
-  setTimeout(attach, 1500);
+  document.addEventListener('DOMContentLoaded', attach);
+  setTimeout(attach, 800);
 })();
 </script>
 
