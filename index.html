@@ -357,6 +357,14 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 <div class="toast" id="toast"></div>
 
 <script>
+// Early definition of showStep to prevent errors
+window.showStep = function(id){
+  ['step1','step-vora','step-chef'].forEach(function(s){
+    var el=document.getElementById(s);
+    if(el) el.style.display=s===id?'':'none';
+  });
+};
+
 // SAFE ELEMENT ACCESS
 function gv(id){var e=document.getElementById(id);return e?e.value:'';}
 // ── Polyfills für alte iOS ──
