@@ -308,12 +308,12 @@ function showStep(id){
 ```
 <div id="step1">
   <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px">Wer bist du?</p>
-  <button class="role-btn" onclick="showStep('step-vora');initVoraLogin()">
+  <button class="role-btn" onclick="(window.showStep||function(){})('step-vora');(window.initVoraLogin||function(){})()">
     <span style="font-size:1.1rem">📋</span>
     <div>TEAMLEADER<span class="role-desc">Stundenzettel · Tagesabrechnung · Dienstplan</span></div>
   </button>
   <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-    <button onclick="showStep('step-chef')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
+    <button onclick="(window.showStep||function(){})('step-chef')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
       🔒 Chef / Admin Login
     </button>
   </div>
@@ -339,7 +339,7 @@ function showStep(id){
   <button onclick="doVoraLogin()" style="width:100%;background:var(--gold);color:var(--navy);border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.85rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px;border-radius:3px;cursor:pointer">
     Einloggen
   </button>
-  <button onclick="showStep('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:6px;margin-top:8px">
+  <button onclick="(window.showStep||function(){})('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:6px;margin-top:8px">
     ← Zurück
   </button>
 </div>
@@ -353,7 +353,7 @@ function showStep(id){
   <button class="role-btn gold" style="justify-content:center;margin-bottom:8px" onclick="loginChef()">
     <span>✓</span>&nbsp; Als Chef einloggen
   </button>
-  <button onclick="showStep('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
+  <button onclick="(window.showStep||function(){})('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
     ← Zurück
   </button>
 </div>
@@ -385,6 +385,15 @@ window.showStep = function(id){
     var el=document.getElementById(s);
     if(el) el.style.display=s===id?'':'none';
   });
+};
+
+// Make all login functions global immediately
+window.showStep = function(id){
+  var steps=['step1','step-vora','step-chef'];
+  for(var i=0;i<steps.length;i++){
+    var el=document.getElementById(steps[i]);
+    if(el) el.style.display=(steps[i]===id)?'':'none';
+  }
 };
 
 // SAFE ELEMENT ACCESS
