@@ -1,94 +1,458 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>A&J Manager</title>
-
-<style>
-body {
-  margin: 0;
-  font-family: Arial;
-  background: #0d1b2a;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
-
-.login-box {
-  background: #111f2e;
-  padding: 30px;
-  border-radius: 12px;
-  width: 300px;
-  text-align: center;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: none;
-}
-
-button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 15px;
-  background: gold;
-  border: none;
-  border-radius: 6px;
-  font-weight: bold;
-}
-
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A&J Manager</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d1b2a;
+      color: #fff;
+    }
+    .screen {
+      min-height: 100vh;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .screen.active { display: flex; }
+    .card {
+      background: #111f2e;
+      border-radius: 14px;
+      padding: 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+    }
+    .logo {
+      text-align: center;
+      color: gold;
+      font-size: 42px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .sub {
+      text-align: center;
+      color: #d9d9d9;
+      margin-bottom: 18px;
+      font-size: 18px;
+    }
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: gold;
+      color: #111;
+      font-weight: 700;
+      font-size: 16px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    button.secondary {
+      background: #2a3b52;
+      color: #fff;
+    }
+    .error {
+      color: #ff5b5b;
+      text-align: center;
+      min-height: 22px;
+      font-weight: 700;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .topbar h1 {
+      margin: 0;
+      font-size: 26px;
+      color: gold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #203047;
+      color: #fff;
+    }
+    .section {
+      background: #16263a;
+      padding: 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .section h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      color: gold;
+    }
+    .user-row {
+      background: #203047;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .user-row strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    .small {
+      font-size: 13px;
+      color: #d8d8d8;
+    }
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .stat {
+      background: #203047;
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+    }
+    .stat .n {
+      font-size: 28px;
+      font-weight: 800;
+      color: gold;
+    }
+    .stat .t {
+      font-size: 13px;
+      color: #ddd;
+    }
+    .muted {
+      color: #cfd8e3;
+      font-size: 14px;
+    }
+    @media (max-width: 600px) {
+      .two { grid-template-columns: 1fr; }
+      .card { padding: 18px; }
+      .logo { font-size: 36px; }
+    }
+  </style>
 </head>
-
 <body>
 
-<div class="login-box">
-  <h2 style="color: gold;">A&J</h2>
-  <p>Login</p>
+  <!-- LOGIN -->
+  <div id="loginScreen" class="screen active">
+    <div class="card">
+      <div class="logo">A&J</div>
+      <div class="sub">Manager Login</div>
 
-  <input id="user" placeholder="Name eingeben">
+      <input id="loginName" type="text" placeholder="Name eingeben, z. B. Akram" />
+      <button onclick="login()">Einloggen</button>
+      <div id="loginError" class="error"></div>
 
-  <button onclick="login()">Einloggen</button>
-</div>
+      <div class="small" style="text-align:center; margin-top:10px;">
+        Erstmal ohne Passwort. Passwörter kannst du später im Admin-Bereich setzen.
+      </div>
+    </div>
+  </div>
 
-<script>
+  <!-- APP -->
+  <div id="appScreen" class="screen">
+    <div class="card" style="max-width: 900px;">
+      <div class="topbar">
+        <h1>A&J Manager</h1>
+        <div>
+          <span id="currentUserBadge" class="badge"></span>
+        </div>
+      </div>
 
-// 👇 HIER KOMMEN DEINE USER + ROLLEN
-let users = {
-  "akram": "admin",
-  "linda": "teamleader",
-  "max": "mitarbeiter"
-};
+      <div class="two" style="margin-bottom:14px;">
+        <div class="stat">
+          <div id="statUsers" class="n">0</div>
+          <div class="t">Benutzer</div>
+        </div>
+        <div class="stat">
+          <div id="statRole" class="n">-</div>
+          <div class="t">Deine Rolle</div>
+        </div>
+      </div>
 
-// 👇 LOGIN (ohne Passwort)
-function login() {
-  const user = document.getElementById("user").value.toLowerCase();
+      <div class="section">
+        <h3>Willkommen</h3>
+        <div id="welcomeText" class="muted"></div>
+      </div>
 
-  if (!user) {
-    alert("Bitte Namen eingeben");
-    return;
-  }
+      <div class="section" id="adminSection" style="display:none;">
+        <h3>Benutzer verwalten</h3>
 
-  // wenn user nicht existiert → automatisch Mitarbeiter
-  if (!users[user]) {
-    users[user] = "mitarbeiter";
-  }
+        <input id="newUserName" type="text" placeholder="Neuen Namen eingeben" />
+        <select id="newUserRole">
+          <option value="mitarbeiter">Mitarbeiter</option>
+          <option value="teamleader">Teamleader</option>
+          <option value="admin">Admin</option>
+        </select>
+        <input id="newUserPassword" type="text" placeholder="Passwort optional" />
+        <button onclick="addOrUpdateUser()">Benutzer speichern</button>
 
-  // speichern (wichtig!)
-  localStorage.setItem("user", user);
-  localStorage.setItem("role", users[user]);
+        <div id="userList"></div>
+      </div>
 
-  // weiter zur App
-  window.location.href = "dashboard.html";
-}
+      <button class="secondary" onclick="logout()">Logout</button>
+    </div>
+  </div>
 
-</script>
+  <script>
+    const STORAGE_KEY = "aj_manager_users_v1";
+    const SESSION_USER_KEY = "aj_manager_current_user_v1";
 
+    function defaultUsers() {
+      return {
+        "akram": { name: "Akram", role: "admin", password: "" }
+      };
+    }
+
+    function loadUsers() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        const defs = defaultUsers();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defs));
+        return defs;
+      }
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        const defs = defaultUsers();
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(defs));
+        return defs;
+      }
+    }
+
+    function saveUsers(users) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+
+    function normalizeName(name) {
+      return (name || "").trim().toLowerCase();
+    }
+
+    function roleLabel(role) {
+      if (role === "admin") return "Admin";
+      if (role === "teamleader") return "Teamleader";
+      return "Mitarbeiter";
+    }
+
+    function login() {
+      const input = document.getElementById("loginName");
+      const error = document.getElementById("loginError");
+      const key = normalizeName(input.value);
+
+      error.textContent = "";
+
+      if (!key) {
+        error.textContent = "Bitte Namen eingeben.";
+        return;
+      }
+
+      const users = loadUsers();
+
+      if (!users[key]) {
+        const displayName = input.value.trim();
+        users[key] = {
+          name: displayName,
+          role: "mitarbeiter",
+          password: ""
+        };
+        saveUsers(users);
+      }
+
+      localStorage.setItem(SESSION_USER_KEY, key);
+      showApp();
+    }
+
+    function logout() {
+      localStorage.removeItem(SESSION_USER_KEY);
+      document.getElementById("appScreen").classList.remove("active");
+      document.getElementById("loginScreen").classList.add("active");
+      document.getElementById("loginName").value = "";
+      document.getElementById("loginError").textContent = "";
+    }
+
+    function getCurrentUser() {
+      const key = localStorage.getItem(SESSION_USER_KEY);
+      if (!key) return null;
+      const users = loadUsers();
+      if (!users[key]) return null;
+      return { key, ...users[key] };
+    }
+
+    function showApp() {
+      const current = getCurrentUser();
+      if (!current) {
+        logout();
+        return;
+      }
+
+      document.getElementById("loginScreen").classList.remove("active");
+      document.getElementById("appScreen").classList.add("active");
+
+      document.getElementById("currentUserBadge").textContent =
+        current.name + " • " + roleLabel(current.role);
+
+      document.getElementById("welcomeText").textContent =
+        "Du bist als " + current.name + " eingeloggt. Rolle: " + roleLabel(current.role) + ".";
+
+      const users = loadUsers();
+      document.getElementById("statUsers").textContent = Object.keys(users).length;
+      document.getElementById("statRole").textContent = roleLabel(current.role);
+
+      if (current.role === "admin") {
+        document.getElementById("adminSection").style.display = "block";
+        renderUserList();
+      } else {
+        document.getElementById("adminSection").style.display = "none";
+      }
+    }
+
+    function addOrUpdateUser() {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+
+      const nameInput = document.getElementById("newUserName");
+      const roleInput = document.getElementById("newUserRole");
+      const pwInput = document.getElementById("newUserPassword");
+
+      const rawName = nameInput.value.trim();
+      const key = normalizeName(rawName);
+
+      if (!key) {
+        alert("Bitte Namen eingeben.");
+        return;
+      }
+
+      const users = loadUsers();
+      users[key] = {
+        name: rawName,
+        role: roleInput.value,
+        password: pwInput.value.trim()
+      };
+      saveUsers(users);
+
+      nameInput.value = "";
+      roleInput.value = "mitarbeiter";
+      pwInput.value = "";
+
+      renderUserList();
+      showApp();
+      alert("Benutzer gespeichert.");
+    }
+
+    function changeRole(userKey, newRole) {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+
+      const users = loadUsers();
+      if (!users[userKey]) return;
+
+      users[userKey].role = newRole;
+      saveUsers(users);
+      renderUserList();
+      showApp();
+    }
+
+    function changePassword(userKey, newPassword) {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+
+      const users = loadUsers();
+      if (!users[userKey]) return;
+
+      users[userKey].password = newPassword;
+      saveUsers(users);
+    }
+
+    function deleteUser(userKey) {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+      if (userKey === "akram") {
+        alert("Akram kann nicht gelöscht werden.");
+        return;
+      }
+
+      const users = loadUsers();
+      delete users[userKey];
+      saveUsers(users);
+      renderUserList();
+      showApp();
+    }
+
+    function renderUserList() {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+
+      const users = loadUsers();
+      const wrap = document.getElementById("userList");
+      wrap.innerHTML = "";
+
+      Object.keys(users).forEach((key) => {
+        const user = users[key];
+
+        const row = document.createElement("div");
+        row.className = "user-row";
+
+        const name = document.createElement("strong");
+        name.textContent = user.name;
+        row.appendChild(name);
+
+        const role = document.createElement("select");
+        role.innerHTML = `
+          <option value="mitarbeiter">Mitarbeiter</option>
+          <option value="teamleader">Teamleader</option>
+          <option value="admin">Admin</option>
+        `;
+        role.value = user.role;
+        role.onchange = () => changeRole(key, role.value);
+        row.appendChild(role);
+
+        const pw = document.createElement("input");
+        pw.type = "text";
+        pw.placeholder = "Passwort ändern";
+        pw.value = user.password || "";
+        pw.onchange = () => changePassword(key, pw.value.trim());
+        row.appendChild(pw);
+
+        const info = document.createElement("div");
+        info.className = "small";
+        info.style.marginBottom = "8px";
+        info.textContent = "Später kannst du hier echte Passwort-Prüfung aktivieren.";
+        row.appendChild(info);
+
+        const del = document.createElement("button");
+        del.className = "secondary";
+        del.textContent = "Benutzer löschen";
+        del.onclick = () => deleteUser(key);
+        row.appendChild(del);
+
+        wrap.appendChild(row);
+      });
+    }
+
+    window.onload = function () {
+      if (localStorage.getItem(SESSION_USER_KEY)) {
+        showApp();
+      }
+    };
+  </script>
 </body>
 </html>
