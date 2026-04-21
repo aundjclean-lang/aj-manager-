@@ -272,6 +272,16 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 </head>
 <body>
+<script>
+// Critical functions needed before main script loads
+function showStep(id){
+  var steps=['step1','step-vora','step-chef'];
+  for(var i=0;i<steps.length;i++){
+    var el=document.getElementById(steps[i]);
+    if(el) el.style.display=(steps[i]===id)?'':'none';
+  }
+}
+</script>
 
 <div id="debug-msg" style="position:fixed;top:0;left:0;right:0;background:#0d1b2a;color:#c8a84b;padding:8px;font-family:Arial,sans-serif;font-size:13px;z-index:99999;display:none"></div>
 <script>
