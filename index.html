@@ -228,33 +228,45 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 }
 </style>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK via multiple CDN fallbacks -->
 
   <script>
-  // Load Firebase SDK dynamically to handle errors gracefully
   (function(){
-    function loadScript(src, cb){
-      var s=document.createElement('script');
-      s.src=src;
-      s.crossOrigin='anonymous';
-      s.onload=cb||function(){};
-      s.onerror=function(){console.log('Firebase script load error:',src);};
-      document.head.appendChild(s);
+    var loaded = 0;
+    var cdns = [
+      ['https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js',
+       'https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js'],
+      ['https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-app.js',
+       'https://cdn.jsdelivr.net/npm/firebase@8.10.1/firebase-database.js'],
+      ['https://cdnjs.cloudflare.com/ajax/libs/firebase/8.10.1/firebase-app.js',
+       'https://cdnjs.cloudflare.com/ajax/libs/firebase/8.10.1/firebase-database.js']
+    ];
+    var tried = 0;
+    function tryLoad(idx){
+      if(idx >= cdns.length){ console.log('All Firebase CDNs failed'); return; }
+      var s1 = document.createElement('script');
+      s1.src = cdns[idx][0];
+      s1.onload = function(){
+        var s2 = document.createElement('script');
+        s2.src = cdns[idx][1];
+        s2.onload = function(){
+          console.log('Firebase loaded from CDN '+idx);
+          setTimeout(function(){
+            try{
+              var cfg=typeof fbGetCfg==='function'?fbGetCfg():null;
+              if(cfg&&cfg.databaseURL&&typeof firebase!=='undefined'){
+                if(typeof fbInit==='function') fbInit(cfg);
+              }
+            }catch(e){console.log('Firebase auto-init error:',e);}
+          }, 300);
+        };
+        s2.onerror = function(){ tryLoad(idx+1); };
+        document.head.appendChild(s2);
+      };
+      s1.onerror = function(){ tryLoad(idx+1); };
+      document.head.appendChild(s1);
     }
-    loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js', function(){
-      loadScript('https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js', function(){
-        console.log('Firebase SDK loaded');
-        // Auto-init after SDK loads
-        setTimeout(function(){
-          try{
-            var cfg=typeof fbGetCfg==='function'?fbGetCfg():null;
-            if(cfg&&cfg.databaseURL&&typeof firebase!=='undefined'){
-              if(typeof fbInit==='function') fbInit(cfg);
-            }
-          }catch(e){console.log('Firebase auto-init error:',e);}
-        }, 500);
-      });
-    });
+    tryLoad(0);
   })();
   </script>
 
@@ -996,7 +1008,7 @@ function buildTaRows(mas,cfg,saved){
       rows+='<td><input class="ta-inp" type="number" min="0" id="ta_son_'+ri+'" value="'+sv.son+'" oninput="taCalc('+ri+')" placeholder=""></td>';
       rows+='<td><input class="ta-inp" type="number" min="0" id="ta_auf_'+ri+'" value="'+sv.auf+'" oninput="taCalc('+ri+')" placeholder=""></td>';
     }
-    rows+='<td><input class="ta-inp ai" id="ta_ist_'+ri+'" readonly value="'+sv.ist+'" placeholder="–"></td>';
+    rows+='<td><input class="ta-inp ai" id="ta_ist_'+ri+'" readonly value="'+sv.ist+'" placeholder="-"></td>';
     rows+='</tr>';
   }
   var isRSges=hotel.indexOf('Bruhl')>=0;
@@ -1005,8 +1017,8 @@ function buildTaRows(mas,cfg,saved){
   var gcols=isRSges?['zi','gr','ses','chk','pub','son','auf']:isMCges?['zi','gr','chk','pub']:isSparkGes?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];
   rows+='<tr class="ges-row">';
   rows+='<td style="padding:6px 7px;font-weight:700;font-size:0.78rem;color:var(--cream)">Gesamt / Total:</td>';
-  gcols.forEach(function(col){rows+='<td class="ta-ges-v" id="tages_'+col+'">–</td>';});
-  rows+='<td class="ta-ges-v" id="tages_ist" style="color:#81c784">–</td>';
+  gcols.forEach(function(col){rows+='<td class="ta-ges-v" id="tages_'+col+'">-</td>';});
+  rows+='<td class="ta-ges-v" id="tages_ist" style="color:#81c784">-</td>';
   rows+='</tr>';
   tbody.innerHTML=rows;
   for(var ri2=0;ri2<TA_ROWS;ri2++){
@@ -1056,12 +1068,12 @@ function taCalcGes(){
     var sum=0;
     for(var ri=0;ri<TA_ROWS;ri++) sum+=parseFloat(gv('ta_'+col+'_'+ri))||0;
     var el=document.getElementById('tages_'+col);
-    if(el) el.textContent=sum||'–';
+    if(el) el.textContent=sum||'-';
   });
   var sumIst=0;
   for(var ri=0;ri<TA_ROWS;ri++) sumIst+=parseFloat(gv('ta_ist_'+ri))||0;
   var el=document.getElementById('tages_ist');
-  if(el) el.textContent=sumIst>0?sumIst.toFixed(2)+' h':'–';
+  if(el) el.textContent=sumIst>0?sumIst.toFixed(2)+' h':'-';
 }
 
 function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
@@ -1182,8 +1194,8 @@ function pgSz(){
   html+='</tr></thead><tbody id="sz-body"></tbody></table></div>';
   html+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   html+='<div style="flex:1;min-width:180px;background:var(--navy3);border:1px solid var(--border2);padding:7px 10px;border-radius:2px;font-size:0.76rem;display:flex;gap:14px;flex-wrap:wrap">';
-  html+='Gesamt: <b style="color:var(--gold)" id="sz-ges-ist">– h</b>';
-  html+='&nbsp;Zimmer: <b style="color:var(--gold)" id="sz-ges-zi">–</b>';
+  html+='Gesamt: <b style="color:var(--gold)" id="sz-ges-ist">- h</b>';
+  html+='&nbsp;Zimmer: <b style="color:var(--gold)" id="sz-ges-zi">-</b>';
   html+='</div>';
   html+='<button class="btn sm" onclick="printAsPdf()" title="Als PDF speichern">🖶 PDF</button>';
   html+='<button class="btn sm" onclick="shareWhatsApp()" style="background:rgba(37,211,102,0.15);border-color:rgba(37,211,102,0.4);color:#25d366" title="Per WhatsApp teilen">🔗 WhatsApp</button>';
@@ -1226,29 +1238,29 @@ function szBuildRows(monat,cfg){
     rows+='<tr id="szr'+day+'">';
     rows+='<td class="sz-nr">'+day+'</td>';
     rows+='<td><input class="sz-inp" id="sz_von_'+day+'" value="'+(sv.von||'')+'" placeholder="'+von+'" maxlength="5" oninput="this.dataset.manual=1;szCalcRow('+day+')" onblur="szFmtTime('+day+')"></td>';
-    rows+='<td><input class="sz-inp at" id="sz_bis_'+day+'" readonly value="'+(sv.bis||'')+'" placeholder="–"></td>';
-    rows+='<td><input class="sz-inp pa" id="sz_pau_'+day+'" readonly value="'+(sv.pause||'')+'" placeholder="–"></td>';
-    rows+='<td><input class="sz-inp" id="sz_sol_'+day+'" value="'+(sv.soll||'')+'" placeholder="–"></td>';
-    rows+='<td><input class="sz-inp ai" id="sz_ist_'+day+'" readonly value="'+(sv.ist||'')+'" placeholder="–"></td>';
-    rows+='<td><input class="sz-inp zi" type="number" min="0" id="sz_zi_'+day+'" value="'+(sv.zi||'')+'" oninput="szAutoVon('+day+');szCalcRow('+day+')" placeholder="–"></td>';
+    rows+='<td><input class="sz-inp at" id="sz_bis_'+day+'" readonly value="'+(sv.bis||'')+'" placeholder="-"></td>';
+    rows+='<td><input class="sz-inp pa" id="sz_pau_'+day+'" readonly value="'+(sv.pause||'')+'" placeholder="-"></td>';
+    rows+='<td><input class="sz-inp" id="sz_sol_'+day+'" value="'+(sv.soll||'')+'" placeholder="-"></td>';
+    rows+='<td><input class="sz-inp ai" id="sz_ist_'+day+'" readonly value="'+(sv.ist||'')+'" placeholder="-"></td>';
+    rows+='<td><input class="sz-inp zi" type="number" min="0" id="sz_zi_'+day+'" value="'+(sv.zi||'')+'" oninput="szAutoVon('+day+');szCalcRow('+day+')" placeholder="-"></td>';
     if(isRSrow){
-      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_gr_'+day+'" value="'+(sv.gr||'')+'" oninput="szCalcRow('+day+')" placeholder="–" style="background:rgba(0,60,140,0.1)"></td>';
-      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_ses_'+day+'" value="'+(sv.ses||'')+'" oninput="szCalcRow('+day+')" placeholder="–"></td>';
+      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_gr_'+day+'" value="'+(sv.gr||'')+'" oninput="szCalcRow('+day+')" placeholder="-" style="background:rgba(0,60,140,0.1)"></td>';
+      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_ses_'+day+'" value="'+(sv.ses||'')+'" oninput="szCalcRow('+day+')" placeholder="-"></td>';
     } else {
-      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_gr_'+day+'" value="'+(sv.gr||'')+'" oninput="szCalcRow('+day+')" placeholder="–"></td>';
+      rows+='<td><input class="sz-inp" type="number" min="0" id="sz_gr_'+day+'" value="'+(sv.gr||'')+'" oninput="szCalcRow('+day+')" placeholder="-"></td>';
     }
-    rows+='<td><input class="sz-inp" type="number" min="0" id="sz_chk_'+day+'" value="'+(sv.chk||'')+'" oninput="szCalcRow('+day+')" placeholder="–"></td>';
-    rows+='<td><input class="sz-inp" type="number" min="0" id="sz_pa_'+day+'" value="'+(sv.pub||'')+'" oninput="szCalcRow('+day+')" placeholder="–"></td>';
+    rows+='<td><input class="sz-inp" type="number" min="0" id="sz_chk_'+day+'" value="'+(sv.chk||'')+'" oninput="szCalcRow('+day+')" placeholder="-"></td>';
+    rows+='<td><input class="sz-inp" type="number" min="0" id="sz_pa_'+day+'" value="'+(sv.pub||'')+'" oninput="szCalcRow('+day+')" placeholder="-"></td>';
     rows+='</tr>';
     if(sv.ist) szCalcRow(day);
   }
   rows+='<tr class="sz-ges">';
   rows+='<td colspan="5" style="padding:5px 8px;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);text-align:right">GESAMT</td>';
-  rows+='<td class="sz-ges-v" id="sz-tbl-ist">–</td>';
-  rows+='<td class="sz-ges-v" id="sz-tbl-zi">–</td>';
-  rows+='<td class="sz-ges-v" id="sz-tbl-gr">–</td>';
-  rows+='<td class="sz-ges-v" id="sz-tbl-chk">–</td>';
-  rows+='<td class="sz-ges-v">–</td>';
+  rows+='<td class="sz-ges-v" id="sz-tbl-ist">-</td>';
+  rows+='<td class="sz-ges-v" id="sz-tbl-zi">-</td>';
+  rows+='<td class="sz-ges-v" id="sz-tbl-gr">-</td>';
+  rows+='<td class="sz-ges-v" id="sz-tbl-chk">-</td>';
+  rows+='<td class="sz-ges-v">-</td>';
   rows+='</tr>';
   tbody.innerHTML=rows;
   szCalcGes();
@@ -1293,12 +1305,12 @@ function szCalcGes(){
   var ist=0,zi=0,gr=0,chk=0;
   for(var d=1;d<=31;d++){ist+=parseFloat(gv('sz_ist_'+d))||0;zi+=parseFloat(gv('sz_zi_'+d))||0;gr+=parseFloat(gv('sz_gr_'+d))||0;chk+=parseFloat(gv('sz_chk_'+d))||0;}
   function g(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
-  g('sz-ges-ist',ist?ist.toFixed(2)+' h':'– h');
-  g('sz-ges-zi',zi||'–');
-  g('sz-tbl-ist',ist?ist.toFixed(2)+' h':'–');
-  g('sz-tbl-zi',zi||'–');
-  g('sz-tbl-gr',gr||'–');
-  g('sz-tbl-chk',chk||'–');
+  g('sz-ges-ist',ist?ist.toFixed(2)+' h':'- h');
+  g('sz-ges-zi',zi||'-');
+  g('sz-tbl-ist',ist?ist.toFixed(2)+' h':'-');
+  g('sz-tbl-zi',zi||'-');
+  g('sz-tbl-gr',gr||'-');
+  g('sz-tbl-chk',chk||'-');
 }
 
 function saveSz(){
@@ -1383,11 +1395,11 @@ function pgTeam(){
       days.forEach(function(d){
         var t=tage[d];
         html+='<tr><td style="font-weight:700;color:var(--muted)">'+d+'</td>';
-        html+='<td>'+(t.von||'–')+'</td><td style="color:#90caf9">'+(t.bis||'–')+'</td>';
-        html+='<td><span class="badge b-gold">'+(t.zi||'–')+'</span></td>';
-        html+='<td>'+(t.gr||'–')+'</td>';
-        html+='<td><span class="badge b-ok">'+(t.ist||'–')+'</span></td>';
-        html+='<td style="color:rgba(200,168,75,0.5)">'+(t.pause||'–')+'</td></tr>';
+        html+='<td>'+(t.von||'-')+'</td><td style="color:#90caf9">'+(t.bis||'-')+'</td>';
+        html+='<td><span class="badge b-gold">'+(t.zi||'-')+'</span></td>';
+        html+='<td>'+(t.gr||'-')+'</td>';
+        html+='<td><span class="badge b-ok">'+(t.ist||'-')+'</span></td>';
+        html+='<td style="color:rgba(200,168,75,0.5)">'+(t.pause||'-')+'</td></tr>';
       });
       html+='<tr style="background:var(--navy3);border-top:2px solid var(--gold)">';
       html+='<td colspan="3" style="padding:5px 7px;font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em">GESAMT</td>';
@@ -1453,18 +1465,18 @@ function teamBuildSz(hotel,mon,filterMa){
       var sv=savedTage[day]||{};
       if(day===16){
         html+='<tr class="sz-ges"><td colspan="4" style="padding:4px 6px;font-size:0.62rem;color:var(--muted);text-align:right">Zw.summe</td>';
-        html+='<td class="sz-ges-v">'+(midIst>0?midIst.toFixed(2):'–')+'</td><td class="sz-ges-v">'+midZi+'</td><td class="sz-ges-v" colspan="2"></td></tr>';
+        html+='<td class="sz-ges-v">'+(midIst>0?midIst.toFixed(2):'-')+'</td><td class="sz-ges-v">'+midZi+'</td><td class="sz-ges-v" colspan="2"></td></tr>';
       }
       html+='<tr'+(sv.ist?' class="filled" style="background:rgba(20,50,25,0.2)"':'')+' >';
       html+='<td class="sz-nr">'+day+'</td>';
       html+='<td><input class="sz-inp" value="'+(sv.von||'')+'" readonly></td>';
       html+='<td><input class="sz-inp at" value="'+(sv.bis||'')+'" readonly></td>';
       html+='<td><input class="sz-inp pa" value="'+(sv.pause||'')+'" readonly></td>';
-      html+='<td><input class="sz-inp ai" value="'+(sv.ist||'')+'" placeholder="–" readonly></td>';
-      html+='<td><input class="sz-inp zi" value="'+(sv.zi||'')+'" placeholder="–" readonly></td>';
-      html+='<td><input class="sz-inp" value="'+(sv.gr||'')+'" placeholder="–" readonly></td>';
-      if(isRS) html+='<td><input class="sz-inp" value="'+(sv.ses||'')+'" placeholder="–" readonly></td>';
-      html+='<td><input class="sz-inp" value="'+(sv.chk||'')+'" placeholder="–" readonly></td>';
+      html+='<td><input class="sz-inp ai" value="'+(sv.ist||'')+'" placeholder="-" readonly></td>';
+      html+='<td><input class="sz-inp zi" value="'+(sv.zi||'')+'" placeholder="-" readonly></td>';
+      html+='<td><input class="sz-inp" value="'+(sv.gr||'')+'" placeholder="-" readonly></td>';
+      if(isRS) html+='<td><input class="sz-inp" value="'+(sv.ses||'')+'" placeholder="-" readonly></td>';
+      html+='<td><input class="sz-inp" value="'+(sv.chk||'')+'" placeholder="-" readonly></td>';
       html+='</tr>';
       if(sv.ist&&day<=15){midIst+=parseFloat(sv.ist)||0;midZi+=parseInt(sv.zi)||0;}
     }
@@ -1555,8 +1567,8 @@ function luBuildRows(saved,cfg){
     var sv=(saved.rows&&saved.rows[day])||{};
     if(day===16&&!isMC){
       rows+='<tr class="mid-row"><td style="padding:5px 4px;font-weight:700;font-size:0.68rem;color:var(--muted)">Zwischen-<br>summe</td>';
-      cols.forEach(function(col){rows+='<td class="lu-ges-v" id="lu_mid_'+col+'">–</td>';});
-      rows+='<td class="lu-ges-v" id="lu_mid_ist" style="color:#81c784">–</td></tr>';
+      cols.forEach(function(col){rows+='<td class="lu-ges-v" id="lu_mid_'+col+'">-</td>';});
+      rows+='<td class="lu-ges-v" id="lu_mid_ist" style="color:#81c784">-</td></tr>';
     }
     rows+='<tr id="lur'+day+'"><td class="lu-nr">'+day+'</td>';
     cols.forEach(function(col){
@@ -1565,13 +1577,13 @@ function luBuildRows(saved,cfg){
       rows+='<td><input class="'+cls+'" type="'+(col==='sig'?'text':'number')+'" '+(col!=='sig'?'min="0" ':'')+' id="lu_'+col+'_'+day+'" value="'+v+'" oninput="luCalcRow('+day+')" placeholder=""></td>';
     });
     var istVal=sv.ist>0?(sv.ist.toFixed?sv.ist.toFixed(2):sv.ist):'';
-    rows+='<td><input class="lu-inp ai" id="lu_ist_'+day+'" readonly value="'+istVal+'" placeholder="–"></td>';
+    rows+='<td><input class="lu-inp ai" id="lu_ist_'+day+'" readonly value="'+istVal+'" placeholder="-"></td>';
     rows+='</tr>';
     if(sv.zi||sv.gr||sv.ses) luCalcRow(day,cfg);
   }
   rows+='<tr class="sum-row"><td style="padding:5px 4px;font-weight:700;color:var(--cream)">Summe:</td>';
-  cols.forEach(function(col){rows+='<td class="lu-ges-v" id="lu_sum_'+col+'">–</td>';});
-  rows+='<td class="lu-ges-v" id="lu_sum_ist" style="color:#81c784">–</td></tr>';
+  cols.forEach(function(col){rows+='<td class="lu-ges-v" id="lu_sum_'+col+'">-</td>';});
+  rows+='<td class="lu-ges-v" id="lu_sum_ist" style="color:#81c784">-</td></tr>';
   tbody.innerHTML=rows;
   luCalcAllSums(cfg);
 }
@@ -1606,13 +1618,13 @@ function luCalcAllSums(cfg){
   cols.forEach(function(col){
     var sum=0,mid=0;
     for(var d=1;d<=31;d++){var v=parseFloat(gv('lu_'+col+'_'+d))||0;sum+=v;if(d<=15) mid+=v;}
-    var se=document.getElementById('lu_sum_'+col);if(se) se.textContent=sum||'–';
-    var me=document.getElementById('lu_mid_'+col);if(me) me.textContent=mid||'–';
+    var se=document.getElementById('lu_sum_'+col);if(se) se.textContent=sum||'-';
+    var me=document.getElementById('lu_mid_'+col);if(me) me.textContent=mid||'-';
   });
   var ist=0,midI=0;
   for(var d=1;d<=31;d++){var v=parseFloat(gv('lu_ist_'+d))||0;ist+=v;if(d<=15) midI+=v;}
-  var sie=document.getElementById('lu_sum_ist');if(sie) sie.textContent=ist>0?ist.toFixed(2)+' h':'–';
-  var mie=document.getElementById('lu_mid_ist');if(mie) mie.textContent=midI>0?midI.toFixed(2)+' h':'–';
+  var sie=document.getElementById('lu_sum_ist');if(sie) sie.textContent=ist>0?ist.toFixed(2)+' h':'-';
+  var mie=document.getElementById('lu_mid_ist');if(mie) mie.textContent=midI>0?midI.toFixed(2)+' h':'-';
 }
 
 function saveLu(){
@@ -1743,7 +1755,7 @@ function dpRefreshCell(ri,di){
   var bg='',bc='rgba(255,255,255,0.05)',inner='';
   if(stV==='FREI'){
     bg='rgba(20,130,55,0.32)';bc='rgba(50,200,80,0.4)';
-    inner='<span style="font-size:0.7rem;font-weight:800;color:#4caf7d">A –</span>';
+    inner='<span style="font-size:0.7rem;font-weight:800;color:#4caf7d">A -</span>';
   } else if(stV==='URLAUB'){
     bg='rgba(20,60,170,0.32)';bc='rgba(60,140,255,0.4)';
     inner='<span style="font-size:0.7rem;font-weight:800;color:#5b9bd5">U</span>';
@@ -1752,9 +1764,9 @@ function dpRefreshCell(ri,di){
     inner='<span style="font-size:0.7rem;font-weight:800;color:#e05555">K</span>';
   } else if(azV){
     bg='rgba(20,35,80,0.5)';bc='rgba(60,90,180,0.3)';
-    inner='<span style="font-size:0.72rem;font-weight:700;color:#a0bce8;letter-spacing:-0.01em;white-space:nowrap">'+azV.replace('-','–')+'</span>';
+    inner='<span style="font-size:0.72rem;font-weight:700;color:#a0bce8;letter-spacing:-0.01em;white-space:nowrap">'+azV.replace('-','-')+'</span>';
   } else {
-    inner='<span style="font-size:0.8rem;color:rgba(255,255,255,0.12)">–</span>';
+    inner='<span style="font-size:0.8rem;color:rgba(255,255,255,0.12)">-</span>';
   }
   cell.style.background=bg; cell.style.borderColor=bc;
   cell.innerHTML=inner;
@@ -1771,7 +1783,7 @@ function dpRefreshRowTotal(ri){
     if(h!==null){tot+=h;any=true;}
   }
   var el=document.getElementById('dp-rowtotal-'+ri);
-  if(el)el.textContent=any?(tot.toFixed(2).replace('.',',')+' h'):'–';
+  if(el)el.textContent=any?(tot.toFixed(2).replace('.',',')+' h'):'-';
 }
 
 function pgDp(){
@@ -1782,7 +1794,7 @@ function pgDp(){
   var saved=DATA.dp[hotel];
 
   var css='<style>'
-  // Modal — dunkel, blau
+  // Modal -- dunkel, blau
   +'#dp-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2000;align-items:center;justify-content:center;padding:16px}'
   +'.dpm-box{background:#0a0d14;border:1px solid rgba(80,120,220,0.35);border-radius:12px;padding:20px 18px;width:100%;max-width:330px;box-shadow:0 24px 70px rgba(0,0,0,0.95)}'
   +'.dpm-title{font-size:0.85rem;font-weight:700;color:#90b4f0;margin-bottom:12px}'
@@ -1821,7 +1833,7 @@ function pgDp(){
   +'.dp-st tr:nth-child(even) .tname{background:#07091c}'
   +'.dp-st .tpause{text-align:center;font-size:0.52rem;color:rgba(60,90,180,0.45);font-weight:700;background:rgba(20,40,100,0.15);width:24px}'
   +'.dp-st .ttot{text-align:center;font-size:0.65rem;font-weight:700;color:#5080c0;background:rgba(20,40,100,0.15);border-left:1px solid rgba(40,80,180,0.2);white-space:nowrap;padding:3px 6px}'
-  // Schicht-Zelle — passt Uhrzeit rein
+  // Schicht-Zelle -- passt Uhrzeit rein
   +'.dp-cell{min-height:36px;padding:2px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:filter 0.1s;border-radius:4px;border:1px solid rgba(30,50,120,0.3)}'
   +'.dp-cell:active{filter:brightness(1.35)}'
   // Name-Input
@@ -1868,7 +1880,7 @@ html+=’<div class="dp-sw"><table class="dp-st"><thead>’;
 html+=’<tr><th class="hnm" rowspan="2"># Name</th>’;
 for(var di=0;di<7;di++) html+=’<th class="hday'+(di===6?' sun':'')+'" colspan="2">’+DAYS[di]+’</th>’;
 html+=’<th class="htot" rowspan="2">Woche</th></tr><tr>’;
-for(var di=0;di<7;di++) html+=’<th class="hsub">von–bis</th><th class="hsub" style="width:22px">P.</th>’;
+for(var di=0;di<7;di++) html+=’<th class="hsub">von-bis</th><th class="hsub" style="width:22px">P.</th>’;
 html+=’</tr></thead><tbody>’;
 
 // Bleibe
@@ -1876,22 +1888,22 @@ html+=’<tr><td class="tnr" style="color:rgba(60,100,180,0.4);font-size:0.43rem
 +’<td class="tname" style="font-size:0.54rem;font-weight:700;color:#4a70b0">↓ Bleibe</td>’;
 for(var di=0;di<7;di++){
 var sBl=(saved.bl&&saved.bl[di])||’’;
-html+=’<td class="tzib" colspan="2"><input class="dpzi-inp" style="color:#5b9bd5" id="dpbl'+di+'" type="number" min="0" value="'+sBl+'" placeholder="–" oninput="dpCalc()"></td>’;
+html+=’<td class="tzib" colspan="2"><input class="dpzi-inp" style="color:#5b9bd5" id="dpbl'+di+'" type="number" min="0" value="'+sBl+'" placeholder="-" oninput="dpCalc()"></td>’;
 }
-html+=’<td class="ttot">–</td></tr>’;
+html+=’<td class="ttot">-</td></tr>’;
 
 // Abreise
 html+=’<tr><td class="tnr" style="color:rgba(60,100,180,0.4);font-size:0.43rem">Ab</td>’
 +’<td class="tname" style="font-size:0.54rem;font-weight:700;color:#6080c0">↑ Abreise</td>’;
 for(var di=0;di<7;di++){
 var sAb=(saved.ab&&saved.ab[di])||’’;
-html+=’<td class="tzi" colspan="2"><input class="dpzi-inp" style="color:#7090d0" id="dpab'+di+'" type="number" min="0" value="'+sAb+'" placeholder="–" oninput="dpCalc()"></td>’;
+html+=’<td class="tzi" colspan="2"><input class="dpzi-inp" style="color:#7090d0" id="dpab'+di+'" type="number" min="0" value="'+sAb+'" placeholder="-" oninput="dpCalc()"></td>’;
 }
-html+=’<td class="ttot">–</td></tr>’;
+html+=’<td class="ttot">-</td></tr>’;
 
 // Bedarf
 html+=’<tr><td class="tnr"></td><td class="tname" style="font-size:0.48rem;color:#2a3a5a">Bedarf MA</td>’;
-for(var di=0;di<7;di++) html+=’<td class="tneed" colspan="2" id="dpma'+di+'"><span style="color:#2a3a5a">–</span></td>’;
+for(var di=0;di<7;di++) html+=’<td class="tneed" colspan="2" id="dpma'+di+'"><span style="color:#2a3a5a">-</span></td>’;
 html+=’<td class="ttot"></td></tr>’;
 
 // Trennlinie
@@ -1913,11 +1925,11 @@ for(var di=0;di<7;di++){
   if(!svSt&&svAz==='KRANK'){svSt='KRANK';svAz='';}
 
   var bg='',bc='rgba(30,50,120,0.3)',inner='';
-  if(svSt==='FREI'){bg='rgba(20,130,55,0.32)';bc='rgba(50,200,80,0.4)';inner='<span style="font-size:0.7rem;font-weight:800;color:#4caf7d">A –</span>';}
+  if(svSt==='FREI'){bg='rgba(20,130,55,0.32)';bc='rgba(50,200,80,0.4)';inner='<span style="font-size:0.7rem;font-weight:800;color:#4caf7d">A -</span>';}
   else if(svSt==='URLAUB'){bg='rgba(20,60,170,0.32)';bc='rgba(60,140,255,0.4)';inner='<span style="font-size:0.7rem;font-weight:800;color:#5b9bd5">U</span>';}
   else if(svSt==='KRANK'){bg='rgba(160,30,30,0.32)';bc='rgba(240,80,80,0.4)';inner='<span style="font-size:0.7rem;font-weight:800;color:#e05555">K</span>';}
-  else if(svAz){bg='rgba(20,35,80,0.5)';bc='rgba(60,90,180,0.3)';inner='<span style="font-size:0.7rem;font-weight:700;color:#a0bce8;letter-spacing:-0.02em;white-space:nowrap">'+svAz.replace('-','–')+'</span>';}
-  else{inner='<span style="font-size:0.8rem;color:rgba(60,90,160,0.25)">–</span>';}
+  else if(svAz){bg='rgba(20,35,80,0.5)';bc='rgba(60,90,180,0.3)';inner='<span style="font-size:0.7rem;font-weight:700;color:#a0bce8;letter-spacing:-0.02em;white-space:nowrap">'+svAz.replace('-','-')+'</span>';}
+  else{inner='<span style="font-size:0.8rem;color:rgba(60,90,160,0.25)">-</span>';}
 
   html+='<td style="padding:2px;border:1px solid rgba(20,35,80,0.5)">'
     +'<div class="dp-cell" id="dpcell'+ri+'_'+di+'" data-ri="'+ri+'" data-dp="1" data-di="'+di+'" style="background:'+bg+';border-color:'+bc+'">'
@@ -1934,7 +1946,7 @@ for(var di2=0;di2<7;di2++){
   var hh=dpCalcHours((saved.shifts&&saved.shifts[ri]&&saved.shifts[ri][di2])||'');
   if(hh!==null){tot+=hh;any=true;}
 }
-html+='<td class="ttot" id="dp-rowtotal-'+ri+'">'+(any?(tot.toFixed(2).replace('.',',')+' h'):'–')+'</td>';
+html+='<td class="ttot" id="dp-rowtotal-'+ri+'">'+(any?(tot.toFixed(2).replace('.',',')+' h'):'-')+'</td>';
 html+='</tr>';
 ```
 
@@ -1943,7 +1955,7 @@ html+='</tr>';
 html+=’</tbody></table></div>’;
 html+=’<div style="margin-top:7px;padding:5px 10px;background:rgba(10,15,40,0.4);border-radius:5px;border:1px solid rgba(30,50,120,0.25);font-size:0.56rem;color:#2a3a6a;display:flex;gap:12px;flex-wrap:wrap">’
 +’<span>Pausen zählen nicht zur Arbeitszeit</span>’
-+’<span style="color:#4caf7d">A– = Frei</span>’
++’<span style="color:#4caf7d">A- = Frei</span>’
 +’<span style="color:#e05555">K = Krank</span>’
 +’<span style="color:#5b9bd5">U = Urlaub</span>’
 +’<span>Pause: 0,50h/Tag</span>’
@@ -1961,7 +1973,7 @@ var zpm=parseInt(gv(‘dp-zpm’))||cfg.zpma||15;
 for(var i=0;i<7;i++){
 var ab=parseInt(gv(‘dpab’+i))||0,bl=parseInt(gv(‘dpbl’+i))||0,zi=ab+bl;
 var el=document.getElementById(‘dpma’+i);if(!el)continue;
-if(!zi){el.innerHTML=’<span style="color:#2a3a5a">–</span>’;el.style.background=’’;continue;}
+if(!zi){el.innerHTML=’<span style="color:#2a3a5a">-</span>’;el.style.background=’’;continue;}
 var need=Math.ceil(zi/zpm),active=0;
 for(var ri=0;ri<8;ri++){
 var nm=document.getElementById(‘dpnm’+ri);
@@ -2014,7 +2026,7 @@ if(!mas.length){html+=’<div class="empty">Noch keine Mitarbeiter</div>’;}
 else{
 html+=’<table class="tbl"><thead><tr><th>Name</th><th>Rolle</th><th></th></tr></thead><tbody>’;
 mas.forEach(function(m,i){
-html+=’<tr><td><b>’+m.name+’</b></td><td style="font-size:0.72rem;color:var(--muted)">’+(m.rolle||’–’)+’</td>’;
+html+=’<tr><td><b>’+m.name+’</b></td><td style="font-size:0.72rem;color:var(--muted)">’+(m.rolle||’-’)+’</td>’;
 html+=’<td><button class="btn danger sm" onclick="delMa('+i+')">✕</button></td></tr>’;
 });
 html+=’</tbody></table>’;
@@ -2087,7 +2099,7 @@ var saved=DATA.mb[hotel][thisM]||[];
 var totZi=0,totStd=0,totBet=0;
 saved.forEach(function(e){totZi+=parseInt(e.zi||0);totStd+=parseFloat(e.std||0);totBet+=parseFloat(e.betrag||0);});
 var html=’<div class="card" style="padding:10px 12px">’;
-html+=’<span style="font-size:0.82rem;color:var(--gold);font-weight:600">🍺 Minibar — Spark by Hilton Essen</span>’;
+html+=’<span style="font-size:0.82rem;color:var(--gold);font-weight:600">🍺 Minibar – Spark by Hilton Essen</span>’;
 html+=’<div style="display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap">’;
 html+=’<label style="font-size:0.62rem;color:var(--muted)">Min/Zi:</label>’;
 html+=’<input type="number" id="mb-min-inp" value="'+MB_MIN_PRO_ZI+'" min="1" max="30" step="1" oninput="mbUpdateMin()" style="width:55px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,204,128,0.4);color:#ffcc80;font-weight:700;padding:4px 6px;font-size:0.85rem;outline:none;border-radius:2px;text-align:center">’;
@@ -2100,8 +2112,8 @@ html+=’<div class="stat"><span class="stat-v">’+totBet.toFixed(0)+’</span>
 html+=’<div class="card"><div class="card-title">🍺 Eintrag</div><div class="frow">’;
 html+=’<div class="ff" style="max-width:110px"><label class="lbl">Datum</label><input class="inp" id="mb-dat" value="'+today+'"></div>’;
 html+=’<div class="ff" style="max-width:80px"><label class="lbl">Zimmer</label><input class="inp" id="mb-zi" type="number" min="0" placeholder="0" oninput="mbCalc()"></div>’;
-html+=’<div class="ff" style="max-width:90px"><label class="lbl">Std (auto)</label><input class="inp" id="mb-std" readonly style="color:#90caf9;font-weight:700" placeholder="–"></div>’;
-html+=’<div class="ff" style="max-width:100px"><label class="lbl">Betrag (auto)</label><input class="inp" id="mb-bet" readonly style="color:#81c784;font-weight:700" placeholder="–"></div>’;
+html+=’<div class="ff" style="max-width:90px"><label class="lbl">Std (auto)</label><input class="inp" id="mb-std" readonly style="color:#90caf9;font-weight:700" placeholder="-"></div>’;
+html+=’<div class="ff" style="max-width:100px"><label class="lbl">Betrag (auto)</label><input class="inp" id="mb-bet" readonly style="color:#81c784;font-weight:700" placeholder="-"></div>’;
 html+=’<div class="ff"><label class="lbl">Mitarbeiter</label><input class="inp" id="mb-ma" placeholder="Name"></div>’;
 html+=’</div><button class="btn primary" onclick="mbAdd()">+ Speichern</button></div>’;
 html+=’<div class="card" style="padding:8px"><div style="overflow-x:auto"><table class="tbl">’;
@@ -2113,7 +2125,7 @@ html+=’<tr><td style="font-size:0.76rem">’+e.dat+’</td>’;
 html+=’<td style="text-align:center"><span class="badge b-gold">’+e.zi+’</span></td>’;
 html+=’<td style="text-align:center;color:#90caf9">’+parseFloat(e.std).toFixed(2)+’ h</td>’;
 html+=’<td style="text-align:center;font-weight:700;color:#81c784">’+parseFloat(e.betrag).toFixed(2)+’ €</td>’;
-html+=’<td style="font-size:0.76rem;color:var(--muted)">’+(e.ma||’–’)+’</td>’;
+html+=’<td style="font-size:0.76rem;color:var(--muted)">’+(e.ma||’-’)+’</td>’;
 html+=’<td><button class="btn danger sm" onclick="mbDel(\''+thisM+'\','+i+')">✕</button></td></tr>’;
 });
 }
@@ -2243,7 +2255,7 @@ html+=’<div style="font-size:0.75rem;font-weight:600;color:#4caf7d">🔴 Live-
 html+=’<div id=“fb-status” style=“font-size:0.6rem;color:’+(FB_DB?”#4caf7d”:“var(–muted)”)+’”>’+( FB_DB?‘● Verbunden’:‘○ Nicht verbunden’)+’</div>’;
 html+=’</div>’;
 html+=’<div style="font-size:0.62rem;color:var(--muted);margin-bottom:10px;line-height:1.5">’;
-html+=‘Firebase Realtime Database — kostenlos bis 1GB.<br>’;
+html+=‘Firebase Realtime Database – kostenlos bis 1GB.<br>’;
 html+=’<a href="https://console.firebase.google.com" target="_blank" style="color:#4caf7d">console.firebase.google.com</a> → Projekt erstellen → Realtime Database → Regeln auf <code style="color:#90caf9">true</code> setzen’;
 html+=’</div>’;
 html+=’<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">’;
@@ -2495,14 +2507,14 @@ if((mn.indexOf(‘R1’)>=0||mn.indexOf(‘r1’)>=0)&&r1Names.indexOf(mn)<0) r1
 }
 var html=’<div class="card" style="padding:10px 12px">’;
 html+=’<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">’;
-html+=’<span style="font-size:0.82rem;color:var(--gold);font-weight:600">📄 R1Clean — Leistungsübersicht</span>’;
+html+=’<span style="font-size:0.82rem;color:var(--gold);font-weight:600">📄 R1Clean – Leistungsübersicht</span>’;
 html+=’<span style="font-size:0.6rem;color:var(--muted);background:rgba(200,168,75,0.1);border:1px solid var(--border2);padding:2px 8px;border-radius:2px">’+hotel+’</span>’;
 html+=’</div>’;
 html+=’<div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;flex-wrap:wrap">’;
 html+=’<div class="ff" style="max-width:130px"><label class="lbl">Monat</label>’;
 html+=’<input type="month" class="inp" id="r1-mon" value="'+thisM+'" onchange="r1Reload()"></div>’;
 html+=’<div class="ff"><label class="lbl">Mitarbeiter</label>’;
-html+=’<select class="inp" id="r1-ma-sel" onchange="r1Reload()"><option value="">– Alle –</option>’;
+html+=’<select class="inp" id="r1-ma-sel" onchange="r1Reload()"><option value="">- Alle -</option>’;
 r1Names.forEach(function(mn){html+=’<option value="'+mn+'">’+mn+’</option>’;});
 html+=’</select></div>’;
 html+=’<select class="inp" id="r1-view-sel" onchange="r1Reload()" style="max-width:130px"><option value="lu">Leistungsübersicht</option><option value="sz">Stundenzettel</option></select>’;
@@ -2557,7 +2569,7 @@ Object.keys(monData).forEach(function(d){monData[d].forEach(function(e){if(e.nam
 var mk=mn.replace(/ /g,’*’).replace(/[^a-zA-Z0-9*]/g,’’);
 html+=’<div class="card r1-block" style="padding:10px;margin-bottom:14px">’;
 html+=’<div style="border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:8px">’;
-html+=’<div style="font-size:0.52rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">R1Clean — Leistungsübersicht · ‘+hotel+’</div>’;
+html+=’<div style="font-size:0.52rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">R1Clean – Leistungsübersicht · ‘+hotel+’</div>’;
 html+=’<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">’;
 html+=’<div style="font-size:0.85rem;font-weight:700;color:var(--gold)">’+mn+’</div>’;
 html+=’<div style="font-size:0.62rem;color:var(--muted)">’+mon+’</div></div></div>’;
@@ -2583,7 +2595,7 @@ if(day===16){
 html+=’<tr class="mid-row"><td style="padding:4px;font-weight:700;font-size:0.62rem;color:var(--muted)">Zw.summe</td>’;
 html+=’<td class="lu-ges-v">’+midZi+’</td><td class="lu-ges-v">’+midGr+’</td>’;
 html+=’<td class="lu-ges-v">’+midChk+’</td><td class="lu-ges-v">’+midSon+’</td>’;
-html+=’<td class="lu-ges-v" style="color:#81c784">’+(midIst>0?midIst.toFixed(2):’–’)+’</td></tr>’;
+html+=’<td class="lu-ges-v" style="color:#81c784">’+(midIst>0?midIst.toFixed(2):’-’)+’</td></tr>’;
 }
 var attrs=‘data-mk=”’+mk+’” data-day=”’+day+’” data-ma=”’+mn+’” oninput=“r1CalcDayEl(this)”’;
 html+=’<tr><td class="lu-nr">’+day+’</td>’;
@@ -2592,12 +2604,12 @@ html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*gr*
 html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*chk*’+day+’” ‘+attrs+’ value=”’+(t?t.chk||’’:’’)+’” placeholder=””></td>’;
 html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*son*’+day+’” ‘+attrs+’ value=”’+(t?t.son||’’:’’)+’” placeholder=””></td>’;
 var iv=t?(parseFloat(t.ist)||0):0;
-html+=’<td><input class="lu-inp ai" id="r1_'+mk+'_ist_'+day+'" readonly value="'+(iv>0?iv.toFixed(2):'')+'" placeholder="–"></td></tr>’;
+html+=’<td><input class="lu-inp ai" id="r1_'+mk+'_ist_'+day+'" readonly value="'+(iv>0?iv.toFixed(2):'')+'" placeholder="-"></td></tr>’;
 if(t){totZi+=parseInt(t.zi)||0;totGr+=parseInt(t.gr)||0;totChk+=parseInt(t.chk)||0;totSon+=parseInt(t.son)||0;totIst+=parseFloat(t.ist)||0;if(day<=15){midZi+=parseInt(t.zi)||0;midGr+=parseInt(t.gr)||0;midChk+=parseInt(t.chk)||0;midSon+=parseInt(t.son)||0;midIst+=parseFloat(t.ist)||0;}}
 }
 html+=’<tr class="sum-row"><td style="padding:5px 4px;font-weight:700;color:var(--cream)">Summe:</td>’;
 html+=’<td class="lu-ges-v">’+totZi+’</td><td class="lu-ges-v">’+totGr+’</td><td class="lu-ges-v">’+totChk+’</td><td class="lu-ges-v">’+totSon+’</td>’;
-html+=’<td class="lu-ges-v" style="color:#81c784">’+(totIst>0?totIst.toFixed(2):’–’)+’</td></tr>’;
+html+=’<td class="lu-ges-v" style="color:#81c784">’+(totIst>0?totIst.toFixed(2):’-’)+’</td></tr>’;
 html+=’</tbody></table></div></div>’;
 });
 wrap.innerHTML=html;
@@ -2613,7 +2625,7 @@ var totIst=0,totZi=0;
 Object.keys(savedTage).forEach(function(d){totIst+=parseFloat(savedTage[d].ist||0);totZi+=parseInt(savedTage[d].zi||0);});
 html+=’<div class="card r1-block" style="padding:10px;margin-bottom:14px">’;
 html+=’<div style="border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:8px">’;
-html+=’<div style="font-size:0.52rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">R1Clean — Stundenzettel · ‘+hotel+’</div>’;
+html+=’<div style="font-size:0.52rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">R1Clean – Stundenzettel · ‘+hotel+’</div>’;
 html+=’<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">’;
 html+=’<div style="font-size:0.85rem;font-weight:700;color:var(--gold)">’+mn+’</div>’;
 html+=’<div style="font-size:0.62rem;color:var(--muted)">’+mon+’</div></div></div>’;
@@ -2627,13 +2639,13 @@ var sv=savedTage[day]||{};
 var hasData=sv.ist||sv.zi;
 html+=’<tr’+(hasData?’ class=“filled”’:’’)+’ style=”’+(hasData?‘background:rgba(20,50,25,0.2)’:’’)+’”>’;
 html+=’<td class="sz-nr">’+day+’</td>’;
-html+=’<td><input class="sz-inp" value="'+(sv.von||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp at" value="'+(sv.bis||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp pa" value="'+(sv.pause||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp ai" value="'+(sv.ist||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp zi" value="'+(sv.zi||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp" value="'+(sv.gr||'')+'" placeholder="–" readonly></td>’;
-html+=’<td><input class="sz-inp" value="'+(sv.chk||'')+'" placeholder="–" readonly></td>’;
+html+=’<td><input class="sz-inp" value="'+(sv.von||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp at" value="'+(sv.bis||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp pa" value="'+(sv.pause||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp ai" value="'+(sv.ist||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp zi" value="'+(sv.zi||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp" value="'+(sv.gr||'')+'" placeholder="-" readonly></td>’;
+html+=’<td><input class="sz-inp" value="'+(sv.chk||'')+'" placeholder="-" readonly></td>’;
 html+=’</tr>’;
 }
 html+=’<tr class="sz-ges"><td colspan="4" style="padding:5px 8px;font-size:0.68rem;text-transform:uppercase;color:var(--muted);text-align:right">GESAMT</td>’;
@@ -2823,18 +2835,18 @@ var thDays=DLONG.map(function(d,i){
 return ‘<th class="th-h'+(i===6?' th-sun':'')+'" colspan="2">’+d+’</th>’;
 }).join(’’);
 var thSub=DLONG.map(function(){
-return ‘<th class="th-hs">von – bis</th><th class="th-p">P.</th>’;
+return ‘<th class="th-hs">von - bis</th><th class="th-p">P.</th>’;
 }).join(’’);
 
 // Belegungs-Zeilen
 var blCells=bl.map(function(v,i){
-return ‘<td colspan="2" style="text-align:center;font-size:8pt;font-weight:800;color:#0d47a1;border:1px solid #90caf9">’+(v||’–’)+’</td>’;
+return ‘<td colspan="2" style="text-align:center;font-size:8pt;font-weight:800;color:#0d47a1;border:1px solid #90caf9">’+(v||’-’)+’</td>’;
 }).join(’’);
 var abCells=ab.map(function(v,i){
-return ‘<td colspan="2" style="text-align:center;font-size:8pt;font-weight:800;color:#b8860b;border:1px solid #f9a825">’+(v||’–’)+’</td>’;
+return ‘<td colspan="2" style="text-align:center;font-size:8pt;font-weight:800;color:#b8860b;border:1px solid #f9a825">’+(v||’-’)+’</td>’;
 }).join(’’);
 var needCells=needArr.map(function(n){
-if(!n.zi)return ‘<td colspan="2" style="text-align:center;color:#bbb;border:1px solid #ddd">–</td>’;
+if(!n.zi)return ‘<td colspan="2" style="text-align:center;color:#bbb;border:1px solid #ddd">-</td>’;
 return ‘<td colspan="2" style="text-align:center;background:#e8eaf6;border:1px solid #9fa8da;font-size:6.5pt;padding:2px">’
 +’<b style="color:#1a237e;font-size:7.5pt">’+n.need+’ MA</b><br>’
 +’<span style="color:#555;font-size:6pt">je ~‘+n.ziPer+’ Zi</span></td>’;
@@ -2847,12 +2859,12 @@ maRows.forEach(function(ma,ri){
 if(!ma.name)return;
 var wTot=0,wAny=false;
 var cells=ma.days.map(function(d,di){
-var stLabel={‘FREI’:‘A –’,‘URLAUB’:‘U’,‘KRANK’:‘K’};
+var stLabel={‘FREI’:‘A -’,‘URLAUB’:‘U’,‘KRANK’:‘K’};
 var tdCls=‘td-t’;
-var txt=’–’;
+var txt=’-’;
 if(d.st&&stLabel[d.st]){tdCls=‘td-’+d.st.toLowerCase();txt=stLabel[d.st];}
 else if(d.az){
-txt=d.az.replace(’-’,’–’);
+txt=d.az.replace(’-’,’-’);
 var h=calcH(d.az);
 if(h!==null){wTot+=h;wAny=true;}
 }
@@ -2863,7 +2875,7 @@ maHtml+=’<tr>’
 +’<td class="td-nr">’+(ri+1)+’</td>’
 +’<td class="td-nm'+(ri===0?' tl':'')+'">’+ma.name+’</td>’
 +cells
-+’<td class="td-tot">’+(wAny?(wTot.toFixed(2).replace(’.’,’,’)+’ h’):’–’)+’</td>’
++’<td class="td-tot">’+(wAny?(wTot.toFixed(2).replace(’.’,’,’)+’ h’):’-’)+’</td>’
 +’</tr>’;
 });
 
@@ -2874,12 +2886,12 @@ var html=’<style>’+css+’</style>’
 +’<div class="title">DIENSTPLAN</div>’
 +’<div class="htl">’+hotel+’</div>’
 +’<div class="wk">Woche: <b>’+(von||’        ‘)+’</b> bis <b>’+(bis||’        ‘)+’</b></div>’
-+’<div class="pnote">Pausezeiten: 11:00–12:00 Uhr · 0,50 Std./Tag · zählen nicht zur Arbeitszeit</div>’
++’<div class="pnote">Pausezeiten: 11:00-12:00 Uhr · 0,50 Std./Tag · zählen nicht zur Arbeitszeit</div>’
 +’</div></div>’
 +’<div class="infobox">’
 +’<div class="ic"><label>Hotel / Objekt</label><b>’+hotel+’</b></div>’
-+’<div class="ic"><label>Woche von</label><b>’+(von||’–’)+’</b></div>’
-+’<div class="ic"><label>bis</label><b>’+(bis||’–’)+’</b></div>’
++’<div class="ic"><label>Woche von</label><b>’+(von||’-’)+’</b></div>’
++’<div class="ic"><label>bis</label><b>’+(bis||’-’)+’</b></div>’
 +’<div class="ic"><label>Zi / MA</label><b>’+zpm+’</b></div>’
 +’<div class="ic"><label>Anzahl MA</label><b>’+maRows.filter(function(m){return m.name;}).length+’</b></div>’
 +’<div class="ic"><label>Erstellt</label><b>’+new Date().toLocaleDateString(‘de-DE’)+’</b></div>’
@@ -2895,11 +2907,11 @@ var html=’<style>’+css+’</style>’
 +maHtml
 +’<tr class="row-ges"><td colspan="2" style="text-align:left;padding-left:6px">GESAMT WOCHE</td>’
 +DLONG.map(function(){return ‘<td colspan="2"></td>’;}).join(’’)
-+’<td>’+(grandAny?(grandTot.toFixed(2).replace(’.’,’,’)+’ h’):’–’)+’</td></tr>’
++’<td>’+(grandAny?(grandTot.toFixed(2).replace(’.’,’,’)+’ h’):’-’)+’</td></tr>’
 +’</tbody></table>’
 +’<div class="legend">’
 +’<b>▶▶ Pausezeiten zählen nicht zur Arbeitszeit! ◄◄</b>’
-+’<span style="color:#1b5e20"><b>A –</b> = Ausgang / Frei</span>’
++’<span style="color:#1b5e20"><b>A -</b> = Ausgang / Frei</span>’
 +’<span style="color:#b71c1c"><b>K</b> = Krank</span>’
 +’<span style="color:#0d47a1"><b>U</b> = Urlaub</span>’
 +’<span>Pause je Tag: <b>0,50 Std.</b></span>’
@@ -2928,7 +2940,7 @@ function dpWhatsApp(){
 var hotel=USER.hotel;
 var von=gv(‘dp-von’)||’’, bis=gv(‘dp-bis’)||’’;
 var text=‘📋 DIENSTPLAN\n’+hotel+’\n’;
-if(von||bis) text+=(von||’’)+(bis?’ – ‘+bis:’’)+’\n’;
+if(von||bis) text+=(von||’’)+(bis?’ - ‘+bis:’’)+’\n’;
 text+=‘────────────\n’;
 for(var ri=0;ri<20;ri++){
 var nm=document.getElementById(‘dpnm’+ri);if(!nm||!nm.value.trim()) continue;
@@ -2937,7 +2949,7 @@ for(var di=0;di<7;di++){
 var az=document.getElementById(‘dpaz’+ri+’*’+di);var azV=az?az.value:’’;
 var st=document.getElementById(‘dpst’+ri+’*’+di);var stV=st?st.value:’’;
 var em=stV===‘FREI’?‘🟢’:stV===‘URLAUB’?‘🔵’:stV===‘KRANK’?‘🔴’:‘🕐’;
-var txt=stV||azV||’–’;
+var txt=stV||azV||’-’;
 text+=’  ‘+em+’ ‘+DS[di]+’: ‘+txt+’\n’;
 }
 }
@@ -2986,7 +2998,7 @@ var tage=szMon.tage||{};
 var days=Object.keys(tage).map(Number).sort(function(a,b){return a-b;});
 days.forEach(function(d){
 var t=tage[d];
-text+=‘Tag ‘+d+’: ‘+(t.von||’–’)+’ - ‘+(t.bis||’–’)+’ | ‘+t.zi+’ Zi | ‘+t.ist+’ h\n’;
+text+=‘Tag ‘+d+’: ‘+(t.von||’-’)+’ - ‘+(t.bis||’-’)+’ | ‘+t.zi+’ Zi | ‘+t.ist+’ h\n’;
 });
 text+=’\nGesamt: ‘+szMon.istGes+’ h / ‘+szMon.ziGes+’ Zimmer’;
 } else {
