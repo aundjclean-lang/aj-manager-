@@ -273,13 +273,42 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 </head>
 <body>
 <script>
-// Critical functions needed before main script loads
+// All login functions defined early for iOS Safari compatibility
 function showStep(id){
   var steps=['step1','step-vora','step-chef'];
   for(var i=0;i<steps.length;i++){
     var el=document.getElementById(steps[i]);
     if(el) el.style.display=(steps[i]===id)?'':'none';
   }
+}
+function loginChef_real(){
+window._loginChef=loginChef_real;
+  if(window._loginChef) return window._loginChef();
+  // Wait for main script
+  var t=0;
+  var wait=setInterval(function(){
+    t++;
+    if(window._loginChef){clearInterval(wait);window._loginChef();}
+    if(t>20) clearInterval(wait);
+  },100);
+}
+function doVoraLogin_real(){
+window._doVoraLogin=doVoraLogin_real;
+  if(window._doVoraLogin) return window._doVoraLogin();
+  var t=0;
+  var wait=setInterval(function(){
+    t++;
+    if(window._doVoraLogin){clearInterval(wait);window._doVoraLogin();}
+    if(t>20) clearInterval(wait);
+  },100);
+}
+function initVoraLogin_real(){
+window._initVoraLogin=initVoraLogin_real;
+  if(window._initVoraLogin) return window._initVoraLogin();
+}
+function doLogout_real(){
+window._doLogout=doLogout_real;
+  if(window._doLogout) return window._doLogout();
 }
 </script>
 
