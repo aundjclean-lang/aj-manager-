@@ -370,21 +370,8 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 <script>
 // Early definition of showStep to prevent errors
-window.showStep = function(id){
-  ['step1','step-vora','step-chef'].forEach(function(s){
-    var el=document.getElementById(s);
-    if(el) el.style.display=s===id?'':'none';
-  });
-};
 
 // Make all login functions global immediately
-window.showStep = function(id){
-  var steps=['step1','step-vora','step-chef'];
-  for(var i=0;i<steps.length;i++){
-    var el=document.getElementById(steps[i]);
-    if(el) el.style.display=(steps[i]===id)?'':'none';
-  }
-};
 
 // SAFE ELEMENT ACCESS
 function gv(id){var e=document.getElementById(id);return e?e.value:'';}
