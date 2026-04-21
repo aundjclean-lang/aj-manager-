@@ -337,12 +337,12 @@ window._doLogout=doLogout_real;
 ```
 <div id="step1">
   <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px">Wer bist du?</p>
-  <button class="role-btn" onclick="(window.showStep||function(){})('step-vora');(window.initVoraLogin||function(){})()">
+  <button class="role-btn" id="btn-teamleader">
     <span style="font-size:1.1rem">📋</span>
     <div>TEAMLEADER<span class="role-desc">Stundenzettel · Tagesabrechnung · Dienstplan</span></div>
   </button>
   <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-    <button onclick="(window.showStep||function(){})('step-chef')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
+    <button id="btn-chef-login" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
       🔒 Chef / Admin Login
     </button>
   </div>
@@ -365,10 +365,10 @@ window._doLogout=doLogout_real;
     <input id="v-pw" type="password" placeholder="Passwort (optional)..." onkeydown="if(event.keyCode==13||event.which==13)doVoraLogin()" style="width:100%;background:#ffffff;border:2px solid var(--gold);color:#000000;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.95rem;font-weight:700;padding:10px 12px;outline:none;border-radius:3px">
     <div id="v-pw-err" style="color:#f4845f;font-size:0.68rem;margin-top:5px;display:none">Falsches Passwort!</div>
   </div>
-  <button onclick="doVoraLogin()" style="width:100%;background:var(--gold);color:var(--navy);border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.85rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px;border-radius:3px;cursor:pointer">
+  <button id="btn-do-vora-login" style="width:100%;background:var(--gold);color:var(--navy);border:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.85rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px;border-radius:3px;cursor:pointer">
     Einloggen
   </button>
-  <button onclick="(window.showStep||function(){})('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:6px;margin-top:8px">
+  <button id="btn-back-from-vora" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:6px;margin-top:8px">
     ← Zurück
   </button>
 </div>
@@ -379,10 +379,10 @@ window._doLogout=doLogout_real;
     <input class="name-inp-login" id="chef-pw" type="password" placeholder="Passwort eingeben..." onkeydown="if(event.keyCode==13||event.which==13)loginChef()">
     <div id="chef-pw-err" style="color:#f4845f;font-size:0.68rem;margin-bottom:8px;display:none">Falsches Passwort</div>
   </div>
-  <button class="role-btn gold" style="justify-content:center;margin-bottom:8px" onclick="loginChef()">
+  <button class="role-btn gold" style="justify-content:center;margin-bottom:8px" id="btn-do-chef-login">
     <span>✓</span>&nbsp; Als Chef einloggen
   </button>
-  <button onclick="(window.showStep||function(){})('step1')" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
+  <button id="btn-back-from-chef" style="background:transparent;border:none;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px">
     ← Zurück
   </button>
 </div>
@@ -398,7 +398,7 @@ window._doLogout=doLogout_real;
     <div><div class="tb-logo">A&amp;J</div><div class="tb-info" id="tb-info"></div></div>
     <div class="tb-right" id="tb-right-orig">
       <span id="tb-user" style="font-size:0.62rem;color:var(--muted)"></span>
-      <button class="out-btn" onclick="doLogout()">Abmelden</button>
+      <button class="out-btn" id="btn-logout">Abmelden</button>
     </div>
   </div>
   <div class="tabs" id="tabs"></div>
@@ -3121,6 +3121,47 @@ window.open(‘https://wa.me/?text=’+encodeURIComponent(text),’_blank’);
       if(h)h.style.display='flex';
     },2000);
   }
+})();
+</script>
+
+<script>
+// Attach all login events after DOM is ready
+(function attachLoginEvents(){
+  function safe(id, fn){
+    var el = document.getElementById(id);
+    if(el){ el.onclick = fn; return true; }
+    return false;
+  }
+  function attach(){
+    safe('btn-teamleader', function(){
+      showStep('step-vora');
+      if(typeof initVoraLogin_real==='function') initVoraLogin_real();
+      else if(typeof initVoraLogin==='function') initVoraLogin();
+    });
+    safe('btn-chef-login', function(){ showStep('step-chef'); });
+    safe('btn-do-chef-login', function(){
+      if(typeof loginChef_real==='function') loginChef_real();
+      else if(typeof loginChef==='function') loginChef();
+    });
+    safe('btn-do-vora-login', function(){
+      if(typeof doVoraLogin_real==='function') doVoraLogin_real();
+      else if(typeof doVoraLogin==='function') doVoraLogin();
+    });
+    safe('btn-back-from-vora', function(){ showStep('step1'); });
+    safe('btn-back-from-chef', function(){ showStep('step1'); });
+    safe('btn-logout', function(){
+      if(typeof doLogout_real==='function') doLogout_real();
+      else if(typeof doLogout==='function') doLogout();
+    });
+  }
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+  // Also retry after main script loads
+  setTimeout(attach, 500);
+  setTimeout(attach, 1500);
 })();
 </script>
 
