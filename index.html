@@ -643,6 +643,7 @@ function showStep(id){
     if(el) el.style.display=s===id?'':'none';
   });
 }
+window.showStep = showStep;
 
 var VORA_NAMES={
   'RS Hotel Bruhl':         'Ali',
@@ -667,6 +668,7 @@ function initVoraLogin(){
     sel.appendChild(opt);
   });
 }
+window.initVoraLogin = initVoraLogin;
 
 function voraHotelChanged(){
   var hotel=document.getElementById('v-hotel').value;
@@ -709,6 +711,7 @@ function doVoraLogin(){
   USER={role:'vora',hotel:hotel,name:name,hotels:[hotel]};
   startApp();
 }
+window.doVoraLogin = doVoraLogin;
 
 function loginChef(){
   var pw=gv('chef-pw').trim();
@@ -727,12 +730,14 @@ function loginChef(){
   USER={role:'chef',hotel:Object.keys(HOTELS)[0],name:chefName};
   startApp();
 }
+window.loginChef = loginChef;
 
 function doLogout(){
   USER=null;
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('app-screen').classList.remove('show');
 }
+window.doLogout = doLogout;
 
 var SHEETS_URL;
 try{SHEETS_URL=localStorage.getItem('aj_sheets_url')||'';}catch(e){SHEETS_URL='';}
@@ -794,6 +799,7 @@ function startApp(){
   setTimeout(fbListen, 600);
   setTimeout(fbListen, 2000); // retry for slow connections
 }
+window.startApp = startApp;
 
 // --- TABS ---
 function buildTabs(){
@@ -3084,29 +3090,25 @@ window.open(‘https://wa.me/-text=’+encodeURIComponent(text),’_blank’);
 (function(){
   function attach(){
     var m = {
-      'btn-teamleader': function(){ showStep('step-vora'); initVoraLogin(); },
-      'btn-chef-login': function(){ showStep('step-chef'); },
-      'btn-do-chef-login': function(){ loginChef(); },
-      'btn-do-vora-login': function(){ doVoraLogin(); },
-      'btn-back-from-vora': function(){ showStep('step1'); },
-      'btn-back-from-chef': function(){ showStep('step1'); },
-      'btn-logout': function(){ doLogout(); }
+      'btn-teamleader': function(){ if(window.showStep) window.showStep('step-vora'); if(window.initVoraLogin) window.initVoraLogin(); },
+      'btn-chef-login': function(){ if(window.showStep) window.showStep('step-chef'); },
+      'btn-do-chef-login': function(){ if(window.loginChef) window.loginChef(); },
+      'btn-do-vora-login': function(){ if(window.doVoraLogin) window.doVoraLogin(); },
+      'btn-back-from-vora': function(){ if(window.showStep) window.showStep('step1'); },
+      'btn-back-from-chef': function(){ if(window.showStep) window.showStep('step1'); },
+      'btn-logout': function(){ if(window.doLogout) window.doLogout(); }
     };
-    var ok = 0;
     for(var id in m){
       (function(id, fn){
         var el = document.getElementById(id);
-        if(el){ el.onclick = fn; ok++; }
+        if(el) el.onclick = fn;
       })(id, m[id]);
     }
-    return ok;
   }
-  // Try immediately, then on DOM ready, then with delays for iOS Safari
   attach();
   document.addEventListener('DOMContentLoaded', attach);
-  setTimeout(attach, 200);
-  setTimeout(attach, 800);
-  setTimeout(attach, 2000);
+  setTimeout(attach, 500);
+  setTimeout(attach, 1500);
 })();
 </script>
 
