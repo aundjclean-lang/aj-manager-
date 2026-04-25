@@ -132,14 +132,23 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 /* ── PRINT ── */
 @media print{
-  /* ALLES verstecken außer print-area */
-  body > *{display:none!important}
-  #print-area{display:block!important;position:static!important;background:#fff!important;color:#000!important}
-  html,body{background:#fff!important;color:#000!important;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-  @page{size:A4 portrait;margin:10mm;-webkit-print-color-adjust:exact}
-  @page:first{margin:10mm}
+  /* Alles außer print-area verstecken */
+  body > *{display:none!important;visibility:hidden!important}
+  #print-area{
+    display:block!important;
+    visibility:visible!important;
+    position:fixed!important;
+    inset:0!important;
+    background:#fff!important;
+    color:#000!important;
+    z-index:99999!important;
+  }
+  #print-area *{visibility:visible!important;color:#000!important;background-color:transparent!important}
+  #print-area th{background:#000!important;color:#fff!important}
+  #print-area .prt-ges td{background:#000!important;color:#fff!important}
+  html,body{background:#fff!important;color:#000!important;margin:0!important;padding:0!important}
+  @page{size:A4 portrait;margin:8mm}
   a[href]:after{content:none!important}
-  abbr[title]:after{content:none!important}
 }
 #print-area,#dp-print-area{display:none;background:#fff!important;color:#000!important}
 
@@ -618,21 +627,32 @@ function startApp(){
   var ti=ge('tb-info');if(ti)ti.textContent=USER.hotel;
 
   if(USER.role==='chef'){
-    // Hotel selector in topbar
+    // Hotel selector in topbar — mit Live-Dot
     var sel=document.createElement('select');
     sel.id='chef-hotel-sel';
-    sel.style.cssText='background:rgba(255,255,255,0.06);border:1px solid var(--border2);color:var(--gold);font-size:0.72rem;padding:4px 8px;outline:none;border-radius:2px;max-width:180px';
+    sel.style.cssText='background:rgba(255,255,255,0.06);border:1px solid var(--border2);color:var(--gold);font-size:0.7rem;padding:5px 8px;outline:none;border-radius:2px;max-width:175px;font-weight:700';
     Object.keys(HOTELS).forEach(function(hk){
-      var o=document.createElement('option');o.value=hk;o.textContent=HOTELS[hk].nr+' '+hk;sel.appendChild(o);
+      var o=document.createElement('option');
+      o.value=hk;
+      o.textContent=HOTELS[hk].nr+' · '+hk.slice(0,18);
+      sel.appendChild(o);
     });
     sel.onchange=function(){
-      USER.hotel=this.value;var ti2=ge('tb-info');if(ti2)ti2.textContent=this.value;
-      if(currentTab)switchTab(currentTab);
+      USER.hotel=this.value;
+      var ti2=ge('tb-info');if(ti2)ti2.textContent=this.value;
+      buildTabs(); // Tabs neu bauen (Spark hat extra Tab)
+      switchTab(currentTab||'dash'); // Aktuellen Tab neu laden mit neuem Hotel
     };
     var tbr=ge('tb-right');
     if(tbr){
-      tbr.innerHTML='';tbr.appendChild(sel);
-      var us=document.createElement('span');us.style.cssText='font-size:0.62rem;color:var(--muted)';us.textContent=USER.name;tbr.appendChild(us);
+      tbr.innerHTML='';
+      tbr.appendChild(sel);
+      var dot=document.createElement('span');
+      dot.id='fb-live-dot';
+      dot.title='Verbindungsstatus';
+      dot.style.cssText='width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;flex-shrink:0;transition:background 0.3s';
+      tbr.appendChild(dot);
+      var us=document.createElement('span');us.className='tb-user';us.textContent=USER.name;tbr.appendChild(us);
       var ob=document.createElement('button');ob.className='out-btn';ob.textContent='Abmelden';ob.onclick=doLogout;tbr.appendChild(ob);
     }
   } else {
@@ -946,8 +966,8 @@ function pgTa(){
   if(!DATA.ta[hotel])DATA.ta[hotel]={};
   var saved=DATA.ta[hotel][today]||null;
   var isRS=hotel.indexOf('Bruhl')>=0;
-  var isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0;
-  var isSp=hotel==='Spark by Hilton Essen';
+  var isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('McDream')>=0||hotel.indexOf('Dusseldorf')>=0||hotel.indexOf('MG')>=0||hotel.indexOf('Wuppertal')>=0||hotel.indexOf('Essen')>=0;
+  var isSp=hotel==='Spark by Hilton Essen'||hotel.indexOf('Spark')>=0;
 
   var html='<div class="card"><div class="card-title">📋 Tagesabrechnung</div>';
   html+='<div class="frow">';
@@ -1000,7 +1020,7 @@ function buildTaRows(cfg,saved){
   var rows='';
   for(var ri=0;ri<TA_ROWS;ri++){
     var sv=(saved&&saved.rows&&saved.rows[ri])||{};
-    rows+='<tr id="tar'+ri+'"><td style="min-width:130px"><input class="ti nm" type="text" id="ta_nm_'+ri+'" placeholder="Name..." value="'+(sv.name||'')+'"></td>';
+    rows+='<tr id="tar'+ri+'"><td style="min-width:130px"><input class="ti nm" type="text" id="ta_nm_'+ri+'" placeholder="" value="'+(sv.name||'')+'"></td>';
     rows+='<td><input class="ti zi" type="number" min="0" id="ta_zi_'+ri+'" value="'+(sv.zi||'')+'"></td>';
     if(isRS){
       rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
@@ -1055,7 +1075,7 @@ function getTaName(ri){var e=ge('ta_nm_'+ri);return e?e.value.trim():'';}
 
 function taCalc(ri){
   var cfg=getCfg(USER.hotel),hotel=USER.hotel;
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0||hotel.indexOf('MG')>=0,isSp=hotel==='Spark by Hilton Essen';
   var zi=parseFloat(gv('ta_zi_'+ri))||0,gr=parseFloat(gv('ta_gr_'+ri))||0;
   var chk=parseFloat(gv('ta_chk_'+ri))||0,pub=parseFloat(gv('ta_pub_'+ri))||0,son=parseFloat(gv('ta_son_'+ri))||0;
   var ist;
@@ -1065,7 +1085,7 @@ function taCalc(ri){
   else{ist=zi/(cfg.ziH||2.5)+gr/(cfg.grH||cfg.ziH||2.5)+chk*(cfg.ckMin||4)/60+pub+son+(cfg.pub||0);}
   var istEl=ge('ta_ist_'+ri);if(istEl)istEl.value=ist>0?ist.toFixed(2):'';
   taCalcGes();
-  taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg);
+  // NICHT hier speichern/transferieren — nur beim echten Speichern-Button!
 }
 
 function taCalcGes(){
@@ -1089,38 +1109,57 @@ function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
   var monat='';
   if(datumStr.indexOf('.')>=0){var p=datumStr.split('.');monat=(p[2]||new Date().getFullYear())+'-'+String(p[1]||1).padStart(2,'0');}
   if(!monat)monat=new Date().toISOString().slice(0,7);
-  // SZ transfer
+  var ses=parseFloat(gv('ta_ses_'+ri))||0;
+  var mini=parseFloat(gv('ta_mini_'+ri))||0;
+  var wae=parseFloat(gv('ta_wae_'+ri))||0;
+  var auf=parseFloat(gv('ta_auf_'+ri))||0;
+
+  // ── 1. STUNDENZETTEL transfer (komplett) ──
   if(!DATA.sz[hotel])DATA.sz[hotel]={};
   if(!DATA.sz[hotel][maName])DATA.sz[hotel][maName]={};
-  if(!DATA.sz[hotel][maName][monat])DATA.sz[hotel][maName][monat]={tage:{},istGes:0,ziGes:0};
+  if(!DATA.sz[hotel][maName][monat])DATA.sz[hotel][maName][monat]={tage:{},istGes:0,ziGes:0,grGes:0};
   var von='09:00';
-  var bis=ist>0?m2t((t2m(von)||540)+ist*60+30):'';
+  var bis=ist>0?m2t((t2m(von)||540)+Math.round(ist*60)+30):'';
   DATA.sz[hotel][maName][monat].tage[day]={
-    zi:zi||'',gr:gr||'',ses:parseFloat(gv('ta_ses_'+ri))||'',
-    chk:chk||'',pub:pub||'',son:son||'',von:von,bis:bis,
-    ist:ist>0?ist.toFixed(2):'',pause:'0,50'
+    zi:zi||'',gr:gr||'',ses:ses||'',chk:chk||'',
+    pub:pub||'',son:son||'',mini:mini||'',wae:wae||'',
+    von:von,bis:bis,ist:ist>0?ist.toFixed(2):'',pause:'0,50'
   };
-  var totIst=0,totZi=0;
+  // Monatssummen neu berechnen
+  var totIst=0,totZi=0,totGr=0;
   Object.keys(DATA.sz[hotel][maName][monat].tage).forEach(function(d){
     var t=DATA.sz[hotel][maName][monat].tage[d];
-    totIst+=parseFloat(t.ist||0);totZi+=parseInt(t.zi||0);
+    totIst+=parseFloat(t.ist||0);
+    totZi+=parseInt(t.zi||0);
+    totGr+=parseInt(t.gr||0);
   });
   DATA.sz[hotel][maName][monat].istGes=totIst.toFixed(2);
   DATA.sz[hotel][maName][monat].ziGes=totZi;
-  // LU transfer
+  DATA.sz[hotel][maName][monat].grGes=totGr;
+
+  // ── 2. LEISTUNGSÜBERSICHT transfer (Tagessumme aller MA) ──
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   if(!DATA.lu[hotel][monat])DATA.lu[hotel][monat]={rows:{}};
-  var isRS=hotel.indexOf('Bruhl')>=0;
-  var totDay={zi:0,gr:0,ses:0,chk:0,pub:0,wae:0,son:0,auf:0,ist:0};
+  var isRS=hotel.indexOf('Bruhl')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var totDay={zi:0,gr:0,ses:0,chk:0,pub:0,wae:0,son:0,auf:0,mini:0,ist:0};
   for(var r=0;r<TA_ROWS;r++){
-    totDay.zi+=parseFloat(gv('ta_zi_'+r))||0;totDay.gr+=parseFloat(gv('ta_gr_'+r))||0;
-    totDay.ses+=parseFloat(gv('ta_ses_'+r))||0;totDay.chk+=parseFloat(gv('ta_chk_'+r))||0;
-    totDay.pub+=parseFloat(gv('ta_pub_'+r))||0;totDay.wae+=parseFloat(gv('ta_wae_'+r))||0;
-    totDay.son+=parseFloat(gv('ta_son_'+r))||0;totDay.auf+=parseFloat(gv('ta_auf_'+r))||0;
+    totDay.zi+=parseFloat(gv('ta_zi_'+r))||0;
+    totDay.gr+=parseFloat(gv('ta_gr_'+r))||0;
+    totDay.ses+=parseFloat(gv('ta_ses_'+r))||0;
+    totDay.chk+=parseFloat(gv('ta_chk_'+r))||0;
+    totDay.pub+=parseFloat(gv('ta_pub_'+r))||0;
+    totDay.wae+=parseFloat(gv('ta_wae_'+r))||0;
+    totDay.son+=parseFloat(gv('ta_son_'+r))||0;
+    totDay.auf+=parseFloat(gv('ta_auf_'+r))||0;
+    totDay.mini+=parseFloat(gv('ta_mini_'+r))||0;
   }
-  totDay.ist=isRS?totDay.zi/(cfg.ziH||2.5)+totDay.gr/(cfg.aptH||2.0)+totDay.ses*(cfg.sesH||1.0)+totDay.chk*(cfg.ckMin||4)/60:totDay.zi/(cfg.ziH||2.5)+totDay.gr/(cfg.grH||cfg.ziH||2.5)+totDay.chk*(cfg.ckMin||4)/60+totDay.pub+totDay.son;
+  // Tages-Ist-Stunden
+  var totDayIst=0;
+  for(var r2=0;r2<TA_ROWS;r2++){totDayIst+=parseFloat(gv('ta_ist_'+r2))||0;}
+  totDay.ist=parseFloat(totDayIst.toFixed(2));
   DATA.lu[hotel][monat].rows[day]=totDay;
-  // R1 transfer
+
+  // R1 Transfer
   var isR1=false;
   R1_FIRMS.forEach(function(f){if(f.aktiv!==false&&maName.indexOf(f.kuerzel)>=0)isR1=true;});
   if(isR1){
@@ -1129,12 +1168,10 @@ function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
     if(!DATA.r1[hotel][monat][day])DATA.r1[hotel][monat][day]=[];
     var r1e=DATA.r1[hotel][monat][day],r1i=-1;
     for(var _i=0;_i<r1e.length;_i++){if(r1e[_i].name===maName){r1i=_i;break;}}
-    var entry={name:maName,zi:zi||0,gr:gr||0,chk:chk||0,son:son||0,ist:ist>0?parseFloat(ist.toFixed(2)):0};
+    var entry={name:maName,zi:zi||0,gr:gr||0,chk:chk||0,son:son||0,pub:pub||0,ist:ist>0?parseFloat(ist.toFixed(2)):0};
     if(r1i>=0)r1e[r1i]=entry;else r1e.push(entry);
   }
-  saveData();
-  var info=ge('ta-info');
-  if(info){info.textContent='✓ '+maName+' Tag '+day;setTimeout(function(){if(info)info.textContent='';},2000);}
+  // saveData() wird von saveTa() aufgerufen — nicht hier!
 }
 
 function taDateChanged(){for(var ri=0;ri<TA_ROWS;ri++)taCalc(ri);}
@@ -1143,16 +1180,59 @@ function saveTa(){
   var hotel=USER.hotel,datum=gv('ta-datum')||'';
   if(!datum){toast('Datum eingeben!','err');return;}
   if(!DATA.ta[hotel])DATA.ta[hotel]={};
+
+  // Erst alle Zeilen neu berechnen
   for(var ri2=0;ri2<TA_ROWS;ri2++){if(getTaName(ri2))taCalc(ri2);}
+
+  // Zeilen sammeln
   var rows=[];
   for(var ri=0;ri<TA_ROWS;ri++){
-    rows.push({name:getTaName(ri),zi:gv('ta_zi_'+ri)||'',gr:gv('ta_gr_'+ri)||'',
-      ses:gv('ta_ses_'+ri)||'',chk:gv('ta_chk_'+ri)||'',pub:gv('ta_pub_'+ri)||'',
-      wae:gv('ta_wae_'+ri)||'',son:gv('ta_son_'+ri)||'',auf:gv('ta_auf_'+ri)||'',
-      mini:gv('ta_mini_'+ri)||'',ist:gv('ta_ist_'+ri)||''});
+    var nm=getTaName(ri);if(!nm)continue;
+    rows.push({
+      name:nm,
+      zi:gv('ta_zi_'+ri)||'',gr:gv('ta_gr_'+ri)||'',
+      ses:gv('ta_ses_'+ri)||'',chk:gv('ta_chk_'+ri)||'',
+      pub:gv('ta_pub_'+ri)||'',wae:gv('ta_wae_'+ri)||'',
+      son:gv('ta_son_'+ri)||'',auf:gv('ta_auf_'+ri)||'',
+      mini:gv('ta_mini_'+ri)||'',ist:gv('ta_ist_'+ri)||''
+    });
   }
-  DATA.ta[hotel][datum]={datum:datum,hotel:hotel,tl:USER.name,rows:rows};
-  saveData();toast('Tagesabrechnung gespeichert!','ok');
+
+  // In DATA.ta speichern
+  DATA.ta[hotel][datum]={datum:datum,hotel:hotel,tl:USER.name,rows:rows,savedAt:Date.now()};
+
+  // ── AUTOMATISCHER TRANSFER in SZ + LU + R1 ──
+  var cfg=getCfg(hotel);
+  var transferCount=0;
+  for(var ri3=0;ri3<TA_ROWS;ri3++){
+    if(!getTaName(ri3))continue;
+    var zi=parseFloat(gv('ta_zi_'+ri3))||0;
+    var gr=parseFloat(gv('ta_gr_'+ri3))||0;
+    var chk=parseFloat(gv('ta_chk_'+ri3))||0;
+    var pub=parseFloat(gv('ta_pub_'+ri3))||0;
+    var son=parseFloat(gv('ta_son_'+ri3))||0;
+    var ist=parseFloat(gv('ta_ist_'+ri3))||0;
+    taAutoTransfer(ri3,zi,gr,chk,pub,son,ist,cfg);
+    transferCount++;
+  }
+
+  saveData();
+
+  // Push-Benachrichtigung an Chef senden (auch wenn andere Hotels)
+  try{
+    var notifText='📋 Tagesabrechnung\n'+hotel+' · '+datum+'\nTeamleader: '+USER.name+'\n'+transferCount+' Mitarbeiter';
+    // In Firebase als Trigger speichern damit Chef-App es erkennt
+    fbPatch('notifications/ta_'+Date.now(),{
+      typ:'tagesabrechnung',
+      hotel:hotel,
+      datum:datum,
+      tl:USER.name,
+      count:transferCount,
+      ts:Date.now()
+    });
+  }catch(e){}
+
+  toast('✓ Gespeichert & übertragen! SZ + LU + R1 aktualisiert','ok',3000);
 }
 
 // ============================================================
@@ -2306,11 +2386,18 @@ function pgAdmin(){
 
   var chefPw=localStorage.getItem('aj_chef_pw2')||'';
   var chefName=localStorage.getItem('aj_chef_name')||'Akram';
+  var notifStatus=typeof Notification!=='undefined'?Notification.permission:'nicht unterstützt';
+  var notifColor=notifStatus==='granted'?'#4caf7d':notifStatus==='denied'?'#e05555':'#d4a843';
   html+='<div class="card" style="padding:12px 14px"><div class="card-title">Chef-Konto</div>';
   html+='<div class="frow">';
   html+='<div class="ff"><label class="lbl">Chef-Name</label><input class="inp" id="chef-name-inp" value="'+chefName+'" style="color:var(--gold);font-weight:600"></div>';
   html+='<div class="ff"><label class="lbl">Passwort</label><input class="inp" id="chef-pw-inp" value="'+chefPw+'" placeholder="leer = kein Passwort"></div>';
-  html+='</div><button class="btn primary sm" id="btn-save-chef-pw">💾 Speichern</button></div>';
+  html+='</div>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">';
+  html+='<button class="btn primary sm" id="btn-save-chef-pw">💾 Speichern</button>';
+  html+='<button class="btn sm" id="btn-notif-req" style="color:'+notifColor+';border-color:'+notifColor+'40">';
+  html+='🔔 Benachrichtigungen: <b>'+notifStatus+'</b></button>';
+  html+='</div></div>';
 
   html+='<div class="card" style="padding:12px 14px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">';
   html+='<div class="card-title" style="margin:0">Hotels</div><button class="btn primary sm" id="btn-add-hotel">+ Hotel</button></div>';
@@ -2376,6 +2463,10 @@ function pgAdmin(){
   ge('btn-add-vora').onclick=function(){adminAddVora();};
   ge('btn-save-vora').onclick=function(){adminSaveVora();};
   ge('btn-save-chef-pw').onclick=function(){adminSaveChefPw();};
+  if(ge('btn-notif-req'))ge('btn-notif-req').onclick=function(){
+    if(typeof requestNotifPermission==='function')requestNotifPermission();
+    else if('Notification' in window)Notification.requestPermission().then(function(){pgAdmin();});
+  };
   ge('btn-add-hotel').onclick=function(){adminAddHotel();};
   ge('btn-save-hotels').onclick=function(){adminSaveHotels();};
   ge('btn-fb-save').onclick=function(){var url=gv('fb-url-inp').trim();if(url){FB_URL=url;toast('Firebase URL gesetzt!','ok');fbStartPoll();}};
@@ -2659,9 +2750,17 @@ function dpPrintNew(){
   tbody+='</tbody>';
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
-    // Kopf
+    // Kopf mit echtem Logo
     +'<div class="top">'
-    +'<div class="objekt">Objekt: '+(hotelNr?hotelNr+' ':'')+hotel+'</div>'
+    +'<div>'
+    +'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="22mm" height="12mm" style="display:block">'
+    +'<text x="8" y="122" font-family="Georgia,serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&amp;J</text>'
+    +'<line x1="8" y1="138" x2="290" y2="138" stroke="#1a2e6b" stroke-width="1.8"/>'
+    +'<text x="8" y="162" font-family="Arial,sans-serif" font-size="23" font-weight="600" fill="#1a2e6b" letter-spacing="5">CLEANING SERVICES</text>'
+    +'<path d="M296,128 L299,136 L307,136 L301,141 L304,149 L296,144 L289,149 L292,141 L286,136 L294,136 Z" fill="#1a2e6b"/>'
+    +'</svg>'
+    +'<div class="objekt" style="margin-top:1mm">Objekt: '+(hotelNr?hotelNr+' ':'')+hotel+'</div>'
+    +'</div>'
     +'<div class="titel">'
     +'<h1>D I E N S T P L A N</h1>'
     +'<div class="checkboxes">'
@@ -2670,7 +2769,7 @@ function dpPrintNew(){
     +'</div>'
     +'<div class="sub">Pausenzeiten sind in der Zeit zwischen 11.00 – 12.00 Uhr zu nehmen mit 0,50 Std./ Tag</div>'
     +'</div>'
-    +'<div style="text-align:right;font-size:6pt;color:#555">A&amp;J Cleaning Services GmbH<br>'+new Date().toLocaleDateString('de-DE')+'</div>'
+    +'<div style="text-align:right;font-size:6pt;color:#555">'+new Date().toLocaleDateString('de-DE')+'</div>'
     +'</div>'
     +'<div class="woche">Woche von &nbsp;&nbsp;&nbsp;'+von+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bis &nbsp;&nbsp;&nbsp;'+bis+'</div>'
     +'<table>'+thead+tbody+'</table>'
@@ -2841,7 +2940,7 @@ function pgDp(){
     html+='<tr>'
       +'<td class="dp-nm-td" style="display:flex;align-items:center">'
       +'<span class="dp-nr">'+(ri+1)+'</span>'
-      +'<input class="dp-nm-inp" id="dpnm'+ri+'" value="'+nm+'" placeholder="Name '+(ri+1)+'..."></td>';
+      +'<input class="dp-nm-inp" id="dpnm'+ri+'" value="'+nm+'" placeholder=""></td>';
 
     for(var di=0;di<7;di++){
       var svAz=(saved.shifts&&saved.shifts[ri]&&saved.shifts[ri][di])||'';
@@ -3384,7 +3483,7 @@ function pgMb(){
   html+='<div class="ff" style="max-width:90px"><label class="lbl">Std (auto)</label><input class="inp" id="mb-std" readonly style="color:#90caf9;font-weight:700" placeholder="-"></div>';
   html+='<div class="ff" style="max-width:100px"><label class="lbl">Betrag (auto)</label><input class="inp" id="mb-bet" readonly style="color:#81c784;font-weight:700" placeholder="-"></div>';
   html+='<div class="ff"><label class="lbl">Mitarbeiter</label><input class="inp" id="mb-ma" placeholder="Name"></div>';
-  html+='</div><button class="btn primary" onclick="mbAdd()">+ Speichern</button></div>';
+  html+='</div><button class="btn primary" id="btn-mb-add">+ Speichern</button></div>';
   html+='<div class="card" style="padding:8px"><div style="overflow-x:auto"><table class="tbl">';
   html+='<thead><tr><th>Datum</th><th>Zimmer</th><th>Std</th><th style="color:#81c784">Betrag</th><th>MA</th><th></th></tr></thead><tbody>';
   if(!saved.length){html+='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">Keine Einträge</td></tr>';}
@@ -3395,7 +3494,7 @@ function pgMb(){
       html+='<td style="text-align:center;color:#90caf9">'+parseFloat(e.std).toFixed(2)+' h</td>';
       html+='<td style="text-align:center;font-weight:700;color:#81c784">'+parseFloat(e.betrag).toFixed(2)+' €</td>';
       html+='<td style="font-size:0.76rem;color:var(--muted)">'+(e.ma||'-')+'</td>';
-      html+='<td><button class="btn danger sm" onclick="mbDel(\''+thisM+'\','+i+')">✕</button></td></tr>';
+      html+='<td><button class="btn danger sm" data-mb-del="'+thisM+'|'+i+'">✕</button></td></tr>';
     });
   }
   html+='</tbody><tfoot><tr style="background:var(--navy3);border-top:2px solid var(--gold)">';
@@ -3405,6 +3504,15 @@ function pgMb(){
   html+='<td style="text-align:center;font-weight:700;color:#81c784">'+totBet.toFixed(2)+' €</td>';
   html+='<td colspan="2"></td></tr></tfoot></table></div></div>';
   c.innerHTML=html;
+  var btnMbAdd=ge('btn-mb-add');if(btnMbAdd)btnMbAdd.onclick=function(){mbAdd();};
+  // Delegation für mbDel
+  c.onclick=function(e){
+    var t=e.target;
+    if(t.getAttribute&&t.getAttribute('data-mb-del')){
+      var parts=t.getAttribute('data-mb-del').split('|');
+      mbDel(parts[0],parseInt(parts[1]));
+    }
+  };
 }
 
 function mbCalc(){
@@ -3629,137 +3737,146 @@ function pgMeldung(){
   try{kmData=JSON.parse(localStorage.getItem(kmKey)||'{}');}catch(e){}
   try{urlData=JSON.parse(localStorage.getItem(urlKey)||'{}');}catch(e){}
 
-  // Alle MA für dieses Hotel
-  var allMa=[];
-  Object.keys(DATA.ma).forEach(function(hk){
-    (DATA.ma[hk]||[]).forEach(function(m){if(allMa.indexOf(m.name)<0)allMa.push(m.name);});
+  // Alle MA aus ALLEN Hotels + SZ-Daten sammeln
+  var allMaSet={};
+  Object.keys(DATA.ma||{}).forEach(function(hk){
+    (DATA.ma[hk]||[]).forEach(function(m){if(m&&m.name)allMaSet[m.name]=true;});
   });
-  if(!allMa.length)allMa=[USER.name];
+  Object.keys(DATA.sz||{}).forEach(function(hk){
+    Object.keys(DATA.sz[hk]||{}).forEach(function(mn){if(mn)allMaSet[mn]=true;});
+  });
+  var allMaSorted=Object.keys(allMaSet).sort();
+
+  // Meine bisherigen Meldungen anzeigen
+  var meineMeldungen=Object.values(urlData).filter(function(u){return u.einreicher===USER.name;});
+  var meineKm=Object.values(kmData).filter(function(k){return k.einreicher===USER.name;});
 
   var html='';
 
-  // ── Meine eigenen Meldungen (Status anzeigen) ──
-  var meineMeldungen=Object.values(urlData).filter(function(u){
-    return u.hotel===hotel&&u.einreicher===USER.name;
-  });
-  var meineKm=Object.values(kmData).filter(function(k){
-    return k.hotel===hotel&&k.einreicher===USER.name;
-  });
-
-  if(meineMeldungen.length||meineKm.length){
+  if(meineKm.length||meineMeldungen.length){
     html+='<div class="card"><div class="card-title">📋 Meine eingereichten Meldungen</div>';
-    meineKm.forEach(function(km){
+    meineKm.slice(-3).forEach(function(km){
       html+='<div style="background:rgba(224,85,85,0.07);border:1px solid rgba(224,85,85,0.2);border-radius:4px;padding:8px 10px;margin-bottom:6px">';
-      html+='<div style="font-size:0.65rem;color:#e05555;font-weight:700;margin-bottom:2px">🤒 KRANKMELDUNG</div>';
-      html+='<div style="font-size:0.8rem"><b>'+km.name+'</b> · Ab '+km.von+(km.bis?' bis '+km.bis:'')+'</div>';
-      html+='<div style="font-size:0.6rem;color:var(--muted);margin-top:2px">Eingereicht: '+km.datum+' · '+(km.gesehen?'✓ Vom Chef gesehen':'⏳ Wartet auf Chef')+'</div>';
+      html+='<div style="font-size:0.65rem;color:#e05555;font-weight:700">🤒 KRANKMELDUNG — '+km.name+'</div>';
+      html+='<div style="font-size:0.72rem;margin-top:2px">Ab: <b>'+km.von+'</b>'+(km.bis?' bis '+km.bis:'')+'</div>';
+      html+='<div style="font-size:0.6rem;color:var(--muted)">'+km.datum+' · '+(km.gesehen?'✅ Vom Chef gesehen':'⏳ Noch nicht gesehen')+'</div>';
       html+='</div>';
     });
-    meineMeldungen.forEach(function(u){
+    meineMeldungen.slice(-3).forEach(function(u){
       var sc=u.status==='genehmigt'?'#4caf7d':u.status==='abgelehnt'?'#e05555':'#d4a843';
       var si=u.status==='genehmigt'?'✅':u.status==='abgelehnt'?'❌':'⏳';
       html+='<div style="background:rgba(91,155,213,0.07);border:1px solid rgba(91,155,213,0.2);border-radius:4px;padding:8px 10px;margin-bottom:6px">';
-      html+='<div style="font-size:0.65rem;color:#5b9bd5;font-weight:700;margin-bottom:2px">🏖 URLAUBSANTRAG</div>';
-      html+='<div style="font-size:0.8rem"><b>'+u.name+'</b> · '+u.von+' bis '+u.bis+' ('+u.tage+' Tage)</div>';
-      html+='<div style="font-size:0.65rem;margin-top:4px"><span style="color:'+sc+';font-weight:700">'+si+' '+u.status.toUpperCase()+'</span>';
-      if(u.status==='wartend')html+=' <span style="color:var(--muted);font-size:0.6rem">— Chef muss genehmigen</span>';
-      html+='</div></div>';
+      html+='<div style="font-size:0.65rem;color:#5b9bd5;font-weight:700">🏖 URLAUB — '+u.name+'</div>';
+      html+='<div style="font-size:0.72rem;margin-top:2px">'+u.von+' bis '+u.bis+' ('+u.tage+' Tage)</div>';
+      html+='<div style="font-size:0.65rem;margin-top:3px"><span style="color:'+sc+';font-weight:700">'+si+' '+u.status.toUpperCase()+'</span></div>';
+      html+='</div>';
     });
     html+='</div>';
   }
 
-  // ── Krankmeldung einreichen ──
-  html+='<div class="card" style="border:1px solid rgba(224,85,85,0.2)">';
+  // Hilfsfunktion: Dropdown + freie Eingabe
+  function maField(baseId,lbl){
+    var opts='<option value="">— auswählen —</option>';
+    allMaSorted.forEach(function(mn){opts+='<option value="'+encodeURIComponent(mn)+'">'+mn+'</option>';});
+    return '<div class="ff" style="flex:2;min-width:160px">'
+      +'<label class="lbl">'+lbl+'</label>'
+      +'<select class="inp" id="'+baseId+'-sel" style="margin-bottom:4px">'+opts+'</select>'
+      +'<input class="inp" type="text" id="'+baseId+'-inp" placeholder="Oder neuen Namen eingeben..." style="margin-top:4px">'
+      +'</div>';
+  }
+
+  // ── KRANKMELDUNG ──
+  html+='<div class="card" style="border:1px solid rgba(224,85,85,0.25)">';
   html+='<div class="card-title" style="color:#e05555">🤒 Krankmeldung einreichen</div>';
-  html+='<div style="font-size:0.62rem;color:var(--muted);margin-bottom:10px">Geht sofort an den Chef. Mitarbeiter wird automatisch als krank markiert.</div>';
-  html+='<div class="frow">';
-  html+='<div class="ff"><label class="lbl">Mitarbeiter</label><select class="inp" id="km-ma2">';
-  allMa.forEach(function(mn){html+='<option>'+mn+'</option>';});
-  html+='</select></div>';
-  html+='<div class="ff" style="max-width:145px"><label class="lbl">Krank ab</label><input class="inp" type="date" id="km-von2" value="'+new Date().toISOString().slice(0,10)+'"></div>';
-  html+='<div class="ff" style="max-width:145px"><label class="lbl">Krank bis (ca.)</label><input class="inp" type="date" id="km-bis2"></div>';
+  html+='<div style="font-size:0.62rem;color:var(--muted);margin-bottom:10px">Geht sofort an den Chef. Krankschein-Foto hochladen möglich.</div>';
+  html+='<div class="frow">'+maField('kmm','Mitarbeiter (Liste oder freie Eingabe)');
+  html+='<div class="ff" style="max-width:140px"><label class="lbl">Krank ab</label><input class="inp" type="date" id="km-von2" value="'+new Date().toISOString().slice(0,10)+'"></div>';
+  html+='<div class="ff" style="max-width:140px"><label class="lbl">Krank bis (ca.)</label><input class="inp" type="date" id="km-bis2"></div>';
   html+='</div>';
-  html+='<div style="margin-bottom:10px">';
-  html+='<label class="lbl">Krankschein Foto hochladen</label>';
-  html+='<div style="margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-  html+='<label for="km-foto2" class="btn" style="color:#5b9bd5;border-color:rgba(91,155,213,0.3);display:inline-flex;align-items:center;gap:6px;cursor:pointer">📷 Foto aufnehmen / auswählen</label>';
+  html+='<div style="margin-bottom:10px"><label class="lbl">Krankschein Foto</label>';
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-top:4px">';
+  html+='<label for="km-foto2" class="btn" style="color:#5b9bd5;border-color:rgba(91,155,213,0.3);cursor:pointer">📷 Foto aufnehmen</label>';
   html+='<input type="file" id="km-foto2" accept="image/*" capture="environment" style="position:absolute;left:-9999px;opacity:0;width:1px;height:1px">';
-  html+='<span id="km-foto2-name" style="font-size:0.65rem;color:var(--muted)"></span>';
-  html+='</div>';
-  html+='<div id="km-foto2-preview" style="margin-top:8px"></div>';
-  html+='</div>';
-  html+='<div class="ff" style="margin-bottom:10px"><label class="lbl">Bemerkung</label><input class="inp" id="km-notiz2" placeholder="z.B. Hat angerufen, Arzttermin morgen"></div>';
-  html+='<button class="btn primary" id="btn-km2-save" style="background:rgba(224,85,85,0.15);border-color:rgba(224,85,85,0.4);color:#e05555;font-weight:700">✓ Krankmeldung absenden</button>';
+  html+='<span id="km-foto2-name" style="font-size:0.62rem;color:var(--muted)"></span>';
+  html+='</div><div id="km-foto2-preview" style="margin-top:6px"></div></div>';
+  html+='<div class="ff" style="margin-bottom:10px"><label class="lbl">Bemerkung</label><input class="inp" id="km-notiz2" placeholder="z.B. Arzttermin morgen, Bescheinigung folgt..."></div>';
+  html+='<button class="btn primary" id="btn-km2-save" style="width:100%;background:rgba(224,85,85,0.15);border-color:rgba(224,85,85,0.4);color:#e05555;font-weight:700;font-size:0.85rem;padding:12px">✓ Krankmeldung absenden → geht sofort an Chef</button>';
   html+='</div>';
 
-  // ── Urlaubsantrag stellen ──
-  html+='<div class="card" style="border:1px solid rgba(91,155,213,0.2)">';
+  // ── URLAUB ──
+  html+='<div class="card" style="border:1px solid rgba(91,155,213,0.25)">';
   html+='<div class="card-title" style="color:#5b9bd5">🏖 Urlaubsantrag stellen</div>';
-  html+='<div style="font-size:0.62rem;color:var(--muted);margin-bottom:10px">Antrag geht sofort an den Chef zur Genehmigung. Urlaub ist erst nach Genehmigung aktiv.</div>';
-  html+='<div class="frow">';
-  html+='<div class="ff"><label class="lbl">Mitarbeiter</label><select class="inp" id="url-ma2">';
-  allMa.forEach(function(mn){html+='<option>'+mn+'</option>';});
-  html+='</select></div>';
-  html+='<div class="ff" style="max-width:145px"><label class="lbl">Urlaub von</label><input class="inp" type="date" id="url-von2"></div>';
-  html+='<div class="ff" style="max-width:145px"><label class="lbl">Urlaub bis</label><input class="inp" type="date" id="url-bis2"></div>';
+  html+='<div style="font-size:0.62rem;color:var(--muted);margin-bottom:10px">Antrag geht sofort an Chef. Urlaub gilt erst nach Genehmigung!</div>';
+  html+='<div class="frow">'+maField('urlm','Mitarbeiter (Liste oder freie Eingabe)');
+  html+='<div class="ff" style="max-width:140px"><label class="lbl">Urlaub von</label><input class="inp" type="date" id="url-von2"></div>';
+  html+='<div class="ff" style="max-width:140px"><label class="lbl">Urlaub bis</label><input class="inp" type="date" id="url-bis2"></div>';
   html+='</div>';
-  html+='<div class="ff" style="margin-bottom:10px"><label class="lbl">Grund / Notiz</label><input class="inp" id="url-notiz2" placeholder="z.B. Jahresurlaub, bereits mit Chef besprochen"></div>';
-  html+='<button class="btn primary" id="btn-url2-save" style="color:#5b9bd5;border-color:rgba(91,155,213,0.4);background:rgba(91,155,213,0.1);font-weight:700">📋 Antrag absenden</button>';
-  html+='<div style="margin-top:6px;font-size:0.6rem;color:var(--muted)">⚠ Urlaub ist erst gültig wenn der Chef genehmigt hat.</div>';
+  html+='<div class="ff" style="margin-bottom:10px"><label class="lbl">Grund / Notiz</label><input class="inp" id="url-notiz2" placeholder="z.B. Jahresurlaub, Familienfeier..."></div>';
+  html+='<button class="btn primary" id="btn-url2-save" style="width:100%;color:#5b9bd5;border-color:rgba(91,155,213,0.4);background:rgba(91,155,213,0.1);font-weight:700;font-size:0.85rem;padding:12px">📋 Urlaubsantrag absenden → geht sofort an Chef</button>';
+  html+='<div style="margin-top:6px;font-size:0.6rem;color:var(--muted)">⚠ Urlaub ist erst aktiv nach Genehmigung durch den Chef.</div>';
   html+='</div>';
 
   c.innerHTML=html;
 
-  // Foto-Vorschau (pgMeldung)
-  ge('km-foto2').onchange=function(){
+  // Hilfsfunktion: Namen aus Dropdown ODER Freitext lesen
+  function getMaName(baseId){
+    var sel=ge(baseId+'-sel');
+    var inp=ge(baseId+'-inp');
+    var selVal=sel?decodeURIComponent(sel.value||''):'';
+    var inpVal=inp?inp.value.trim():'';
+    // Freitext hat Vorrang wenn ausgefüllt
+    return inpVal||selVal;
+  }
+
+  // Foto
+  var fotoEl=ge('km-foto2');
+  if(fotoEl)fotoEl.onchange=function(){
     var f=this.files[0];if(!f)return;
-    ge('km-foto2-name').textContent=f.name;
+    var nm=ge('km-foto2-name');if(nm)nm.textContent=f.name;
     var r=new FileReader();
     r.onload=function(ev){
-      ge('km-foto2-preview').innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;max-height:180px;border-radius:4px;border:1px solid rgba(224,85,85,0.3)">';
-      ge('km-foto2').setAttribute('data-b64',ev.target.result);
+      var pv=ge('km-foto2-preview');
+      if(pv)pv.innerHTML='<img src="'+ev.target.result+'" style="max-width:100%;max-height:160px;border-radius:4px;border:1px solid rgba(224,85,85,0.3);margin-top:4px">';
+      if(fotoEl)fotoEl.setAttribute('data-b64',ev.target.result);
     };
     r.readAsDataURL(f);
   };
 
-  // Krankmeldung senden
-  ge('btn-km2-save').onclick=function(){
-    var name=gv('km-ma2');if(!name){toast('Mitarbeiter wählen!','err');return;}
-    var von=gv('km-von2');if(!von){toast('Datum eingeben!','err');return;}
+  // Krankmeldung speichern
+  var btnKm=ge('btn-km2-save');
+  if(btnKm)btnKm.onclick=function(){
+    var name=getMaName('kmm');
+    if(!name){toast('Bitte Mitarbeiter auswählen oder Namen eingeben!','err');return;}
+    var von=gv('km-von2');if(!von){toast('Bitte Datum eingeben!','err');return;}
     var id='km_'+Date.now();
-    var foto=ge('km-foto2').getAttribute('data-b64')||'';
-    kmData[id]={
-      id:id,name:name,hotel:hotel,
-      von:von,bis:gv('km-bis2'),
-      notiz:gv('km-notiz2'),
-      foto:foto,
-      datum:new Date().toLocaleDateString('de-DE'),
-      einreicher:USER.name,
-      gesehen:false,beendet:false
-    };
+    var foto=(ge('km-foto2')&&ge('km-foto2').getAttribute('data-b64'))||'';
+    var entry={id:id,name:name,hotel:hotel,von:von,bis:gv('km-bis2')||'',
+      notiz:gv('km-notiz2')||'',foto:foto,datum:new Date().toLocaleDateString('de-DE'),
+      einreicher:USER.name,gesehen:false,beendet:false};
+    kmData[id]=entry;
     localStorage.setItem(kmKey,JSON.stringify(kmData));
-    toast('✓ Krankmeldung wurde an den Chef gesendet!','ok');
+    try{fbPatch('global/krankmeldung/'+id,entry);}catch(e){}
+    toast('✅ Krankmeldung an Chef gesendet!','ok',3000);
     pgMeldung();
   };
 
-  // Urlaubsantrag senden
-  ge('btn-url2-save').onclick=function(){
-    var name=gv('url-ma2');if(!name){toast('Mitarbeiter wählen!','err');return;}
+  // Urlaubsantrag speichern
+  var btnUrl=ge('btn-url2-save');
+  if(btnUrl)btnUrl.onclick=function(){
+    var name=getMaName('urlm');
+    if(!name){toast('Bitte Mitarbeiter auswählen oder Namen eingeben!','err');return;}
     var von=gv('url-von2'),bis=gv('url-bis2');
-    if(!von||!bis){toast('Datum eingeben!','err');return;}
-    if(new Date(bis)<new Date(von)){toast('Bis-Datum muss nach Von-Datum sein!','err');return;}
+    if(!von||!bis){toast('Bitte beide Daten eingeben!','err');return;}
+    if(new Date(bis)<new Date(von)){toast('Enddatum muss nach Startdatum sein!','err');return;}
     var tage=Math.round((new Date(bis)-new Date(von))/(1000*60*60*24))+1;
     var id='url_'+Date.now();
-    urlData[id]={
-      id:id,name:name,hotel:hotel,
-      von:von,bis:bis,tage:tage,
-      notiz:gv('url-notiz2'),
-      status:'wartend',
-      datum:new Date().toLocaleDateString('de-DE'),
-      einreicher:USER.name
-    };
+    var entry={id:id,name:name,hotel:hotel,von:von,bis:bis,tage:tage,
+      notiz:gv('url-notiz2')||'',status:'wartend',datum:new Date().toLocaleDateString('de-DE'),
+      einreicher:USER.name};
+    urlData[id]=entry;
     localStorage.setItem(urlKey,JSON.stringify(urlData));
-    toast('✓ Urlaubsantrag wurde an den Chef gesendet!','ok');
+    try{fbPatch('global/urlaub/'+id,entry);}catch(e){}
+    toast('✅ Urlaubsantrag an Chef gesendet!','ok',3000);
     pgMeldung();
   };
 }
@@ -4064,25 +4181,24 @@ function dpRowCount(hotel){
 function prtBase(inner){
   var pd=ge('print-area');
   if(!pd){pd=document.createElement('div');pd.id='print-area';document.body.appendChild(pd);}
-  // App komplett verstecken
   var app=ge('app-wrap');
   var login=ge('login-screen');
-  if(app)app.style.cssText='display:none!important';
-  if(login)login.style.cssText='display:none!important';
-  // Print-Area sichtbar und weiß
-  pd.style.cssText='display:block;position:fixed;inset:0;background:#fff;color:#000;z-index:99999;overflow:auto';
+  // App ausblenden
+  if(app){app._savedDisplay=app.style.display;app.style.setProperty('display','none','important');}
+  if(login){login._savedDisplay=login.style.display;login.style.setProperty('display','none','important');}
+  // Print-Area: weiß, fullscreen
+  pd.style.cssText='display:block!important;position:fixed;inset:0;background:#fff;color:#000;z-index:99999;overflow:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact';
   pd.innerHTML=inner;
+  // Kurze Verzögerung damit Browser render kann
   setTimeout(function(){
     window.print();
     setTimeout(function(){
       pd.style.cssText='display:none';
       pd.innerHTML='';
-      if(app)app.style.cssText='';
-      if(login)login.style.cssText='';
-      // App-show Klasse wiederherstellen
-      if(USER&&app)app.classList.add('show');
-    },500);
-  },100);
+      if(app){app.style.display=app._savedDisplay||'';if(USER)app.classList.add('show');}
+      if(login)login.style.display=login._savedDisplay||'';
+    },800);
+  },150);
 }
 
 // ── 1. STUNDENZETTEL (einzeln) ──
@@ -4368,12 +4484,362 @@ document.addEventListener('DOMContentLoaded', function(){
     localStorage.setItem('aj_chef_pw2','');
   }
 
-  // Service Worker (offline support)
+  // ============================================================
+  // PUSH BENACHRICHTIGUNGEN — Echtzeit, auch wenn App zu ist
+  // ============================================================
+
+  // VAPID Public Key (für Web Push)
+  var VAPID_PUBLIC='BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjZJnRpGt2VFUI6WlPaLEbPM2O7R4';
+
+  // Service Worker mit Push registrieren
+  var SW_REG=null;
+
+  function urlBase64ToUint8(b64){
+    var p=(4-(b64.length%4))%4;
+    var s=b64.replace(/-/g,'+').replace(/_/g,'/').padEnd(b64.length+p,'=');
+    var r=atob(s),a=new Uint8Array(r.length);
+    for(var i=0;i<r.length;i++)a[i]=r.charCodeAt(i);
+    return a;
+  }
+
+  function initPush(){
+    if(!('serviceWorker' in navigator)||!('PushManager' in window))return;
+    navigator.serviceWorker.ready.then(function(reg){
+      SW_REG=reg;
+      // Wenn Chef und Berechtigung schon erteilt: automatisch subscriben
+      if(USER&&USER.role==='chef'&&Notification.permission==='granted'){
+        subscribePush(reg);
+      }
+    });
+  }
+
+  function subscribePush(reg){
+    if(!reg||!reg.pushManager)return;
+    reg.pushManager.getSubscription().then(function(sub){
+      if(sub){
+        // Bereits subscribed — in Firebase speichern
+        savePushSub(sub);
+        return;
+      }
+      reg.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:urlBase64ToUint8(VAPID_PUBLIC)
+      }).then(function(sub){
+        savePushSub(sub);
+        toast('🔔 Push-Benachrichtigungen aktiv!','ok');
+      }).catch(function(){});
+    });
+  }
+
+  function savePushSub(sub){
+    // Push-Subscription in Firebase speichern damit Server sie findet
+    if(!sub||!FB_URL||FB_DISABLED)return;
+    var subObj=JSON.parse(JSON.stringify(sub));
+    fbPatch('push_subs/chef',{
+      endpoint:subObj.endpoint,
+      keys:subObj.keys,
+      name:USER.name||'Chef',
+      updatedAt:Date.now()
+    });
+    localStorage.setItem('aj_push_sub',JSON.stringify(subObj));
+  }
+
+  // Benachrichtigungs-Erlaubnis anfragen
+  function requestNotifPermission(){
+    if(!('Notification' in window)){toast('Benachrichtigungen nicht unterstützt','err');return;}
+    if(Notification.permission==='granted'){
+      toast('🔔 Bereits aktiv!','ok');
+      if(SW_REG)subscribePush(SW_REG);
+      if(ge('btn-notif-req'))ge('btn-notif-req').style.color='#4caf7d';
+      return;
+    }
+    Notification.requestPermission().then(function(perm){
+      if(perm==='granted'){
+        localStorage.setItem('aj_notif','1');
+        toast('🔔 Benachrichtigungen aktiviert!','ok');
+        // Test-Benachrichtigung sofort
+        new Notification('A&J Manager ✅',{
+          body:'Benachrichtigungen aktiv! Du wirst sofort informiert.',
+          icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏨</text></svg>',
+          requireInteraction:false
+        });
+        if(SW_REG)subscribePush(SW_REG);
+        if(ge('btn-notif-req')){ge('btn-notif-req').textContent='🔔 Benachrichtigungen: granted';ge('btn-notif-req').style.color='#4caf7d';}
+      } else {
+        toast('Benachrichtigungen abgelehnt — bitte in iPhone-Einstellungen aktivieren','err',5000);
+      }
+    });
+  }
+
+  // Lokale Benachrichtigung (wenn App offen)
+  window.ajNotify=function(title,body){
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
+    try{
+      new Notification(title,{
+        body:body,
+        icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏨</text></svg>',
+        tag:'aj-'+Date.now(),
+        requireInteraction:true,
+        vibrate:[200,100,200]
+      });
+    }catch(e){}
+  };
+
+  // Neue Daten in Firebase erkennen → sofort benachrichtigen
+  var _lastDataKeys={};
+  var _firstPoll=true;
+  var _lastNotifTs=Date.now();
+
+  function checkFbNewData(hotelData){
+    if(!USER||USER.role!=='chef')return;
+    if(Notification.permission!=='granted')return;
+    if(_firstPoll){
+      Object.keys(hotelData||{}).forEach(function(hk){
+        var hd=hotelData[hk]||{};
+        if(hd.ta)Object.keys(hd.ta).forEach(function(d){_lastDataKeys['ta_'+hk+'_'+d]=true;});
+      });
+      _firstPoll=false;
+      return;
+    }
+    Object.keys(hotelData||{}).forEach(function(hk){
+      var hd=hotelData[hk]||{};
+      var hotelName=Object.keys(HOTELS).find(function(h){return fbKey(h)===hk;})||hk;
+      if(hd.ta){
+        Object.keys(hd.ta).forEach(function(datum){
+          var key='ta_'+hk+'_'+datum;
+          if(!_lastDataKeys[key]){
+            _lastDataKeys[key]=true;
+            ajNotify('📋 Neue Tagesabrechnung!',hotelName+'\n'+datum);
+          }
+        });
+      }
+    });
+  }
+
+  // Zusätzlich: notifications Pfad in Firebase pollen (alle Hotels)
+  function checkFbNotifications(){
+    if(!USER||USER.role!=='chef')return;
+    if(FB_DISABLED)return;
+    fbGet('notifications',function(notifs){
+      if(!notifs||typeof notifs!=='object')return;
+      Object.keys(notifs).forEach(function(nid){
+        var n=notifs[nid];
+        if(!n||!n.ts)return;
+        // Nur neue Benachrichtigungen (nach letztem Check)
+        if(n.ts>_lastNotifTs){
+          _lastNotifTs=n.ts;
+          if(n.typ==='tagesabrechnung'){
+            ajNotify(
+              '📋 Neue Tagesabrechnung!',
+              (n.hotel||'')+' · '+(n.datum||'')+'\nTeamleader: '+(n.tl||'')+' · '+(n.count||0)+' MA'
+            );
+            // Toast auch wenn App offen
+            toast('📋 '+( n.hotel||'')+' · '+(n.datum||''),'info',4000);
+            // Dashboard aktualisieren
+            if(currentTab==='dash')pgDash();
+          }
+        }
+      });
+    });
+  }
+
+  // Firebase Poll: nach jedem Sync neue Daten prüfen
+  var _origFbPollNow=fbPollNow;
+  fbPollNow=function(){
+    _origFbPollNow();
+    setTimeout(function(){
+      if(USER&&USER.role==='chef'){
+        var combined={};
+        Object.keys(HOTELS).forEach(function(h){
+          combined[fbKey(h)]={ta:DATA.ta[h]||{}};
+        });
+        checkFbNewData(combined);
+        // Auch notifications Pfad prüfen (alle Hotels)
+        checkFbNotifications();
+      }
+    },2000);
+  };
+
+  // Auch Krankmeldungen in Echtzeit prüfen
+  var _lastKmKeys={};
+  function checkNewKrankmeldung(){
+    if(!USER||USER.role!=='chef')return;
+    var km={};
+    try{km=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(e){}
+    Object.keys(km).forEach(function(kid){
+      if(!_lastKmKeys[kid]){
+        _lastKmKeys[kid]=true;
+        if(Object.keys(_lastKmKeys).length>1){
+          var k=km[kid];
+          ajNotify('🤒 Neue Krankmeldung!',(k.name||'')+' · '+(k.hotel||'')+'\nAb: '+(k.von||''));
+        }
+      }
+    });
+  }
+
+  // Service Worker registrieren (offline + Push)
   if('serviceWorker' in navigator){
     try{
-      var swCode="var C='aj-v5';self.addEventListener('install',function(e){e.waitUntil(caches.open(C).then(function(c){return c.add(self.location.href);}).then(function(){return self.skipWaiting();}));});self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(keys){return Promise.all(keys.filter(function(k){return k!==C;}).map(function(k){return caches.delete(k);}));}).then(function(){return self.clients.claim();}));});self.addEventListener('fetch',function(e){e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).catch(function(){return caches.match(self.location.href);});}));});";
+      var swCode=
+        "var CACHE='aj-v7';"
+        +"self.addEventListener('install',function(e){"
+        +"  e.waitUntil(caches.open(CACHE).then(function(c){return c.add(self.location.href);}).then(function(){return self.skipWaiting();}));"
+        +"});"
+        +"self.addEventListener('activate',function(e){"
+        +"  e.waitUntil(caches.keys().then(function(keys){"
+        +"    return Promise.all(keys.filter(function(k){return k!==CACHE;}).map(function(k){return caches.delete(k);}));"
+        +"  }).then(function(){return self.clients.claim();}));"
+        +"});"
+        +"self.addEventListener('fetch',function(e){"
+        +"  e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).catch(function(){return caches.match(self.location.href);});}));"
+        +"});"
+        // Push empfangen — auch wenn App zu ist!
+        +"self.addEventListener('push',function(e){"
+        +"  var d={};"
+        +"  try{d=e.data.json();}catch(err){d={title:'A&J Manager',body:e.data?e.data.text():'Neue Eingabe'};}"
+        +"  var opts={"
+        +"    body:d.body||'Neue Eingabe im System',"
+        +"    icon:'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\".9em\" font-size=\"90\">🏨</text></svg>',"
+        +"    badge:'data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><text y=\".9em\" font-size=\"90\">🔔</text></svg>',"
+        +"    requireInteraction:true,"
+        +"    vibrate:[300,100,300,100,300],"
+        +"    data:{url:self.location.origin}"
+        +"  };"
+        +"  e.waitUntil(self.registration.showNotification(d.title||'A&J Manager',opts));"
+        +"});"
+        // Klick auf Benachrichtigung → App öffnen
+        +"self.addEventListener('notificationclick',function(e){"
+        +"  e.notification.close();"
+        +"  e.waitUntil(clients.matchAll({type:'window'}).then(function(cs){"
+        +"    if(cs.length)return cs[0].focus();"
+        +"    return clients.openWindow(e.notification.data&&e.notification.data.url?e.notification.data.url:self.location.origin);"
+        +"  }));"
+        +"});";
+
       var blob=new Blob([swCode],{type:'application/javascript'});
-      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(){});
+      var swUrl=URL.createObjectURL(blob);
+      navigator.serviceWorker.register(swUrl).then(function(reg){
+        SW_REG=reg;
+        // Push initialisieren wenn Chef eingeloggt
+        if(USER&&USER.role==='chef'&&Notification.permission==='granted'){
+          subscribePush(reg);
+        }
+      }).catch(function(){});
+    }catch(e){}
+  }
+
+  // Chef-Login: Benachrichtigungen automatisch anfragen
+  var _origLoginChef=loginChef;
+  loginChef=function(){
+    _origLoginChef();
+    setTimeout(function(){
+      if(USER&&USER.role==='chef'){
+        initPush();
+        if(Notification.permission==='default'){
+          requestNotifPermission();
+        } else if(Notification.permission==='granted'){
+          if(SW_REG)subscribePush(SW_REG);
+        }
+      }
+    },1500);
+  };
+
+  // Krankmeldungs-Check alle 8s
+  setInterval(function(){
+    if(USER&&USER.role==='chef')checkNewKrankmeldung();
+  },8000);
+
+  // Benachrichtigung senden (lokal, wenn App offen)
+  window.ajNotify=function(title,body){
+    if(!('Notification' in window)||Notification.permission!=='granted')return;
+    try{
+      new Notification(title,{
+        body:body,
+        icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏨</text></svg>',
+        badge:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔔</text></svg>',
+        tag:'aj-'+Date.now(),
+        requireInteraction:false
+      });
+    }catch(e){}
+  };
+
+  // Chef benachrichtigen wenn neues Datum in Firebase erscheint
+  var _lastFbKeys={};
+  function checkFbNewData(data){
+    if(!USER||USER.role!=='chef')return;
+    if(Notification.permission!=='granted')return;
+    Object.keys(data||{}).forEach(function(hk){
+      var hd=data[hk];if(!hd)return;
+      // Neue Tagesabrechnung?
+      if(hd.ta){
+        Object.keys(hd.ta).forEach(function(datum){
+          var key='ta_'+hk+'_'+datum;
+          if(!_lastFbKeys[key]){
+            _lastFbKeys[key]=true;
+            // Nur bei wirklich neuen Einträgen (nicht beim ersten Laden)
+            if(Object.keys(_lastFbKeys).length>1){
+              var hotelName=Object.keys(HOTELS).find(function(h){return fbKey(h)===hk;})||hk;
+              ajNotify('📋 Neue Tagesabrechnung',hotelName+' · '+datum);
+            }
+          }
+        });
+      }
+      // Neue Krankmeldung?
+      if(hd.krankmeldung){
+        Object.keys(hd.krankmeldung||{}).forEach(function(kid){
+          var key='km_'+kid;
+          if(!_lastFbKeys[key]){
+            _lastFbKeys[key]=true;
+            if(Object.keys(_lastFbKeys).length>1){
+              var km=hd.krankmeldung[kid];
+              ajNotify('🤒 Neue Krankmeldung',( km.name||'')+' · '+(km.hotel||'')+' · ab '+( km.von||''));
+            }
+          }
+        });
+      }
+    });
+  }
+
+  // In fbPollNow einbinden — wird nach jedem Poll aufgerufen
+  var _origFbPollNow=fbPollNow;
+  fbPollNow=function(){
+    _origFbPollNow();
+    // Nach kurzer Verzögerung neue Daten prüfen
+    setTimeout(function(){
+      if(USER&&USER.role==='chef'&&DATA){
+        var combined={};
+        Object.keys(HOTELS).forEach(function(hk){
+          combined[fbKey(hk)]={ta:DATA.ta[hk]||{}};
+        });
+        checkFbNewData(combined);
+      }
+    },2000);
+  };
+
+  // Chef-Login: Benachrichtigungen anfragen
+  var origLoginChef=loginChef;
+  loginChef=function(){
+    origLoginChef();
+    setTimeout(function(){
+      if(USER&&USER.role==='chef')requestNotifPermission();
+    },1000);
+  };
+
+  // Service Worker (offline support + Push)
+  if('serviceWorker' in navigator){
+    try{
+      var swCode="var C='aj-v6';"
+        +"self.addEventListener('install',function(e){e.waitUntil(caches.open(C).then(function(c){return c.add(self.location.href);}).then(function(){return self.skipWaiting();}));});"
+        +"self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(keys){return Promise.all(keys.filter(function(k){return k!==C;}).map(function(k){return caches.delete(k);}));}).then(function(){return self.clients.claim();}));});"
+        +"self.addEventListener('fetch',function(e){e.respondWith(caches.match(e.request).then(function(r){return r||fetch(e.request).catch(function(){return caches.match(self.location.href);});}));});"
+        // Push-Empfang im Service Worker
+        +"self.addEventListener('push',function(e){var d=e.data?e.data.json():{};e.waitUntil(self.registration.showNotification(d.title||'A&J Manager',{body:d.body||'Neue Eingabe',icon:'/icon.png',badge:'/icon.png',requireInteraction:true}));});"
+        +"self.addEventListener('notificationclick',function(e){e.notification.close();e.waitUntil(clients.openWindow(self.location.origin));});";
+      var blob=new Blob([swCode],{type:'application/javascript'});
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).then(function(reg){
+        // Service Worker registriert
+        if(reg)localStorage.setItem('aj_sw','1');
+      }).catch(function(){});
     }catch(e){}
   }
 });
