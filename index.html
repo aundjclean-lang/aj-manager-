@@ -1340,37 +1340,68 @@ function saveTa(){
 
   saveData();
 
-  // ── DIREKT ZU FIREBASE SCHREIBEN ──
+  // ── FIREBASE SCHREIBEN — alle Daten bereinigt ──
   var hk=fbKey(hotel);
   var ts=Date.now();
-  // Datum für Firebase-Pfad: Punkte ersetzen
-  var datumKey=datum.replace(/\./g,'_').replace(/-/g,'_');
+  var datumKey=datum.replace(/[.\-\/]/g,'_'); // 26.04.2026 → 26_04_2026
 
-  // 1. Tagesabrechnung direkt schreiben
-  var taEntry=DATA.ta[hotel][datum];
-  fbPatch('dailyReports/'+hk+'/'+datumKey,taEntry);
+  // Hilfsfunktion: bereinigt komplettes Objekt für Firebase
+  function cleanForFb(obj){
+    return JSON.parse(JSON.stringify(obj,function(k,v){
+      // Keys mit Sonderzeichen? Überspringen (werden durch fbKey gefixt)
+      if(v===undefined||v===null)return 0;
+      if(typeof v==='number'&&!isFinite(v))return 0;
+      if(typeof v==='function')return undefined;
+      return v;
+    }));
+  }
 
-  // 2. Stundenzettel direkt schreiben
-  if(DATA.sz[hotel])fbPatch('timesheets/'+hk,DATA.sz[hotel]);
+  // 1. Tagesabrechnung — saubere rows bauen
+  var safeRows=rows.map(function(r){
+    return {
+      name:String(r.name||''),
+      zi:Number(r.zi)||0, gr:Number(r.gr)||0,
+      ses:Number(r.ses)||0, chk:Number(r.chk)||0,
+      pub:Number(r.pub)||0, wae:Number(r.wae)||0,
+      son:Number(r.son)||0, auf:Number(r.auf)||0,
+      mini:Number(r.mini)||0, ist:Number(r.ist)||0
+    };
+  });
+  var taClean={
+    datum:String(datum),hotel:String(hotel),
+    tl:String(USER.name||''),
+    rows:safeRows,savedAt:ts
+  };
+  fbPatch('dailyReports/'+hk+'/'+datumKey,taClean);
+  fbPatch('hotels/'+hk+'/ta/'+datumKey,taClean);
 
-  // 3. Leistungsübersicht direkt schreiben
-  if(DATA.lu[hotel])fbPatch('leistung/'+hk,DATA.lu[hotel]);
+  // 2. Stundenzettel — aus DATA.sz, bereinigt
+  if(DATA.sz&&DATA.sz[hotel]){
+    var szClean={};
+    Object.keys(DATA.sz[hotel]).forEach(function(mk){
+      var safeKey=fbKey(mk); // Leerzeichen → _
+      szClean[safeKey]=cleanForFb(DATA.sz[hotel][mk]);
+    });
+    fbPatch('timesheets/'+hk,szClean);
+    fbPatch('hotels/'+hk+'/sz',szClean);
+  }
+
+  // 3. Leistung — aus DATA.lu, bereinigt
+  if(DATA.lu&&DATA.lu[hotel]){
+    fbPatch('leistung/'+hk,cleanForFb(DATA.lu[hotel]));
+  }
 
   // 4. Notification für Chef
   fbPatch('notifications/ta_'+ts,{
     typ:'tagesabrechnung',
-    hotel:hotel,
-    hotelKey:hk,
-    datum:datum,
-    tl:USER.name,
-    count:transferCount,
+    hotel:String(hotel),
+    hotelKey:String(hk),
+    datum:String(datum),
+    tl:String(USER.name||''),
+    count:Number(transferCount)||0,
     ts:ts,
     gelesen:false
   });
-
-  // 5. Hotels Pfad
-  if(taEntry)fbPatch('hotels/'+hk+'/ta/'+datumKey,taEntry);
-  if(DATA.sz[hotel])fbPatch('hotels/'+hk+'/sz',DATA.sz[hotel]);
 
   toast('✅ Gespeichert & an Chef gesendet!','ok',4000);
 }
