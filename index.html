@@ -4677,7 +4677,11 @@ waShare(szWaText(ma,mon,USER.hotel));
 // Global error handler - fängt alle ungefangenen Fehler
 window.onerror=function(msg,src,line,col,err){
 console.error(‘Global Error:’,msg,‘at’,src,line+’:’+col,err?err.stack:’’);
-return false; // nicht unterdrücken
+// Sichtbar anzeigen auf Login-Screen
+var d=document.getElementById(‘js-error-box’);
+if(!d){d=document.createElement(‘div’);d.id=‘js-error-box’;d.style.cssText=‘position:fixed;bottom:0;left:0;right:0;background:#c00;color:#fff;padding:8px;font-size:11px;z-index:99999;word-break:break-all’;document.body.appendChild(d);}
+d.textContent=‘JS Fehler: ‘+msg+’ (’+line+’:’+col+’)’;
+return false;
 };
 window.addEventListener(‘unhandledrejection’,function(e){
 console.error(‘Unhandled Promise:’,e.reason);
