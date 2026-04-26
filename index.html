@@ -134,27 +134,50 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 /* ── PRINT ── */
 @media print{
   /* Alles verstecken */
-  *{visibility:hidden!important;background:transparent!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body *{visibility:hidden!important}
   /* Nur print-area zeigen */
-  #print-area,#print-area *,#dp-print-area,#dp-print-area *{visibility:visible!important}
+  #print-area,#print-area *,#dp-print-area,#dp-print-area *{
+    visibility:visible!important;
+  }
   #print-area,#dp-print-area{
     position:fixed!important;
-    top:0!important;left:0!important;
+    top:0!important;
+    left:0!important;
     width:100%!important;
+    height:auto!important;
     background:#fff!important;
+    color:#000!important;
     display:block!important;
     overflow:visible!important;
     padding:0!important;
     margin:0!important;
+    z-index:99999!important;
   }
-  /* Tabellen */
-  #print-area th,#dp-print-area th{background:#1a2e6b!important;color:#c8a84b!important;visibility:visible!important}
-  #print-area .prt-ges td,#dp-print-area .prt-ges td{background:#1a2e6b!important;color:#c8a84b!important}
+  /* Tabellen Farben */
+  #print-area th,#dp-print-area th{
+    background:#1a2e6b!important;
+    color:#c8a84b!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
+  #print-area .prt-ges td,#dp-print-area .prt-ges td{
+    background:#1a2e6b!important;
+    color:#c8a84b!important;
+    -webkit-print-color-adjust:exact!important;
+    print-color-adjust:exact!important;
+  }
   #print-area tr:nth-child(even) td{background:#f5f5f5!important}
-  /* Seite */
-  html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}
-  .login-screen,.app-wrap,.topbar,.navbar{display:none!important;visibility:hidden!important}
-  @page{size:A4 portrait;margin:10mm}
+  /* App verstecken */
+  .login-screen,.app-wrap{display:none!important}
+  html,body{
+    background:#fff!important;
+    margin:0!important;
+    padding:0!important;
+  }
+  @page{
+    size:A4 portrait;
+    margin:10mm;
+  }
 }
 #print-area,#dp-print-area{display:none;background:#fff!important;color:#000!important}
 
@@ -774,11 +797,18 @@ function startApp(){
       o.textContent=HOTELS[hk].nr+' · '+hk.slice(0,18);
       sel.appendChild(o);
     });
+    // "Alle Hotels" option zuerst
+    var oAll=document.createElement('option');
+    oAll.value='__alle__';
+    oAll.textContent='Alle Hotels';
+    sel.insertBefore(oAll,sel.firstChild);
+    sel.value=USER.hotel||'__alle__';
     sel.onchange=function(){
-      USER.hotel=this.value;
-      var ti2=ge('tb-info');if(ti2)ti2.textContent=this.value;
-      buildTabs(); // Tabs neu bauen (Spark hat extra Tab)
-      switchTab(currentTab||'dash'); // Aktuellen Tab neu laden mit neuem Hotel
+      USER.hotel=this.value==='__alle__'?'':this.value;
+      USER.chefHotel=this.value; // merken
+      var ti2=ge('tb-info');if(ti2)ti2.textContent=this.value==='__alle__'?'Alle Hotels':this.value;
+      buildTabs();
+      switchTab(currentTab||'dash');
     };
     var tbr=ge('tb-right');
     if(tbr){
@@ -898,7 +928,13 @@ function pgDash(){
   var now=new Date();
   var mon=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   var today=now.getDate()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
+
+  // Chef: nach gewähltem Hotel filtern
+  var chefHotel=USER.chefHotel||'';
   var hNames=Object.keys(HOTELS);
+  if(chefHotel&&chefHotel!=='__alle__'){
+    hNames=hNames.filter(function(h){return h===chefHotel;});
+  }
   var allRows=[],totZiDay=0,totMaDay=[],totZiMon=0,totIstMon=0;
 
   hNames.forEach(function(hk){
@@ -1115,29 +1151,198 @@ function pgDash(){
   }
   html+='</div></div>';
 
-  // HOTELS
+  // ── HOTELS PANEL — jedes Hotel vollständig ──
   html+='<div id="dpanel-hotels" style="display:none">';
-  hNames.forEach(function(hk){
-    var szH=DATA.sz[hk]||{},taH=DATA.ta[hk]||{};
-    var hZi=0,hIst=0,hMa=[];
-    Object.keys(szH).forEach(function(mn){var d=szH[mn][mon];if(d){hZi+=parseInt(d.ziGes||0);hIst+=parseFloat(d.istGes||0);hMa.push(mn);}});
-    html+='<div class="card" style="padding:0;overflow:hidden;margin-bottom:8px">';
-    html+='<div class="hotel-hdr" data-hk="'+hk.replace(/"/g,'&quot;')+'" style="padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer">';
-    html+='<span style="width:8px;height:8px;border-radius:50%;background:'+(hZi>0?'#4caf7d':'#5a6472')+';flex-shrink:0;display:inline-block"></span>';
-    html+='<span style="font-size:0.82rem;font-weight:700;color:var(--gold);flex:1">'+HOTELS[hk].nr+' · '+hk+'</span>';
-    if(hZi>0){html+='<span class="badge b-gold">'+hZi+' Zi</span><span class="badge b-grey">'+hIst.toFixed(1)+' h</span>';}
-    html+='<span style="color:var(--muted)">▼</span></div>';
-    html+='<div class="hotel-detail" style="display:none;padding:0 14px 12px">';
-    if(hMa.length){
-      html+='<table class="tbl" style="margin-bottom:8px"><thead><tr><th>MA</th><th>Zi '+mon+'</th><th>Std</th><th>Tage</th></tr></thead><tbody>';
-      hMa.forEach(function(mn){var d=szH[mn][mon];if(!d)return;html+='<tr><td><b>'+mn+'</b></td><td><span class="badge b-gold">'+d.ziGes+'</span></td><td>'+parseFloat(d.istGes||0).toFixed(1)+' h</td><td>'+Object.keys(d.tage||{}).length+'</td></tr>';});
-      html+='</tbody></table>';
+
+  hNames.forEach(function(hotel){
+    var cfg=HOTELS[hotel]||{};
+    var hk=safeKey(hotel);
+    var taH=DATA.ta[hotel]||{};
+    var szH=DATA.sz[hotel]||{};
+    var luH=DATA.lu[hotel]||{};
+    var dpH=DATA.dp[hotel]||{};
+
+    // Monats-Statistik
+    var hZiMon=0,hIstMon=0,hMaList=[];
+    Object.keys(szH).forEach(function(maKey){
+      var mData=szH[maKey];
+      if(typeof mData==='object'&&mData[mon]){
+        hZiMon+=parseInt(mData[mon].ziGes||0);
+        hIstMon+=parseFloat(mData[mon].istGes||0);
+        if(hMaList.indexOf(maKey)<0)hMaList.push(maKey);
+      }
+    });
+
+    // Heute TA
+    var taHeute=taH[today];
+    var ziHeute=0;
+    if(taHeute&&taHeute.rows)taHeute.rows.forEach(function(r){ziHeute+=parseInt(r.zimmer||r.zi||0);});
+
+    var aktiv=ziHeute>0||hZiMon>0;
+
+    html+='<div style="border:1px solid rgba(212,168,67,'+(aktiv?'0.3':'0.1')+');border-radius:6px;margin-bottom:8px;overflow:hidden">';
+
+    // Hotel Header
+    html+='<div data-hotel-toggle="'+hk+'" style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;background:var(--bg3)">';
+    html+='<span style="width:8px;height:8px;border-radius:50%;background:'+(ziHeute>0?'#4caf7d':aktiv?'#d4a843':'#3a4458')+';flex-shrink:0"></span>';
+    html+='<span style="font-weight:700;color:var(--gold);flex:1;font-size:0.85rem">'+cfg.nr+' · '+hotel+'</span>';
+    if(ziHeute>0)html+='<span style="background:rgba(76,175,125,0.15);color:#4caf7d;padding:2px 8px;border-radius:10px;font-size:0.6rem;font-weight:700">'+ziHeute+' Zi heute</span>';
+    if(hZiMon>0)html+='<span style="background:rgba(212,168,67,0.1);color:var(--gold);padding:2px 8px;border-radius:10px;font-size:0.6rem;margin-left:4px">'+hZiMon+' Zi '+mon+'</span>';
+    html+='<span style="color:var(--muted);font-size:0.7rem;margin-left:4px">▼</span>';
+    html+='</div>';
+
+    // Hotel Detail (collapsed)
+    html+='<div id="hdetail-'+hk+'" style="display:none;padding:12px 14px">';
+
+    // === TAGESABRECHNUNG ===
+    html+='<div style="margin-bottom:14px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">';
+    html+='<span style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em">📋 TAGESABRECHNUNGEN</span>';
+    html+='<button class="btn sm danger" data-del-all-ta="'+hotel+'" style="font-size:0.55rem;padding:2px 7px">🗑 Alle löschen</button>';
+    html+='</div>';
+
+    var taDates=Object.keys(taH).sort().reverse().slice(0,30);
+    if(!taDates.length){
+      html+='<div style="color:var(--muted);font-size:0.7rem;padding:6px 0">Keine Daten</div>';
+    } else {
+      taDates.forEach(function(datum){
+        var ta=taH[datum];if(!ta)return;
+        var status=ta.status||'pending';
+        var sCol=status==='genehmigt'?'#4caf7d':status==='abgelehnt'?'#e05555':'#d4a843';
+        var ziSum=0;
+        if(ta.rows)ta.rows.forEach(function(r){ziSum+=parseInt(r.zimmer||r.zi||0);});
+        var taId=hk+'_'+safeKey(datum);
+
+        html+='<div style="border:1px solid rgba(255,255,255,0.07);border-radius:4px;margin-bottom:6px">';
+        // Header
+        html+='<div style="display:flex;align-items:center;gap:6px;padding:7px 10px">';
+        html+='<div data-ta-toggle2="'+taId+'" style="flex:1;cursor:pointer;display:flex;align-items:center;gap:6px">';
+        html+='<span style="font-size:0.72rem;color:var(--cream);font-weight:600">'+(ta.datum||datum)+'</span>';
+        html+='<span style="font-size:0.6rem;color:var(--muted)">'+( ta.tl||ta.createdBy||'?')+'</span>';
+        html+='<span style="font-size:0.6rem;color:#5b9bd5">'+ziSum+' Zi</span>';
+        html+='<span style="font-size:0.58rem;color:'+sCol+'">'+(status==='genehmigt'?'✅':status==='abgelehnt'?'❌':'⏳')+'</span>';
+        html+='</div>';
+        html+='<button class="btn sm danger" data-del-ta="'+hotel+'|'+datum+'" style="font-size:0.55rem;padding:2px 6px">🗑</button>';
+        html+='</div>';
+
+        // Rows
+        html+='<div id="tarows-'+taId+'" style="display:none;padding:0 10px 10px">';
+        if(ta.rows&&ta.rows.length){
+          html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.67rem">';
+          html+='<tr style="background:var(--navy3)"><th style="padding:4px 5px;text-align:left;color:var(--gold)">MA</th><th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th><th style="padding:3px;color:var(--gold)">Chk</th><th style="padding:3px;color:var(--gold)">Pub</th><th style="padding:3px;color:var(--gold)">Wä</th><th style="padding:3px;color:var(--gold)">Son</th><th style="padding:3px;color:var(--gold)">Auf</th><th style="padding:3px;color:#81c784">Std</th></tr>';
+          ta.rows.forEach(function(r,ri){
+            html+='<tr style="'+(ri%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:3px 5px;font-weight:600;color:var(--cream)">'+(r.name||'?')+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center;color:#5b9bd5">'+(r.zimmer||r.zi||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.grundrein||r.gr||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.check||r.chk||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.publik||r.pub||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.waesche||r.wae||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.sonder||r.son||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.aufbett||r.auf||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center;color:#81c784">'+(r.istStd||r.ist||0)+'</td></tr>';
+          });
+          html+='</table></div>';
+        }
+        html+='<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">';
+        if(status==='pending'){
+          html+='<button class="btn sm" data-ta-ok2="'+hotel+'|'+datum+'" style="color:#4caf7d;border-color:rgba(76,175,125,0.3);font-size:0.6rem">✅ Genehmigen</button>';
+          html+='<button class="btn sm danger" data-ta-ab2="'+hotel+'|'+datum+'" style="font-size:0.6rem">❌ Ablehnen</button>';
+        } else {
+          html+='<button class="btn sm" data-ta-reset="'+hotel+'|'+datum+'" style="font-size:0.6rem;color:var(--muted)">↺ Zurücksetzen</button>';
+        }
+        html+='<button class="btn sm danger" data-del-ta="'+hotel+'|'+datum+'" style="font-size:0.6rem;margin-left:auto">🗑 Löschen</button>';
+        html+='</div>';
+        html+='</div></div>';
+      });
     }
-    if(!hZi){html+='<div class="empty" style="padding:10px 0">Keine Daten</div>';}
-    html+='<button class="btn sm primary" data-print-hotel="'+hk.replace(/"/g,'&quot;')+'">🖶 PDF</button>';
-    html+='</div></div>';
+    html+='</div>';
+
+    // === STUNDENZETTEL ===
+    html+='<div style="margin-bottom:14px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">';
+    html+='<span style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em">⏱ STUNDENZETTEL — '+mon+'</span>';
+    html+='<button class="btn sm danger" data-del-sz="'+hotel+'|'+mon+'" style="font-size:0.55rem;padding:2px 7px">🗑 Monat löschen</button>';
+    html+='</div>';
+    if(!hMaList.length){
+      html+='<div style="color:var(--muted);font-size:0.7rem">Keine Daten</div>';
+    } else {
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.7rem">';
+      html+='<tr style="background:var(--navy3)"><th style="padding:5px 6px;text-align:left;color:var(--gold)">Mitarbeiter</th><th style="padding:5px;color:var(--gold)">Zimmer</th><th style="padding:5px;color:var(--gold)">Std</th><th style="padding:5px;color:var(--gold)">Tage</th><th style="padding:5px;color:var(--gold)">Ø Zi</th><th style="padding:5px;color:#e05555">Löschen</th></tr>';
+      hMaList.forEach(function(maKey,i){
+        var mData=szH[maKey];
+        if(!mData||!mData[mon])return;
+        var md=mData[mon];
+        var tage=Object.keys(md.tage||{}).length;
+        var avg=tage>0?((parseInt(md.ziGes||0)/tage).toFixed(1)):'--';
+        var realName=mData.name||maKey.replace(/_/g,' ');
+        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:4px 6px;font-weight:600;color:var(--cream)">'+realName+'</td>';
+        html+='<td style="padding:4px;text-align:center"><span style="color:var(--gold)">'+parseInt(md.ziGes||0)+'</span></td>';
+        html+='<td style="padding:4px;text-align:center;color:#81c784">'+parseFloat(md.istGes||0).toFixed(1)+'h</td>';
+        html+='<td style="padding:4px;text-align:center;color:var(--muted)">'+tage+'</td>';
+        html+='<td style="padding:4px;text-align:center;color:'+(parseFloat(avg)>=2?'#4caf7d':'#e05555')+'">'+avg+'</td>';
+        html+='<td style="padding:4px;text-align:center"><button class="btn sm danger" data-del-sz-ma="'+hotel+'|'+maKey+'|'+mon+'" style="font-size:0.55rem;padding:1px 5px">🗑</button></td>';
+        html+='</tr>';
+      });
+      html+='</table></div>';
+    }
+    html+='</div>';
+
+    // === LEISTUNGSÜBERSICHT ===
+    var luMon=luH[mon]||{};
+    var luRows=luMon.rows||{};
+    html+='<div style="margin-bottom:14px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">';
+    html+='<span style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em">📊 LEISTUNG — '+mon+'</span>';
+    html+='<button class="btn sm danger" data-del-lu="'+hotel+'|'+mon+'" style="font-size:0.55rem;padding:2px 7px">🗑 Löschen</button>';
+    html+='</div>';
+    if(!Object.keys(luRows).length){
+      html+='<div style="color:var(--muted);font-size:0.7rem">Keine Daten</div>';
+    } else {
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.68rem">';
+      html+='<tr style="background:var(--navy3)"><th style="padding:4px 5px;color:var(--gold)">Tag</th><th style="padding:4px;color:var(--gold)">Zi</th><th style="padding:4px;color:var(--gold)">GR</th><th style="padding:4px;color:var(--gold)">Chk</th><th style="padding:4px;color:var(--gold)">Pub</th><th style="padding:4px;color:#81c784">Std</th><th style="padding:4px;color:#e05555">Del</th></tr>';
+      Object.keys(luRows).sort().forEach(function(dayKey,i){
+        var dr=luRows[dayKey];if(!dr)return;
+        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:3px 5px;color:var(--muted)">'+dayKey+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center;color:#5b9bd5">'+(dr.zi||0)+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center">'+(dr.gr||0)+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center">'+(dr.chk||0)+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center">'+(dr.pub||0)+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center;color:#81c784">'+(parseFloat(dr.ist||0).toFixed(1))+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center"><button class="btn sm danger" data-del-lu-day="'+hotel+'|'+mon+'|'+dayKey+'" style="font-size:0.5rem;padding:1px 4px">🗑</button></td></tr>';
+      });
+      html+='</table></div>';
+    }
+    html+='</div>';
+
+    // === DIENSTPLAN ===
+    var dpMon=dpH[mon]||{};
+    html+='<div style="margin-bottom:8px">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:4px">';
+    html+='<span style="font-size:0.7rem;font-weight:700;color:var(--gold);letter-spacing:0.08em">▪ DIENSTPLAN — '+mon+'</span>';
+    html+='<button class="btn sm danger" data-del-dp="'+hotel+'|'+mon+'" style="font-size:0.55rem;padding:2px 7px">🗑 Löschen</button>';
+    html+='</div>';
+    var dpMas=Object.keys(dpMon);
+    if(!dpMas.length){
+      html+='<div style="color:var(--muted);font-size:0.7rem">Keine Daten</div>';
+    } else {
+      html+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+      dpMas.forEach(function(ma){
+        var tage=Object.keys(dpMon[ma]||{}).length;
+        html+='<div style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:8px;padding:3px 8px;display:flex;align-items:center;gap:5px">';
+        html+='<span style="font-size:0.65rem;color:var(--cream)">'+ma.replace(/_/g,' ')+'</span>';
+        html+='<span style="font-size:0.58rem;color:var(--muted)">('+tage+'T)</span>';
+        html+='<button class="btn sm danger" data-del-dp-ma="'+hotel+'|'+mon+'|'+ma+'" style="font-size:0.5rem;padding:0 4px;min-width:0">🗑</button>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+
+    html+='</div></div>'; // hdetail + hotel card
   });
-  html+='</div>';
+
+  html+='</div>'; // dpanel-hotels
+
 
   // AUSWERTUNG
   html+='<div id="dpanel-auswertung" style="display:none"><div class="card" style="padding:10px"><div class="card-title">Auswertung -- '+mon+'</div>';
@@ -1261,7 +1466,157 @@ function pgDash(){
         }
         return;
       }
-      // Hotel expand
+      // TA Status zurücksetzen
+      var taReset=t.getAttribute&&t.getAttribute('data-ta-reset');
+      if(taReset){
+        var rp=taReset.split('|');
+        if(DATA.ta[rp[0]]&&DATA.ta[rp[0]][rp[1]]){
+          DATA.ta[rp[0]][rp[1]].status='pending';
+          var rhk=safeKey(rp[0]),rdk=safeKey(rp[1]);
+          fbPut('hotels/'+rhk+'/tagesabrechnung/'+rdk,DATA.ta[rp[0]][rp[1]],null,null);
+          try{saveData();}catch(e){}
+          toast('Zurückgesetzt','ok',2000);pgDash();
+        }
+        return;
+      }
+      // TA einzeln löschen
+      var delTa=t.getAttribute&&t.getAttribute('data-del-ta');
+      if(delTa){
+        if(!confirm('Tagesabrechnung löschen?'))return;
+        var dp=delTa.split('|');
+        var h=dp[0],d=dp[1];
+        if(DATA.ta[h])delete DATA.ta[h][d];
+        var dhk=safeKey(h),ddk=safeKey(d);
+        // Firebase: null = löschen
+        fbWrite('hotels/'+dhk+'/tagesabrechnung/'+ddk,null,null,null);
+        fbWrite('chef/inbox/tagesabrechnung/'+ddk+'_'+dhk,null,null,null);
+        try{saveData();}catch(e){}
+        toast('Tagesabrechnung gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // Alle TA eines Hotels löschen
+      var delAllTa=t.getAttribute&&t.getAttribute('data-del-all-ta');
+      if(delAllTa){
+        if(!confirm('ALLE Tagesabrechnungen von '+delAllTa+' löschen?'))return;
+        DATA.ta[delAllTa]={};
+        fbWrite('hotels/'+safeKey(delAllTa)+'/tagesabrechnung',null,null,null);
+        try{saveData();}catch(e){}
+        toast('Alle TAs gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // SZ Monat eines MA löschen
+      var delSzMa=t.getAttribute&&t.getAttribute('data-del-sz-ma');
+      if(delSzMa){
+        if(!confirm('Stundenzettel löschen?'))return;
+        var sp=delSzMa.split('|');
+        var sh=sp[0],sma=sp[1],smon=sp[2];
+        if(DATA.sz[sh]&&DATA.sz[sh][sma])delete DATA.sz[sh][sma][smon];
+        fbWrite('hotels/'+safeKey(sh)+'/sz/'+sma+'/'+smon,null,null,null);
+        try{saveData();}catch(e){}
+        toast('Gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // SZ ganzer Monat löschen
+      var delSz=t.getAttribute&&t.getAttribute('data-del-sz');
+      if(delSz){
+        if(!confirm('Ganzen Monat SZ löschen?'))return;
+        var szp=delSz.split('|');
+        var szh=szp[0],szm=szp[1];
+        if(DATA.sz[szh]){Object.keys(DATA.sz[szh]).forEach(function(ma){if(DATA.sz[szh][ma])delete DATA.sz[szh][ma][szm];});}
+        fbWrite('hotels/'+safeKey(szh)+'/sz',DATA.sz[szh]?fbClean(DATA.sz[szh]):null,null,null);
+        try{saveData();}catch(e){}
+        toast('Stundenzettel Monat gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // Leistung Tag löschen
+      var delLuDay=t.getAttribute&&t.getAttribute('data-del-lu-day');
+      if(delLuDay){
+        var lp=delLuDay.split('|');
+        var lh=lp[0],lm=lp[1],ld=lp[2];
+        if(DATA.lu[lh]&&DATA.lu[lh][lm]&&DATA.lu[lh][lm].rows)delete DATA.lu[lh][lm].rows[ld];
+        fbWrite('hotels/'+safeKey(lh)+'/lu/'+lm,DATA.lu[lh]&&DATA.lu[lh][lm]?fbClean(DATA.lu[lh][lm]):null,null,null);
+        try{saveData();}catch(e){}
+        toast('Tag gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // Leistung Monat löschen
+      var delLu=t.getAttribute&&t.getAttribute('data-del-lu');
+      if(delLu){
+        if(!confirm('Leistungsübersicht Monat löschen?'))return;
+        var lup=delLu.split('|');
+        if(DATA.lu[lup[0]])delete DATA.lu[lup[0]][lup[1]];
+        fbWrite('hotels/'+safeKey(lup[0])+'/lu/'+lup[1],null,null,null);
+        try{saveData();}catch(e){}
+        toast('Leistung gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // Dienstplan MA löschen
+      var delDpMa=t.getAttribute&&t.getAttribute('data-del-dp-ma');
+      if(delDpMa){
+        var dpm=delDpMa.split('|');
+        if(DATA.dp[dpm[0]]&&DATA.dp[dpm[0]][dpm[1]])delete DATA.dp[dpm[0]][dpm[1]][dpm[2]];
+        fbWrite('hotels/'+safeKey(dpm[0])+'/dp/'+dpm[1]+'/'+dpm[2],null,null,null);
+        try{saveData();}catch(e){}
+        toast('Mitarbeiter aus Dienstplan entfernt','ok',2000);pgDash();
+        return;
+      }
+      // Dienstplan Monat löschen
+      var delDp=t.getAttribute&&t.getAttribute('data-del-dp');
+      if(delDp){
+        if(!confirm('Dienstplan Monat löschen?'))return;
+        var dpp=delDp.split('|');
+        if(DATA.dp[dpp[0]])delete DATA.dp[dpp[0]][dpp[1]];
+        fbWrite('hotels/'+safeKey(dpp[0])+'/dp/'+dpp[1],null,null,null);
+        try{saveData();}catch(e){}
+        toast('Dienstplan gelöscht','ok',2000);pgDash();
+        return;
+      }
+      // Hotel aufklappen
+      var hotelToggle=t.getAttribute&&t.getAttribute('data-hotel-toggle');
+      if(hotelToggle){
+        var det=ge('hdetail-'+hotelToggle);
+        if(det){det.style.display=det.style.display==='none'?'block':'none';}
+        return;
+      }
+      // TA Zeilen aufklappen
+      var taToggle2=t.getAttribute&&t.getAttribute('data-ta-toggle2');
+      if(taToggle2){
+        var det2=ge('tarows-'+taToggle2);
+        if(det2){det2.style.display=det2.style.display==='none'?'block':'none';}
+        return;
+      }
+      // TA Genehmigen (Hotels-Panel)
+      var taOk2=t.getAttribute&&t.getAttribute('data-ta-ok2');
+      if(taOk2){
+        var parts=taOk2.split('|');
+        var h2=parts[0],d2=parts[1];
+        if(DATA.ta[h2]&&DATA.ta[h2][d2]){
+          DATA.ta[h2][d2].status='genehmigt';
+          DATA.ta[h2][d2].genehmigtVon=USER.name;
+          var hk2=safeKey(h2),dk2=safeKey(d2);
+          fbPut('hotels/'+hk2+'/tagesabrechnung/'+dk2,DATA.ta[h2][d2],null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+dk2+'_'+hk2,DATA.ta[h2][d2],null,null);
+          try{saveData();}catch(ex){}
+          toast('✅ Genehmigt!','ok',2000);pgDash();
+        }
+        return;
+      }
+      // TA Ablehnen (Hotels-Panel)
+      var taAb2=t.getAttribute&&t.getAttribute('data-ta-ab2');
+      if(taAb2){
+        var parts2=taAb2.split('|');
+        var h3=parts2[0],d3=parts2[1];
+        if(DATA.ta[h3]&&DATA.ta[h3][d3]){
+          DATA.ta[h3][d3].status='abgelehnt';
+          var hk3=safeKey(h3),dk3=safeKey(d3);
+          fbPut('hotels/'+hk3+'/tagesabrechnung/'+dk3,DATA.ta[h3][d3],null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+dk3+'_'+hk3,DATA.ta[h3][d3],null,null);
+          try{saveData();}catch(ex){}
+          toast('Abgelehnt','info',2000);pgDash();
+        }
+        return;
+      }
+      // Hotel expand (old style)
       if(t.classList&&t.classList.contains('hotel-hdr')){
         var det2=t.nextElementSibling;
         if(det2){var open=det2.style.display!=='none';det2.style.display=open?'none':'block';}
