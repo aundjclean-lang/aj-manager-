@@ -1073,15 +1073,16 @@ function pgDash(){
       var taKey='ta_'+idx;
       html+='<div style="border:1px solid rgba(212,168,67,0.15);border-radius:4px;margin-bottom:8px;overflow:hidden">';
       // Header
-      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);cursor:pointer" data-ta-toggle="'+taKey+'">';
-      html+='<div>';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3)">';
+      html+='<div data-ta-toggle="'+taKey+'" style="flex:1;cursor:pointer">';
       html+='<span style="font-weight:700;font-size:0.8rem;color:var(--gold)">'+(ta.hotel||'?')+'</span>';
       html+='<span style="font-size:0.65rem;color:var(--muted);margin-left:8px">'+(ta.datum||ta.date||'?')+'</span>';
       html+='<span style="font-size:0.6rem;color:var(--muted);margin-left:8px">von: '+(ta.tl||ta.createdBy||'?')+'</span>';
       html+='</div>';
       html+='<div style="display:flex;gap:6px;align-items:center">';
       html+='<span style="font-size:0.6rem;color:'+statusColor+'">'+statusTxt+'</span>';
-      html+='<span style="color:var(--muted);font-size:0.7rem">▼</span>';
+      html+='<button class="btn sm danger" data-ta-del-inbox="'+idx+'" style="font-size:0.6rem;padding:2px 7px">🗑</button>';
+      html+='<span data-ta-toggle="'+taKey+'" style="color:var(--muted);font-size:0.7rem;cursor:pointer">▼</span>';
       html+='</div></div>';
       // Detail (collapsed by default)
       html+='<div id="'+taKey+'" style="display:none;padding:10px">';
@@ -1119,14 +1120,15 @@ function pgDash(){
       html+=' · Von: '+(ta.tl||ta.createdBy||'?');
       html+='</div>';
       // Aktionen
+      html+='<div style="display:flex;gap:6px;flex-wrap:wrap">';
       if(status==='pending'){
-        html+='<div style="display:flex;gap:6px">';
         html+='<button class="btn sm primary" data-ta-ok="'+idx+'" style="color:#4caf7d;border-color:rgba(76,175,125,0.3);background:rgba(76,175,125,0.1);font-weight:700">✅ Genehmigen</button>';
         html+='<button class="btn sm danger" data-ta-ab="'+idx+'" style="font-weight:700">❌ Ablehnen</button>';
-        html+='</div>';
       } else {
-        html+='<div style="font-size:0.65rem;color:'+statusColor+'">'+statusTxt+'</div>';
+        html+='<button class="btn sm" data-ta-reset2="'+idx+'" style="font-size:0.6rem;color:var(--muted)">↺ Zurücksetzen</button>';
       }
+      html+='<button class="btn sm danger" data-ta-del-inbox="'+idx+'" style="margin-left:auto">🗑 Löschen</button>';
+      html+='</div>';
       html+='</div></div>';
     });
   }
@@ -1414,6 +1416,50 @@ function pgDash(){
   c.onclick=function(e){
     var t=e.target;
     while(t&&t!==c){
+      // TA Inbox löschen
+      var taDelInbox=t.getAttribute&&t.getAttribute('data-ta-del-inbox');
+      if(taDelInbox){
+        if(!confirm('Eintrag aus Inbox löschen?'))return;
+        var idx4=parseInt(taDelInbox);
+        if(_allTaForAction[idx4]){
+          var h4=_allTaForAction[idx4].hotel;
+          var d4=_allTaForAction[idx4].datum;
+          var hk4=safeKey(h4);
+          var dk4=safeKey(d4);
+          // Aus DATA löschen
+          if(DATA.ta[h4])delete DATA.ta[h4][d4];
+          // Aus Firebase löschen
+          fbWrite('hotels/'+hk4+'/tagesabrechnung/'+dk4,null,null,null);
+          fbWrite('chef/inbox/tagesabrechnung/'+dk4+'_'+hk4,null,null,null);
+          // Aus localStorage Inbox löschen
+          try{
+            var ci=JSON.parse(localStorage.getItem('aj_chef_inbox')||'{}');
+            delete ci[dk4+'_'+hk4];
+            localStorage.setItem('aj_chef_inbox',JSON.stringify(ci));
+          }catch(e){}
+          try{saveData();}catch(e){}
+          toast('Gelöscht','ok',2000);
+          pgDash();
+        }
+        return;
+      }
+      // TA Inbox zurücksetzen
+      var taReset2=t.getAttribute&&t.getAttribute('data-ta-reset2');
+      if(taReset2){
+        var idx5=parseInt(taReset2);
+        if(_allTaForAction[idx5]){
+          _allTaForAction[idx5].ta.status='pending';
+          var h5=_allTaForAction[idx5].hotel;
+          var d5=_allTaForAction[idx5].datum;
+          var hk5=safeKey(h5),dk5=safeKey(d5);
+          if(DATA.ta[h5])DATA.ta[h5][d5]=_allTaForAction[idx5].ta;
+          fbPut('hotels/'+hk5+'/tagesabrechnung/'+dk5,_allTaForAction[idx5].ta,null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+dk5+'_'+hk5,_allTaForAction[idx5].ta,null,null);
+          try{saveData();}catch(e){}
+          toast('Zurückgesetzt','ok',2000);pgDash();
+        }
+        return;
+      }
       // TA Toggle (expand/collapse)
       var taToggle=t.getAttribute&&t.getAttribute('data-ta-toggle');
       if(taToggle){
@@ -3546,16 +3592,49 @@ function dpPrintNew(){
   }
   tbody+='</tbody>';
 
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'</style></head><body>'
-    // Kopf mit echtem Logo
+  // Skalierung damit alles auf EINE Seite passt
+  var rowCount=0;
+  for(var ri2=0;ri2<dpRowCount(hotel);ri2++){if(gv('dpnm'+ri2).trim())rowCount++;}
+  var fontSize=rowCount>18?'5.5pt':rowCount>14?'6pt':'7pt';
+  var rowH=rowCount>18?'7px':rowCount>14?'8px':'9px';
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'
+    +'*{margin:0;padding:0;box-sizing:border-box}'
+    +'html,body{font-family:Arial,Helvetica,sans-serif;font-size:'+fontSize+';color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:100%}'
+    +'@page{size:A4 landscape;margin:5mm}'
+    +'@media print{html,body{width:297mm;height:210mm;overflow:hidden}}'
+    +'.top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.5mm}'
+    +'.objekt{font-size:6pt;color:#333}'
+    +'.titel{text-align:center;flex:1}'
+    +'.titel h1{font-size:11pt;font-weight:900;letter-spacing:0.15em;text-transform:uppercase}'
+    +'.titel .sub{font-size:5pt;color:#555;margin-top:0.5mm}'
+    +'.checkboxes{display:flex;gap:6mm;font-size:6pt;align-items:center;margin-top:0.5mm}'
+    +'.cb{display:flex;align-items:center;gap:1.5mm}'
+    +'.cb-box{width:8px;height:8px;border:1.5px solid #000;display:inline-block;flex-shrink:0}'
+    +'.woche{text-align:center;font-size:8pt;font-weight:700;margin-bottom:1.5mm}'
+    +'table{width:100%;border-collapse:collapse;table-layout:fixed}'
+    +'th,td{border:1px solid #999;text-align:center;vertical-align:middle;padding:1px;height:'+rowH+';overflow:hidden;white-space:nowrap}'
+    +'.th-top{background:#e8e8e8;font-size:5.5pt;font-weight:700;padding:1px}'
+    +'.th-sub{background:#f0f0f0;font-size:4.5pt;font-weight:400}'
+    +'.nm-hdr{text-align:left;padding-left:2px;width:42px;background:#e8e8e8}'
+    +'.nm-cell{text-align:left;padding-left:2px;font-size:'+fontSize+';width:42px;overflow:hidden}'
+    +'.nr-cell{font-size:5pt;color:#666;background:#f8f8f8;width:10px}'
+    +'.bel-hdr{writing-mode:vertical-rl;transform:rotate(180deg);font-size:4pt;background:#e8e8e8;white-space:nowrap;width:12px}'
+    +'.bel-cell{background:#f5f5f5;font-size:'+fontSize+';font-weight:700}'
+    +'.az-cell{font-size:5.5pt;width:28px}'
+    +'.pau-cell{font-size:4.5pt;color:#777;width:14px}'
+    +'.ges-cell{background:#eee;font-weight:700;font-size:5.5pt;width:20px}'
+    +'.frei-cell{background:#d0f0d8!important}'
+    +'.urlaub-cell{background:#d0e8f8!important}'
+    +'.krank-cell{background:#fdd!important}'
+    +'.even td{background:#fafafa}'
+    +'.bel-row td{background:#e0e0e0!important;font-weight:700}'
+    +'.footer-note{font-size:5pt;margin-top:1.5mm;display:flex;justify-content:space-between;align-items:flex-end}'
+    +'</style></head><body>'
     +'<div class="top">'
     +'<div>'
-    +'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="22mm" height="12mm" style="display:block">'
-    +'<text x="8" y="122" font-family="Georgia,serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&amp;J</text>'
-    +'<line x1="8" y1="138" x2="290" y2="138" stroke="#1a2e6b" stroke-width="1.8"/>'
-    +'<text x="8" y="162" font-family="Arial,sans-serif" font-size="23" font-weight="600" fill="#1a2e6b" letter-spacing="5">CLEANING SERVICES</text>'
-    +'<path d="M296,128 L299,136 L307,136 L301,141 L304,149 L296,144 L289,149 L292,141 L286,136 L294,136 Z" fill="#1a2e6b"/>'
-    +'</svg>'
+    +'<div style="font-size:14pt;font-weight:900;color:#1a2e6b;font-family:Georgia,serif;line-height:1">A&amp;J</div>'
+    +'<div style="font-size:4pt;letter-spacing:3px;color:#1a2e6b;text-transform:uppercase">Cleaning Services</div>'
     +'<div class="objekt" style="margin-top:1mm">Objekt: '+(hotelNr?hotelNr+' ':'')+hotel+'</div>'
     +'</div>'
     +'<div class="titel">'
@@ -3564,37 +3643,40 @@ function dpPrintNew(){
     +'<div class="cb"><div class="cb-box"></div> Public Area</div>'
     +'<div class="cb"><div class="cb-box"></div> Zimmerreinigung</div>'
     +'</div>'
-    +'<div class="sub">Pausenzeiten sind in der Zeit zwischen 11.00 - 12.00 Uhr zu nehmen mit 0,50 Std./ Tag</div>'
+    +'<div class="sub">Pausenzeiten sind zwischen 11:00-12:00 Uhr, 0,50 Std./Tag</div>'
     +'</div>'
-    +'<div style="text-align:right;font-size:6pt;color:#555">'+new Date().toLocaleDateString('de-DE')+'</div>'
+    +'<div style="text-align:right;font-size:5.5pt;color:#555">'+new Date().toLocaleDateString('de-DE')+'</div>'
     +'</div>'
-    +'<div class="woche">Woche von &nbsp;&nbsp;&nbsp;'+von+'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; bis &nbsp;&nbsp;&nbsp;'+bis+'</div>'
+    +'<div class="woche">Woche von &nbsp;&nbsp;'+von+'&nbsp;&nbsp; bis &nbsp;&nbsp;'+bis+'</div>'
     +'<table>'+thead+tbody+'</table>'
-    // Fuzeile
     +'<div class="footer-note">'
-    +'<div class="legend-left">'
-    +'<b>▶▶ Pausenzeiten zählen nicht zu den Arbeitszeiten! ◀◀</b><br>'
-    +'<b>A</b> = Ausgang &nbsp;&nbsp; <b>K</b> = Krank &nbsp;&nbsp; <b>U</b> = Urlaub'
+    +'<div><b>A</b>=Ausgang &nbsp; <b>K</b>=Krank &nbsp; <b>U</b>=Urlaub &nbsp; Pausen zählen nicht zur Arbeitszeit</div>'
+    +'<div>Bleibe: '+totBl+' &nbsp; Abreise: '+totAb+' &nbsp; MA: '+maCnt+'</div>'
     +'</div>'
-    +'<div style="font-size:6pt;flex:1;padding:0 8mm">'
-    +'<span style="display:inline-block;width:30mm;height:6px;border:1px solid #aaa;margin-right:3mm"></span>'
-    +'kommt nicht mehr <span style="color:red;font-style:italic">(möglichst mit Rot eintragen)</span><br><br>'
-    +'<span style="display:inline-block;width:30mm;height:6px;border:1px solid #aaa;margin-right:3mm;margin-top:2mm"></span>'
-    +'nicht erschienen <span style="color:red;font-style:italic">(möglichst mit Rot eintragen)</span>'
-    +'</div>'
-    +'<div class="legend-right">'
-    +'Gesamt Bleibe: '+totBl+' &nbsp; Abreise: '+totAb+'<br>'
-    +'Mitarbeiter: '+maCnt
-    +'</div>'
-    +'</div>'
+    +'<script>window.onload=function(){window.print();setTimeout(function(){window.close();},1000);};<\/script>'
     +'</body></html>';
 
-  var pd=ge('print-area');if(!pd)return;
-  var app=ge('app-wrap');
-  pd.innerHTML=html;pd.style.display='block';
-  if(app)app.style.display='none';
-  window.print();
-  setTimeout(function(){pd.style.display='none';pd.innerHTML='';if(app&&app.classList.contains('show'))app.style.display='';},1800);
+  // iframe benutzen - garantiert einseitig, kein App-Hintergrund
+  var existingIframe=ge('print-iframe');
+  if(existingIframe)existingIframe.parentNode.removeChild(existingIframe);
+  var iframe=document.createElement('iframe');
+  iframe.id='print-iframe';
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:99999;background:#fff;';
+  document.body.appendChild(iframe);
+  var doc=iframe.contentDocument||iframe.contentWindow.document;
+  doc.open();doc.write(html);doc.close();
+  iframe.onload=function(){
+    setTimeout(function(){
+      try{iframe.contentWindow.focus();iframe.contentWindow.print();}catch(e){window.print();}
+      setTimeout(function(){if(iframe.parentNode)iframe.parentNode.removeChild(iframe);},2000);
+    },300);
+  };
+  setTimeout(function(){
+    if(ge('print-iframe')){
+      try{iframe.contentWindow.print();}catch(e){}
+      setTimeout(function(){if(iframe&&iframe.parentNode)iframe.parentNode.removeChild(iframe);},2000);
+    }
+  },1200);
 }
 
 
