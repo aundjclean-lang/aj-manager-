@@ -132,23 +132,27 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 /* ── PRINT ── */
 @media print{
-  /* Alles außer print-area verstecken */
-  body > *{display:none!important;visibility:hidden!important}
+  /* ALLES verstecken — Schritt 1 */
+  *{visibility:hidden!important;background:transparent!important;color:#000!important}
+  /* Nur print-area sichtbar — Schritt 2 */
+  #print-area,#print-area *{visibility:visible!important}
+  /* print-area positionieren */
   #print-area{
-    display:block!important;
-    visibility:visible!important;
-    position:fixed!important;
-    inset:0!important;
+    position:absolute!important;
+    top:0!important;left:0!important;
+    width:100%!important;
     background:#fff!important;
-    color:#000!important;
-    z-index:99999!important;
+    display:block!important;
+    overflow:visible!important;
   }
-  #print-area *{visibility:visible!important;color:#000!important;background-color:transparent!important}
-  #print-area th{background:#000!important;color:#fff!important}
+  /* Schwarze Tabellen-Header */
+  #print-area th{background:#000!important;color:#fff!important;visibility:visible!important}
   #print-area .prt-ges td{background:#000!important;color:#fff!important}
-  html,body{background:#fff!important;color:#000!important;margin:0!important;padding:0!important}
-  @page{size:A4 portrait;margin:8mm}
-  a[href]:after{content:none!important}
+  #print-area tr:nth-child(even) td{background:#f5f5f5!important}
+  /* Seite */
+  html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}
+  @page{size:A4 portrait;margin:10mm}
+  @page:blank{display:none}
 }
 #print-area,#dp-print-area{display:none;background:#fff!important;color:#000!important}
 
@@ -305,111 +309,88 @@ if(!Array.prototype.find){Array.prototype.find=function(fn){for(var i=0;i<this.l
 if(!Array.prototype.includes){Array.prototype.includes=function(v){return this.indexOf(v)>=0;};}
 
 // ============================================================
-// FIREBASE REST API  (no external SDK = no CSP errors)
+// FIREBASE REST API — XHR only, iOS Safari kompatibel
 // ============================================================
 var FB_URL='https://aj-manager-28a6c-default-rtdb.europe-west1.firebasedatabase.app';
 var FB_POLL=null;
 var FB_FAIL_COUNT=0;
-var FB_DISABLED=false; // Nach mehreren Fehlern polling stoppen
+var FB_DISABLED=false;
 var FB_TOAST_SHOWN=false;
+var FB_CONFIRMED=false;
 
-function fbKey(s){if(!s)return'unknown';return s.replace(/[.#$\[\] ]/g,'_');}
+function fbKey(s){
+  if(!s)return'unknown';
+  return s.replace(/[.#$\[\] \/\\]/g,'_');
+}
 function fbRef(p){return FB_URL+'/'+p+'.json';}
+
+function fbXHR(method,path,data,cb){
+  var url=fbRef(path);
+  var xhr=new XMLHttpRequest();
+  xhr.open(method,url,true);
+  if(data)xhr.setRequestHeader('Content-Type','application/json');
+  xhr.timeout=12000;
+  xhr.ontimeout=function(){cb&&cb(null,new Error('Timeout'),0);};
+  xhr.onerror=function(){cb&&cb(null,new Error('Netzwerkfehler'),0);};
+  xhr.onload=function(){
+    var status=xhr.status;
+    if(status>=200&&status<300){
+      var d=null;
+      try{if(xhr.responseText&&xhr.responseText!=='null')d=JSON.parse(xhr.responseText);}catch(e){}
+      cb&&cb(d,null,status);
+    } else {
+      cb&&cb(null,new Error('HTTP '+status),status);
+    }
+  };
+  try{xhr.send(data?JSON.stringify(data):null);}
+  catch(e){cb&&cb(null,e,0);}
+}
 
 function fbGet(p,cb){
   if(FB_DISABLED){cb(null);return;}
-  var url=fbRef(p);
-  var done=false;
-  var timer=setTimeout(function(){
-    if(!done){done=true;cb(null);}
-  },8000);
-  fetch(url,{method:'GET',mode:'cors',cache:'no-store'})
-    .then(function(r){
-      if(!r.ok){
-        if(r.status===401||r.status===403){
-          // Regeln zu restriktiv — einmalig warnen, polling reduzieren
-          if(!FB_TOAST_SHOWN){
-            FB_TOAST_SHOWN=true;
-            toast('Firebase: Daten werden lokal gespeichert (DB-Regeln prüfen)','info',6000);
-          }
-          FB_DISABLED=true;
-        }
-        throw new Error('HTTP '+r.status);
-      }
-      return r.json();
-    })
-    .then(function(d){
-      if(!done){done=true;clearTimeout(timer);FB_FAIL_COUNT=0;cb(d);}
-    })
-    .catch(function(){
-      if(!done){done=true;clearTimeout(timer);}
-      // XHR Fallback (iOS Safari)
-      if(!FB_DISABLED)fbGetXHR(p,cb);else cb(null);
-    });
-}
-
-function fbGetXHR(p,cb){
-  if(FB_DISABLED){cb(null);return;}
-  var url=fbRef(p);
-  var xhr=new XMLHttpRequest();
-  xhr.open('GET',url,true);
-  xhr.timeout=8000;
-  xhr.ontimeout=function(){FB_FAIL_COUNT++;_fbFail(cb);};
-  xhr.onerror=function(){FB_FAIL_COUNT++;_fbFail(cb);};
-  xhr.onload=function(){
-    if(xhr.status===200){
-      FB_FAIL_COUNT=0;FB_DISABLED=false;
-      try{cb(JSON.parse(xhr.responseText));}catch(e){cb(null);}
-    } else if(xhr.status===401||xhr.status===403){
-      if(!FB_TOAST_SHOWN){
-        FB_TOAST_SHOWN=true;
-        toast('Firebase: Daten lokal gespeichert (DB-Regeln prüfen)','info',6000);
-      }
+  fbXHR('GET',p,null,function(data,err,status){
+    var dot=ge('fb-live-dot');
+    if(err){
+      FB_FAIL_COUNT++;
+      if(dot)dot.style.background='#e05555';
+      if(FB_FAIL_COUNT>=5&&!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('Firebase offline — lokal gespeichert','info',4000);}
+      if(FB_FAIL_COUNT>=10)FB_DISABLED=true;
+      cb(null);
+    } else if(status===401||status===403){
+      if(!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('⚠ Firebase Regeln: .read/.write auf true setzen!','err',8000);}
+      if(dot)dot.style.background='#e05555';
       FB_DISABLED=true;cb(null);
     } else {
-      FB_FAIL_COUNT++;_fbFail(cb);
+      FB_FAIL_COUNT=0;FB_CONFIRMED=true;
+      if(dot)dot.style.background='#4caf7d';
+      cb(data);
     }
-  };
-  xhr.send();
+  });
 }
 
-function _fbFail(cb){
-  if(FB_FAIL_COUNT>=3&&!FB_TOAST_SHOWN){
-    FB_TOAST_SHOWN=true;
-    toast('Offline-Modus: Daten lokal gespeichert','info',4000);
-  }
-  if(FB_FAIL_COUNT>=5)FB_DISABLED=true;
-  cb(null);
-}
+function fbGetXHR(p,cb){fbGet(p,cb);}
 
 function fbPatch(p,data){
   if(FB_DISABLED)return;
-  var url=fbRef(p);
-  fetch(url,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-    .then(function(r){if(!r.ok)console.warn('fbPatch',r.status);})
-    .catch(function(){
-      var xhr=new XMLHttpRequest();
-      xhr.open('PATCH',url,true);
-      xhr.setRequestHeader('Content-Type','application/json');
-      xhr.timeout=8000;
-      xhr.send(JSON.stringify(data));
-    });
+  fbXHR('PATCH',p,data,function(d,err,status){
+    var dot=ge('fb-live-dot');
+    if(!err&&status>=200&&status<300){if(dot)dot.style.background='#4caf7d';}
+    else if(err){if(dot)dot.style.background='#e05555';}
+  });
 }
+
 function fbSet(p,data){
   if(FB_DISABLED)return;
-  var url=fbRef(p);
-  var xhr=new XMLHttpRequest();
-  xhr.open('PUT',url,true);
-  xhr.setRequestHeader('Content-Type','application/json');
-  xhr.timeout=8000;
-  xhr.send(JSON.stringify(data));
+  fbXHR('PUT',p,data,null);
 }
+
 function fbPush(){
   if(!USER||!USER.hotel||FB_DISABLED)return;
   var h=USER.hotel,hk=fbKey(h),pl={};
-  ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){if(DATA[k]&&DATA[k][h])pl[k]=DATA[k][h];});
+  ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
+    if(DATA[k]&&DATA[k][h]&&Object.keys(DATA[k][h]).length)pl[k]=DATA[k][h];
+  });
   if(Object.keys(pl).length)fbPatch('hotels/'+hk,pl);
-  // Auch globale Daten (Krankmeldung, Urlaub) synchronisieren
   try{
     var km=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');
     var ur=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');
@@ -417,15 +398,105 @@ function fbPush(){
     if(Object.keys(ur).length)fbPatch('global/urlaub',ur);
   }catch(e){}
 }
+// ── PUSH — schreibt Hotel-Daten sofort zu Firebase ──
+function fbPush(){
+  if(!USER||!USER.hotel||FB_DISABLED)return;
+  var h=USER.hotel;
+  var hk=fbKey(h);
+  // Alle relevanten Daten für dieses Hotel
+  var pl={};
+  ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
+    if(DATA[k]&&DATA[k][h]&&Object.keys(DATA[k][h]).length)pl[k]=DATA[k][h];
+  });
+  if(Object.keys(pl).length){
+    // PUT statt PATCH für zuverlässigeres Schreiben
+    fbPatch('hotels/'+hk,pl);
+  }
+  // Globale Daten (Krankmeldung, Urlaub, Notifications)
+  try{
+    var km=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');
+    var ur=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');
+    if(Object.keys(km).length)fbPatch('global/krankmeldung',km);
+    if(Object.keys(ur).length)fbPatch('global/urlaub',ur);
+  }catch(e){}
+}
+
+// ── POLL — holt Daten von Firebase ──
+function fbPollNow(){
+  if(!USER||!FB_URL)return;
+  var path=USER.role==='chef'?'hotels':'hotels/'+fbKey(USER.hotel);
+  fbGet(path,function(val){
+    var dot=ge('fb-live-dot');
+    if(!val||typeof val!=='object'){
+      if(dot)dot.style.background='#e05555';
+      return;
+    }
+    if(dot)dot.style.background='#4caf7d';
+    FB_FAIL_COUNT=0;
+    try{
+      if(USER.role==='chef'){
+        // Chef: alle Hotels mergen
+        Object.keys(val).forEach(function(hk){
+          var hd=val[hk];if(!hd||typeof hd!=='object')return;
+          // Hotel-Key zurück zu Hotel-Namen zuordnen
+          var hn='';
+          Object.keys(HOTELS).forEach(function(hname){
+            if(fbKey(hname)===hk)hn=hname;
+          });
+          if(!hn)return;
+          ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
+            if(hd[k]&&typeof hd[k]==='object'){
+              if(!DATA[k])DATA[k]={};
+              DATA[k][hn]=hd[k];
+            }
+          });
+        });
+      } else {
+        // Teamleader: nur eigenes Hotel
+        var hn=USER.hotel;
+        ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
+          if(val[k]&&typeof val[k]==='object'){
+            if(!DATA[k])DATA[k]={};
+            DATA[k][hn]=val[k];
+          }
+        });
+      }
+      localStorage.setItem('aj4',JSON.stringify(DATA));
+    }catch(e){console.warn('fbPoll:',e);}
+  });
+
+  // Chef: globale Daten holen
+  if(USER.role==='chef'){
+    fbGet('global/krankmeldung',function(km){
+      if(km&&typeof km==='object'){
+        try{
+          var loc=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');
+          localStorage.setItem('aj_krankmeldung',JSON.stringify(Object.assign({},km,loc)));
+        }catch(e){}
+      }
+    });
+    fbGet('global/urlaub',function(ur){
+      if(ur&&typeof ur==='object'){
+        try{
+          var loc2=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');
+          localStorage.setItem('aj_urlaub',JSON.stringify(Object.assign({},ur,loc2)));
+        }catch(e){}
+      }
+    });
+    // Notifications prüfen
+    if(typeof checkFbNotifications==='function')checkFbNotifications();
+  }
+}
+
 function fbStartPoll(){
   if(FB_POLL)clearInterval(FB_POLL);
+  // Sofort beim Start holen
   fbPollNow();
-  // Echtzeit: alle 8 Sekunden synchronisieren
+  // Dann alle 6 Sekunden
   FB_POLL=setInterval(function(){
     if(!FB_DISABLED)fbPollNow();
-  },8000);
-}
-function fbPollNow(){
+  },6000);
+}function fbPollNow(){
   if(!USER)return;
   if(!FB_URL)return;
   var path=USER.role==='chef'?'hotels':'hotels/'+fbKey(USER.hotel);
@@ -504,16 +575,42 @@ function getCfg(h){
   return base;
 }
 
-var VORA_NAMES={
-  'RS Hotel Bruhl':'Ali','Atrium Apart Bruhl':'Nastia','McDreams MG':'Ionela',
-  'McDreams Dusseldorf':'Marina','McDreams Wuppertal':'Tetiana','Ramada Ratingen':'Happy',
-  'Four Points Ratingen':'Bladimir','FOUR Essen City Centre':'Vlada',
-  'McDreams Essen':'','Spark by Hilton Essen':'Ira'
+// Standard Teamleiter — werden aus Admin überschrieben (kein fester Code)
+var VORA_NAMES_DEFAULT={
+  'RS Hotel Bruhl':'','Atrium Apart Bruhl':'','McDreams MG':'',
+  'McDreams Dusseldorf':'','McDreams Wuppertal':'','Ramada Ratingen':'',
+  'Four Points Ratingen':'','FOUR Essen City Centre':'',
+  'McDreams Essen':'','Spark by Hilton Essen':''
 };
+var VORA_NAMES={};
+// Aus localStorage laden (Admin-Einstellungen haben Vorrang)
+(function(){
+  try{
+    var vc=JSON.parse(localStorage.getItem('aj_vora_config')||'[]');
+    Object.assign(VORA_NAMES,VORA_NAMES_DEFAULT);
+    vc.forEach(function(v){if(v.hotels&&v.name)v.hotels.forEach(function(h){VORA_NAMES[h]=v.name;});});
+  }catch(e){Object.assign(VORA_NAMES,VORA_NAMES_DEFAULT);}
+})();
 var DAYS=['Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag','Sonntag'];
 var DS=['Mo','Di','Mi','Do','Fr','Sa','So'];
 var TA_ROWS=12;
 var USER=null, currentTab='';
+var SHEETS_URL='';
+
+// ── ZENTRALE HOTEL-TYP ERKENNUNG ──
+// Reihenfolge ist wichtig: Spark vor MC, FOUR vor MC!
+function hotelTyp(hotel){
+  if(!hotel)return'std';
+  var h=hotel.toLowerCase();
+  if(h.indexOf('bruhl')>=0||h.indexOf('brühl')>=0)return'rs';
+  if(h.indexOf('spark')>=0)return'spark';
+  if(h.indexOf('four')>=0||h.indexOf('four points')>=0||h.indexOf('ramada')>=0)return'std';
+  if(h.indexOf('mcdreams')>=0||h.indexOf('mcdream')>=0)return'mc';
+  return'std';
+}
+function isRS(hotel){return hotelTyp(hotel)==='rs';}
+function isMC(hotel){return hotelTyp(hotel)==='mc';}
+function isSpark(hotel){return hotelTyp(hotel)==='spark';}
 var SHEETS_URL='';
 var DP_PAUSE=0.5; // 30 Min Pause pro Tag
 var DP_QUICK_TIMES=['07:00-13:00','08:00-14:00','09:00-15:00','09:00-16:00','10:00-16:00','11:00-17:00','12:00-18:00','06:00-14:00'];
@@ -568,11 +665,15 @@ function initVoraLogin(){
   sel.onchange=function(){
     var h=this.value,ni=ge('v-name');if(!ni)return;
     if(!h){ni.value='';return;}
+    // Vorschlag aus Konfig — aber immer editierbar!
     var found='';
     vc.forEach(function(v){if(v.hotels&&v.hotels.indexOf(h)>=0&&v.aktiv!==false)found=v.name;});
     if(!found)found=VORA_NAMES[h]||'';
-    ni.value=found;ni.style.color=found?'var(--gold)':'var(--cream)';
-    if(found){var pw=ge('v-pw');if(pw){pw.value='';pw.focus();}}
+    ni.value=found;
+    ni.style.color=found?'var(--gold)':'var(--cream)';
+    ni.removeAttribute('readonly'); // Immer editierbar
+    ni.placeholder='Name eingeben...';
+    var pw=ge('v-pw');if(pw)pw.focus();
   };
 }
 
@@ -656,11 +757,25 @@ function startApp(){
       var ob=document.createElement('button');ob.className='out-btn';ob.textContent='Abmelden';ob.onclick=doLogout;tbr.appendChild(ob);
     }
   } else {
+    // Teamleiter: auch Live-Dot hinzufügen
     var ob2=ge('btn-logout');if(ob2)ob2.onclick=doLogout;
+    var tbr2=ge('tb-right');
+    if(tbr2&&!ge('fb-live-dot')){
+      var dot2=document.createElement('span');
+      dot2.id='fb-live-dot';
+      dot2.title='Firebase Verbindung';
+      dot2.style.cssText='width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;flex-shrink:0;transition:background 0.3s;margin-right:4px';
+      tbr2.insertBefore(dot2,tbr2.firstChild);
+    }
   }
 
+  // Dot reset beim Login — grau bis echter Test bestätigt
+  var dot3=ge('fb-live-dot');if(dot3)dot3.style.background='#888';
   buildTabs();
   switchTab(USER.role==='chef'?'dash':'ta');
+  // Firebase: sofort beim Login Daten holen und dann regelmäßig
+  FB_DISABLED=false; // Reset bei jedem Login
+  FB_TOAST_SHOWN=false;
   fbStartPoll();
 }
 
@@ -668,7 +783,7 @@ function startApp(){
 // TABS
 // ============================================================
 function buildTabs(){
-  var isSpark=USER.hotel==='Spark by Hilton Essen';
+  var isSpark_=USER&&USER.hotel&&hotelTyp(USER.hotel)==='spark';
   var chefTabs=[
     {id:'dash',lb:'◆ Dashboard'},
     {id:'ta',lb:'📋 Tagesabr.'},
@@ -683,7 +798,7 @@ function buildTabs(){
     {id:'admin',lb:'🔒 Admin'},
     {id:'r1',lb:'📄 R1Clean'}
   ];
-  if(isSpark)chefTabs.splice(chefTabs.length-1,0,{id:'mb',lb:'🍺 Minibar'});
+  if(isSpark_)chefTabs.splice(chefTabs.length-1,0,{id:'mb',lb:'🍺 Minibar'});
 
   // Teamleader sees: Tagesabr, Stundenzettel, Leistung, Dienstplan, R1Clean, Meldung
   var voraTabs=[
@@ -694,7 +809,7 @@ function buildTabs(){
     {id:'r1',lb:'📄 R1Clean'},
     {id:'meldung',lb:'📩 Meldung'}
   ];
-  if(isSpark)voraTabs.splice(voraTabs.length-1,0,{id:'mb',lb:'🍺 Minibar'});
+  if(isSpark_)voraTabs.splice(voraTabs.length-1,0,{id:'mb',lb:'🍺 Minibar'});
 
   var list=USER.role==='chef'?chefTabs:voraTabs;
   var tabsEl=ge('tabs');if(!tabsEl)return;
@@ -824,7 +939,7 @@ function pgDash(){
   ['heute','hotels','auswertung'].forEach(function(t,i){
     html+='<div data-dtab="'+t+'" style="padding:5px 14px;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:2px;'+(i===0?'background:var(--gold);color:var(--bg);font-weight:700':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+t.charAt(0).toUpperCase()+t.slice(1)+'</div>';
   });
-  html+='<div style="margin-left:auto"><button class="btn sm primary" onclick="dashPrintToday()">🖶 Heute</button></div>';
+  html+='<div style="margin-left:auto"><button class="btn sm primary" id="btn-dash-print">🖶 Heute</button></div>';
   html+='</div>';
 
   // HEUTE
@@ -898,6 +1013,9 @@ function pgDash(){
 
   c.innerHTML=html;
 
+  // Druck Button
+  var bdp=ge('btn-dash-print');if(bdp)bdp.onclick=function(){dashPrintToday();};
+
   // Tab events -- event delegation
   var dtbar=ge('dtabbar');
   if(dtbar)dtbar.onclick=function(e){
@@ -965,9 +1083,8 @@ function pgTa(){
   var today=now.getDate()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
   if(!DATA.ta[hotel])DATA.ta[hotel]={};
   var saved=DATA.ta[hotel][today]||null;
-  var isRS=hotel.indexOf('Bruhl')>=0;
-  var isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('McDream')>=0||hotel.indexOf('Dusseldorf')>=0||hotel.indexOf('MG')>=0||hotel.indexOf('Wuppertal')>=0||hotel.indexOf('Essen')>=0;
-  var isSp=hotel==='Spark by Hilton Essen'||hotel.indexOf('Spark')>=0;
+  var _t=hotelTyp(hotel),isRS_=_t==='rs',isMC_=_t==='mc',isSp_=_t==='spark';
+  var isRS=isRS_,isMC=isMC_,isSp=isSp_;
 
   var html='<div class="card"><div class="card-title">📋 Tagesabrechnung</div>';
   html+='<div class="frow">';
@@ -1016,7 +1133,7 @@ function pgTa(){
 function buildTaRows(cfg,saved){
   var tbody=ge('ta-body');if(!tbody)return;
   var hotel=USER.hotel;
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var _t2=hotelTyp(hotel),isRS=_t2==='rs',isMC=_t2==='mc',isSp=_t2==='spark';
   var rows='';
   for(var ri=0;ri<TA_ROWS;ri++){
     var sv=(saved&&saved.rows&&saved.rows[ri])||{};
@@ -1075,7 +1192,7 @@ function getTaName(ri){var e=ge('ta_nm_'+ri);return e?e.value.trim():'';}
 
 function taCalc(ri){
   var cfg=getCfg(USER.hotel),hotel=USER.hotel;
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0||hotel.indexOf('MG')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var _t3=hotelTyp(hotel),isRS=_t3==='rs',isMC=_t3==='mc',isSp=_t3==='spark';
   var zi=parseFloat(gv('ta_zi_'+ri))||0,gr=parseFloat(gv('ta_gr_'+ri))||0;
   var chk=parseFloat(gv('ta_chk_'+ri))||0,pub=parseFloat(gv('ta_pub_'+ri))||0,son=parseFloat(gv('ta_son_'+ri))||0;
   var ist;
@@ -1090,7 +1207,7 @@ function taCalc(ri){
 
 function taCalcGes(){
   var hotel=USER.hotel;
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var _t4=hotelTyp(hotel),isRS=_t4==='rs',isMC=_t4==='mc',isSp=_t4==='spark';
   var gcols=isRS?['zi','gr','ses','chk','pub','son','auf']:isMC?['zi','gr','chk','pub']:isSp?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];
   gcols.forEach(function(col){
     var s=0;for(var ri=0;ri<TA_ROWS;ri++)s+=parseFloat(gv('ta_'+col+'_'+ri))||0;
@@ -1140,7 +1257,7 @@ function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
   // ── 2. LEISTUNGSÜBERSICHT transfer (Tagessumme aller MA) ──
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   if(!DATA.lu[hotel][monat])DATA.lu[hotel][monat]={rows:{}};
-  var isRS=hotel.indexOf('Bruhl')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var isRS=hotel.indexOf('Bruhl')>=0,isSp=hotelTyp(hotel)==='spark';
   var totDay={zi:0,gr:0,ses:0,chk:0,pub:0,wae:0,son:0,auf:0,mini:0,ist:0};
   for(var r=0;r<TA_ROWS;r++){
     totDay.zi+=parseFloat(gv('ta_zi_'+r))||0;
@@ -1493,7 +1610,7 @@ function pgLu(){
   var c=ge('content'),hotel=USER.hotel,cfg=getCfg(hotel);
   var now=new Date(),thisM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   var isChef=USER.role==='chef';
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc',isSp=hotelTyp(hotel)==='spark';
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   var saved=DATA.lu[hotel][thisM]||{rows:{}};
 
@@ -1537,14 +1654,14 @@ function luReload(){
   var mon=gv('lu-mon'),hotel=USER.hotel,cfg=getCfg(hotel),isChef=USER.role==='chef';
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   var saved=DATA.lu[hotel][mon]||{rows:{}};
-  var isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc',isSp=hotelTyp(hotel)==='spark';
   var cols=isRS?['zi','gr','ses','chk','pub']:isMC?['zi','gr','chk','son']:isSp?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];
   luBuildRows(saved,cfg,cols,isChef);
 }
 
 function luBuildRows(saved,cfg,cols,isChef){
   var tbody=ge('lu-body');if(!tbody)return;
-  var hotel=USER.hotel,isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var hotel=USER.hotel,isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc',isSp=hotelTyp(hotel)==='spark';
   var rows='';
   for(var day=1;day<=31;day++){
     var sv=(saved.rows&&saved.rows[day])||{};
@@ -1581,7 +1698,7 @@ function luBuildRows(saved,cfg,cols,isChef){
 
 function luCalcRow(day,cfg){
   if(!cfg)cfg=getCfg(USER.hotel);
-  var hotel=USER.hotel,isRS=hotel.indexOf('Bruhl')>=0,isSp=hotel==='Spark by Hilton Essen';
+  var hotel=USER.hotel,isRS=hotel.indexOf('Bruhl')>=0,isSp=hotelTyp(hotel)==='spark';
   var zi=parseFloat(gv('lu_zi_'+day))||0,gr=parseFloat(gv('lu_gr_'+day))||0,ses=parseFloat(gv('lu_ses_'+day))||0;
   var chk=parseFloat(gv('lu_chk_'+day))||0,pub=parseFloat(gv('lu_pub_'+day))||0,son=parseFloat(gv('lu_son_'+day))||0;
   var ist;
@@ -1596,7 +1713,7 @@ function luCalcRow(day,cfg){
 
 function luCalcAllSums(cfg,cols){
   if(!cfg)cfg=getCfg(USER.hotel);
-  if(!cols){var hotel=USER.hotel,isRS=hotel.indexOf('Bruhl')>=0,isMC=hotel.indexOf('McDreams')>=0||hotel.indexOf('Dusseldorf')>=0,isSp=hotel==='Spark by Hilton Essen';cols=isRS?['zi','gr','ses','chk','pub']:isMC?['zi','gr','chk','son']:isSp?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];}
+  if(!cols){var hotel=USER.hotel,isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc',isSp=hotelTyp(hotel)==='spark';cols=isRS?['zi','gr','ses','chk','pub']:isMC?['zi','gr','chk','son']:isSp?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];}
   cols.forEach(function(col){
     var sum=0,mid=0;
     for(var d=1;d<=31;d++){var v=parseFloat(gv('lu_'+col+'_'+d))||0;sum+=v;if(d<=15)mid+=v;}
@@ -2414,13 +2531,28 @@ function pgAdmin(){
   });
   html+='</div><button class="btn primary" id="btn-save-hotels" style="width:100%;margin-top:6px">💾 Hotels speichern</button></div>';
 
-  html+='<div class="card" style="padding:12px 14px"><div class="card-title" style="color:#4caf7d">Firebase Live-Sync</div>';
-  html+='<div style="font-size:0.6rem;color:var(--muted);margin-bottom:8px">Firebase REST API -- kein externes Script, funktioniert überall</div>';
-  html+='<input class="inp" id="fb-url-inp" value="'+FB_URL+'" placeholder="Database URL" style="margin-bottom:6px;font-size:0.72rem">';
-  html+='<div style="display:flex;gap:6px"><button class="btn primary sm" id="btn-fb-save" style="flex:2">💾 URL speichern</button><button class="btn sm" id="btn-fb-test" style="flex:1">Test</button></div>';
-  html+='<div style="margin-top:8px;font-size:0.58rem;color:var(--muted);background:rgba(255,100,50,0.08);border:1px solid rgba(255,100,50,0.2);border-radius:3px;padding:6px 8px">';
-  html+='⚠ Falls "Load failed": Firebase DB-Regeln auf <b style="color:var(--gold)">public read/write</b> setzen.<br>';
-  html+='Firebase Console → Realtime Database → Regeln → <code style="background:rgba(0,0,0,0.3);padding:1px 4px;border-radius:2px">{"rules":{".read":true,".write":true}}</code></div></div>';
+  // Firebase Status — nur grün wenn wirklich verbunden (FB_FAIL_COUNT===0 UND nicht disabled)
+  var FB_CORRECT_URL='https://aj-manager-28a6c-default-rtdb.europe-west1.firebasedatabase.app';
+  var fbUrlOk=FB_URL===FB_CORRECT_URL||FB_URL.indexOf('firebasedatabase.app')>=0;
+  var fbStatusColor=(!fbUrlOk||FB_DISABLED)?'#e05555':FB_FAIL_COUNT>0?'#d4a843':'#888';
+  var fbStatusText=!fbUrlOk?'❌ URL falsch':FB_DISABLED?'❌ Verbindungsfehler':FB_FAIL_COUNT>0?'⚠ Probleme':'⚪ Noch nicht getestet';
+  html+='<div class="card" style="padding:12px 14px"><div class="card-title" style="color:#4caf7d">🔥 Firebase Live-Sync</div>';
+  html+='<div id="fb-status-row" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;background:rgba(0,0,0,0.2);border-radius:4px;padding:8px 10px">';
+  html+='<span id="fb-status-badge" style="font-size:0.7rem;font-weight:700;color:'+fbStatusColor+'">'+fbStatusText+'</span>';
+  html+='</div>';
+  // URL — komplett anzeigen, nicht abschneiden
+  html+='<label class="lbl">Firebase URL (vollständig — muss auf .firebasedatabase.app enden)</label>';
+  html+='<input class="inp" id="fb-url-inp" value="'+FB_CORRECT_URL+'" style="margin-bottom:4px;font-size:0.65rem;font-family:monospace;color:#d4a843" readonly>';
+  html+='<div style="font-size:0.56rem;color:var(--muted);margin-bottom:8px">Diese URL ist fest eingebaut und korrekt. Nur ändern wenn du eine andere Datenbank nutzt.</div>';
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
+  html+='<button class="btn sm primary" id="btn-fb-test" style="flex:1;font-size:0.78rem">🧪 Firebase testen (Schreiben + Lesen)</button>';
+  html+='</div>';
+  html+='<div id="fb-test-result" style="font-size:0.62rem;margin-top:4px;line-height:1.6"></div>';
+  html+='<div style="margin-top:8px;font-size:0.58rem;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:3px;padding:8px 10px">';
+  html+='<b style="color:var(--gold)">Firebase DB-Regeln müssen so sein:</b><br>';
+  html+='<code style="color:#4caf7d">{"rules":{".read":true,".write":true}}</code><br>';
+  html+='Firebase Console → Realtime Database → Regeln → Veröffentlichen';
+  html+='</div></div>';
 
   // Subunternehmer / Firmenverwaltung — vollständige Kontrolle
   html+='<div class="card" style="padding:12px 14px"><div class="card-title">📄 Subunternehmer / Firmen</div>';
@@ -2469,21 +2601,134 @@ function pgAdmin(){
   };
   ge('btn-add-hotel').onclick=function(){adminAddHotel();};
   ge('btn-save-hotels').onclick=function(){adminSaveHotels();};
-  ge('btn-fb-save').onclick=function(){var url=gv('fb-url-inp').trim();if(url){FB_URL=url;toast('Firebase URL gesetzt!','ok');fbStartPoll();}};
+  // Firebase URL immer korrekt setzen
+  FB_URL='https://aj-manager-28a6c-default-rtdb.europe-west1.firebasedatabase.app';
+  FB_DISABLED=false;
+
+  if(ge('btn-fb-save'))ge('btn-fb-save').onclick=function(){
+    FB_URL='https://aj-manager-28a6c-default-rtdb.europe-west1.firebasedatabase.app';
+    FB_DISABLED=false;FB_TOAST_SHOWN=false;FB_FAIL_COUNT=0;
+    toast('✅ URL gesetzt','ok');fbStartPoll();
+  };
+
   ge('btn-fb-test').onclick=function(){
-  var url=FB_URL+'/test.json';
-  toast('Firebase wird getestet...','info',3000);
-  fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({ping:new Date().toISOString(),from:'AJ-Manager-Test'})})
-    .then(function(r){
-      if(r.ok)return r.json();
-      throw new Error('HTTP '+r.status+' - Bitte Firebase DB-Regeln prüfen!');
-    })
-    .then(function(d){toast('Firebase OK! Verbindung funktioniert.','ok',4000);console.log('FB test OK:',d);})
-    .catch(function(e){
-      toast('Firebase Fehler: '+e.message,'err',8000);
-      console.error('FB test failed:',e);
-    });
-};
+    var resEl=ge('fb-test-result');
+    var badge=ge('fb-status-badge');
+    var url='https://aj-manager-28a6c-default-rtdb.europe-west1.firebasedatabase.app';
+    FB_URL=url;
+    FB_DISABLED=false;
+
+    function setResult(html,color){
+      if(resEl)resEl.innerHTML=html;
+      if(badge){badge.textContent=color==='#4caf7d'?'✅ Verbunden & getestet':color==='#e05555'?'❌ Fehler':'⏳ Teste...';badge.style.color=color;}
+    }
+
+    setResult('<span style="color:#d4a843">⏳ Schritt 1/2: Schreibe Testdaten nach Firebase...</span>','#d4a843');
+
+    var testUrl=url+'/aj_connectiontest.json';
+    var testBody=JSON.stringify({ok:true,ts:new Date().toISOString(),device:navigator.userAgent.slice(0,50)});
+
+    function doWrite(strategy,onSuccess,onFail){
+      if(strategy==='fetch'&&typeof fetch==='function'){
+        fetch(testUrl,{method:'PUT',headers:{'Content-Type':'application/json'},body:testBody,cache:'no-store'})
+          .then(function(r){
+            if(r.ok)onSuccess('fetch');
+            else r.text().then(function(t){onFail('fetch HTTP '+r.status+': '+t.slice(0,80));});
+          })
+          .catch(function(e){
+            // fetch fehlgeschlagen → XHR versuchen
+            doWrite('xhr',onSuccess,onFail);
+          });
+      } else {
+        // XHR Strategie
+        var xhr=new XMLHttpRequest();
+        xhr.open('PUT',testUrl,true);
+        xhr.setRequestHeader('Content-Type','application/json');
+        xhr.timeout=12000;
+        xhr.ontimeout=function(){onFail('XHR Timeout nach 12s — Server antwortet nicht\n→ Firebase Datenbank aktiv? Region europe-west1?');};
+        xhr.onerror=function(){
+          onFail('XHR Netzwerkfehler\n→ CORS blockiert ODER keine Internetverbindung\n→ App-URL: '+window.location.href.slice(0,60));
+        };
+        xhr.onload=function(){
+          if(xhr.status>=200&&xhr.status<300)onSuccess('xhr');
+          else if(xhr.status===401||xhr.status===403)onFail('HTTP '+xhr.status+' — Firebase Regeln blockieren\n→ Regeln setzen: {".read":true,".write":true}');
+          else onFail('XHR HTTP '+xhr.status+': '+xhr.responseText.slice(0,80));
+        };
+        try{xhr.send(testBody);}catch(e){onFail('XHR send() Fehler: '+e.message);}
+      }
+    }
+
+    function doRead(strategy,onSuccess,onFail){
+      if(strategy==='fetch'&&typeof fetch==='function'){
+        fetch(testUrl,{method:'GET',cache:'no-store'})
+          .then(function(r){
+            if(r.ok)return r.json().then(function(d){onSuccess(d);});
+            else r.text().then(function(t){onFail('fetch GET HTTP '+r.status+': '+t.slice(0,80));});
+          })
+          .catch(function(e){doRead('xhr',onSuccess,onFail);});
+      } else {
+        var xhr=new XMLHttpRequest();
+        xhr.open('GET',testUrl,true);
+        xhr.timeout=12000;
+        xhr.ontimeout=function(){onFail('Lesen Timeout');};
+        xhr.onerror=function(){onFail('Lesen Netzwerkfehler');};
+        xhr.onload=function(){
+          if(xhr.status===200){
+            try{onSuccess(JSON.parse(xhr.responseText));}
+            catch(e){onFail('Lesen JSON Fehler: '+xhr.responseText.slice(0,60));}
+          } else {onFail('Lesen HTTP '+xhr.status);}
+        };
+        xhr.send();
+      }
+    }
+
+    // Aufräumen
+    function cleanup(){
+      try{
+        if(typeof fetch==='function')fetch(testUrl,{method:'DELETE'}).catch(function(){});
+        else{var x=new XMLHttpRequest();x.open('DELETE',testUrl,true);x.send();}
+      }catch(e){}
+    }
+
+    // Schreiben versuchen
+    doWrite('fetch',
+      function(writeStrategy){
+        setResult('<span style="color:#d4a843">✓ Schreiben OK ('+writeStrategy+') — Schritt 2/2: Lese zurück...</span>','#d4a843');
+        // Lesen versuchen
+        doRead(writeStrategy,
+          function(data){
+            cleanup();
+            if(data&&data.ok===true){
+              FB_DISABLED=false;FB_TOAST_SHOWN=false;FB_FAIL_COUNT=0;FB_CONFIRMED=true;
+              var dot=ge('fb-live-dot');if(dot)dot.style.background='#4caf7d';
+              setResult(
+                '<b style="color:#4caf7d;font-size:0.8rem">✅ Firebase 100% OK!</b><br>'
+                +'<span style="color:var(--muted)">Strategie: '+writeStrategy+' · Schreiben ✓ · Lesen ✓ · JSON ✓<br>'
+                +'Live-Sync aktiv — Daten werden sofort übertragen.</span>',
+                '#4caf7d'
+              );
+              fbStartPoll();
+            } else {
+              setResult('<b style="color:#e05555">❌ Daten stimmen nicht</b><br><span style="color:var(--muted)">Erhalten: '+JSON.stringify(data).slice(0,80)+'</span>','#e05555');
+            }
+          },
+          function(readErr){
+            cleanup();
+            setResult('<b style="color:#e05555">❌ Schreiben OK, Lesen fehlgeschlagen</b><br><span style="color:var(--muted)">'+readErr+'<br>→ Firebase Regeln: .read muss true sein</span>','#e05555');
+          }
+        );
+      },
+      function(writeErr){
+        setResult(
+          '<b style="color:#e05555">❌ Schreiben fehlgeschlagen</b><br>'
+          +'<span style="color:var(--muted)">'+writeErr.replace(/\n/g,'<br>')+'</span><br><br>'
+          +'<span style="color:#d4a843;font-size:0.6rem">App-URL: '+window.location.href.slice(0,80)+'<br>'
+          +'Firebase URL: '+url+'</span>',
+          '#e05555'
+        );
+      }
+    );
+  };
   ge('btn-sheets-save').onclick=function(){SHEETS_URL=gv('sheets-url-inp').trim();localStorage.setItem('aj_sheets_url',SHEETS_URL);toast('URL gespeichert!','ok');};
   if(ge('btn-add-r1firm'))ge('btn-add-r1firm').onclick=function(){R1_FIRMS.push({name:'Neue Firma',kuerzel:'NEU',rate:'',notes:'',aktiv:true});saveR1Firms();pgAdmin();};
   if(ge('btn-save-r1firms'))ge('btn-save-r1firms').onclick=function(){
@@ -3285,8 +3530,19 @@ function r1Reload(){
   var mon=gv('r1-mon')||new Date().toISOString().slice(0,7);
   var firmFilter=gv('r1-firm')||'';
   var cont=ge('r1-content');if(!cont)return;
-  if(!DATA.r1[hotel]||!DATA.r1[hotel][mon]){cont.innerHTML='<div class="card"><div class="empty">Keine Daten für '+mon+'</div></div>';return;}
+  if(!DATA.r1[hotel]||!DATA.r1[hotel][mon]){
+    cont.innerHTML='<div class="card"><div class="empty">Keine Daten für '+mon+'</div></div>';
+    return;
+  }
   r1BuildLu(hotel,mon,firmFilter,cont);
+
+  // Event-Delegation für r1CalcDayEl (data-r1calc="1")
+  cont.oninput=function(e){
+    var el=e.target;
+    if(el&&el.getAttribute('data-r1calc')==='1'){
+      r1CalcDayEl(el);
+    }
+  };
 }
 
 
@@ -3331,7 +3587,7 @@ function r1BuildLu(hotel,mon,r1Names){
         html+='<td class="lu-ges-v">'+midChk+'</td><td class="lu-ges-v">'+midSon+'</td>';
         html+='<td class="lu-ges-v" style="color:#81c784">'+(midIst>0?midIst.toFixed(2):'-')+'</td></tr>';
       }
-      var attrs='data-mk="'+mk+'" data-day="'+day+'" data-ma="'+mn+'" oninput="r1CalcDayEl(this)"';
+      var attrs='data-mk="'+mk+'" data-day="'+day+'" data-ma="'+mn+'" data-r1calc="1"';
       html+='<tr><td class="lu-nr">'+day+'</td>';
       html+='<td><input class="lu-inp zi" type="number" id="r1_'+mk+'_zi_'+day+'" '+attrs+' value="'+(t?t.zi||'':'')+'" placeholder=""></td>';
       html+='<td><input class="lu-inp" type="number" id="r1_'+mk+'_gr_'+day+'" '+attrs+' value="'+(t?t.gr||'':'')+'" placeholder=""></td>';
@@ -3470,16 +3726,16 @@ function pgMb(){
   html+='<span style="font-size:0.82rem;color:var(--gold);font-weight:600">🍺 Minibar -- Spark by Hilton Essen</span>';
   html+='<div style="display:flex;gap:10px;align-items:center;margin-top:6px;flex-wrap:wrap">';
   html+='<label style="font-size:0.62rem;color:var(--muted)">Min/Zi:</label>';
-  html+='<input type="number" id="mb-min-inp" value="'+MB_MIN_PRO_ZI+'" min="1" max="30" step="1" oninput="mbUpdateMin()" style="width:55px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,204,128,0.4);color:#ffcc80;font-weight:700;padding:4px 6px;font-size:0.85rem;outline:none;border-radius:2px;text-align:center">';
+  html+='<input type="number" id="mb-min-inp" value="'+MB_MIN_PRO_ZI+'" min="1" max="30" step="1" style="width:55px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,204,128,0.4);color:#ffcc80;font-weight:700;padding:4px 6px;font-size:0.85rem;outline:none;border-radius:2px;text-align:center">';
   html+='<label style="font-size:0.62rem;color:var(--muted)">€/Zi:</label>';
-  html+='<input type="number" id="mb-preis-inp" value="'+MB_PREIS_ZI.toFixed(2)+'" min="0.1" max="10" step="0.10" oninput="mbUpdatePreis()" style="width:60px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,204,128,0.4);color:#81c784;font-weight:700;padding:4px 6px;font-size:0.85rem;outline:none;border-radius:2px;text-align:center">';
+  html+='<input type="number" id="mb-preis-inp" value="'+MB_PREIS_ZI.toFixed(2)+'" min="0.1" max="10" step="0.10" style="width:60px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,204,128,0.4);color:#81c784;font-weight:700;padding:4px 6px;font-size:0.85rem;outline:none;border-radius:2px;text-align:center">';
   html+='</div></div>';
   html+='<div class="stats"><div class="stat"><span class="stat-v">'+totZi+'</span><span class="stat-l">Zimmer</span></div>';
   html+='<div class="stat"><span class="stat-v">'+totStd.toFixed(1)+'</span><span class="stat-l">Std</span></div>';
   html+='<div class="stat"><span class="stat-v">'+totBet.toFixed(0)+'</span><span class="stat-l">Betrag €</span></div></div>';
   html+='<div class="card"><div class="card-title">🍺 Eintrag</div><div class="frow">';
   html+='<div class="ff" style="max-width:110px"><label class="lbl">Datum</label><input class="inp" id="mb-dat" value="'+today+'"></div>';
-  html+='<div class="ff" style="max-width:80px"><label class="lbl">Zimmer</label><input class="inp" id="mb-zi" type="number" min="0" placeholder="0" oninput="mbCalc()"></div>';
+  html+='<div class="ff" style="max-width:80px"><label class="lbl">Zimmer</label><input class="inp" id="mb-zi" type="number" min="0" placeholder="0"></div>';
   html+='<div class="ff" style="max-width:90px"><label class="lbl">Std (auto)</label><input class="inp" id="mb-std" readonly style="color:#90caf9;font-weight:700" placeholder="-"></div>';
   html+='<div class="ff" style="max-width:100px"><label class="lbl">Betrag (auto)</label><input class="inp" id="mb-bet" readonly style="color:#81c784;font-weight:700" placeholder="-"></div>';
   html+='<div class="ff"><label class="lbl">Mitarbeiter</label><input class="inp" id="mb-ma" placeholder="Name"></div>';
@@ -3505,6 +3761,10 @@ function pgMb(){
   html+='<td colspan="2"></td></tr></tfoot></table></div></div>';
   c.innerHTML=html;
   var btnMbAdd=ge('btn-mb-add');if(btnMbAdd)btnMbAdd.onclick=function(){mbAdd();};
+  // Minibar input bindings
+  var mbMinInp=ge('mb-min-inp');if(mbMinInp)mbMinInp.oninput=function(){mbUpdateMin();};
+  var mbPreisInp=ge('mb-preis-inp');if(mbPreisInp)mbPreisInp.oninput=function(){mbUpdatePreis();};
+  var mbZiInp=ge('mb-zi');if(mbZiInp)mbZiInp.oninput=function(){mbCalc();};
   // Delegation für mbDel
   c.onclick=function(e){
     var t=e.target;
@@ -3608,11 +3868,13 @@ function pgProd(){
   });
 
   html+='<div style="display:flex;gap:8px;margin-top:4px">';
-  html+='<button class="btn primary" onclick="saveProd()" style="flex:2">💾 Alle Speichern</button>';
-  html+='<button class="btn danger sm" onclick="resetProd()" style="flex:1">↺ Reset</button>';
+  html+='<button class="btn primary" id="btn-prod-save" style="flex:2">💾 Alle Speichern</button>';
+  html+='<button class="btn danger sm" id="btn-prod-reset" style="flex:1">↺ Reset</button>';
   html+='</div></div>';
 
   c.innerHTML=html;
+  var bps=ge('btn-prod-save');if(bps)bps.onclick=function(){saveProd();};
+  var bpr=ge('btn-prod-reset');if(bpr)bpr.onclick=function(){resetProd();};
 }
 
 function saveProd(){
@@ -4144,24 +4406,31 @@ function luWaText(){
   return text;
 }
 
-var PRT_BASE='*{margin:0;padding:0;box-sizing:border-box}'
-  +'html,body{font-family:Arial,Helvetica,sans-serif;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
-  +'@page{size:A4 portrait;margin:8mm}'
-  +'@media print{a[href]:after{content:none!important}}'
-  +'th{background:#000;color:#fff;padding:3px 4px;text-align:center;font-size:6pt;border:1px solid #000;font-weight:700}'
-  +'td{padding:1.5px 3px;border:1px solid #ccc;text-align:center;font-size:6pt;background:#fff;color:#000}'
-  +'tr:nth-child(even) td{background:#f5f5f5}'
+var PRT_BASE=''
+  +'*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}'
+  +'html,body{font-family:Arial,Helvetica,sans-serif;color:#000!important;background:#fff!important;width:100%;}'
+  +'@page{size:A4 portrait;margin:10mm}'
+  // Verhindert leere zweite Seite
+  +'body{page-break-after:avoid!important;}'
+  +'div,table,section{page-break-inside:avoid;}'
+  // Tabellen
+  +'table{width:100%;border-collapse:collapse;page-break-inside:avoid}'
+  +'th{background:#000!important;color:#fff!important;padding:3px 4px;text-align:center;font-size:6pt;border:1px solid #000;font-weight:700}'
+  +'td{padding:2px 3px;border:1px solid #ccc;text-align:center;font-size:6pt;color:#000!important;background:#fff!important}'
+  +'tr:nth-child(even) td{background:#f5f5f5!important}'
   +'.prt-ges td{background:#000!important;color:#fff!important;font-weight:700;font-size:7pt}'
-  +'table{width:100%;border-collapse:collapse}'
-  +'.prt-hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:5px}'
-  +'.prt-meta{display:flex;gap:0;border:1.5px solid #000;margin-bottom:5px}'
+  // Layout
+  +'.prt-hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px}'
+  +'.prt-meta{display:flex;border:1.5px solid #000;margin-bottom:6px}'
   +'.prt-mc{flex:1;padding:3px 6px;border-right:1px solid #aaa}'
   +'.prt-mc:last-child{border-right:none}'
   +'.prt-mc label{display:block;font-size:4.5pt;letter-spacing:0.12em;text-transform:uppercase;color:#666;margin-bottom:1px}'
   +'.prt-mc span{font-size:8pt;font-weight:700;color:#000}'
-  +'.prt-sig{display:flex;gap:10px;margin-top:6px}'
+  +'.prt-sig{display:flex;gap:10px;margin-top:8px}'
   +'.prt-sb{flex:1;border-top:1.5px solid #000;padding-top:3px;font-size:5pt;color:#444}'
-  +'.prt-foot{margin-top:5px;padding-top:3px;border-top:1px solid #ccc;font-size:4.5pt;color:#666;display:flex;justify-content:space-between}';
+  +'.prt-foot{margin-top:6px;padding-top:3px;border-top:1px solid #ccc;font-size:4.5pt;color:#666;display:flex;justify-content:space-between}'
+  // Keine URLs nach Links
+  +'a[href]:after{content:none!important}abbr[title]:after{content:none!important}';
 
 // Hotel → Anzahl MA-Zeilen im Dienstplan
 var DP_ROWS_MAP={
@@ -4179,26 +4448,46 @@ function dpRowCount(hotel){
 }
 
 function prtBase(inner){
-  var pd=ge('print-area');
-  if(!pd){pd=document.createElement('div');pd.id='print-area';document.body.appendChild(pd);}
-  var app=ge('app-wrap');
-  var login=ge('login-screen');
-  // App ausblenden
-  if(app){app._savedDisplay=app.style.display;app.style.setProperty('display','none','important');}
-  if(login){login._savedDisplay=login.style.display;login.style.setProperty('display','none','important');}
-  // Print-Area: weiß, fullscreen
-  pd.style.cssText='display:block!important;position:fixed;inset:0;background:#fff;color:#000;z-index:99999;overflow:auto;-webkit-print-color-adjust:exact;print-color-adjust:exact';
-  pd.innerHTML=inner;
-  // Kurze Verzögerung damit Browser render kann
-  setTimeout(function(){
-    window.print();
+  // iOS Safari: iframe ist zuverlässiger als div für Druck
+  var existingIframe=ge('print-iframe');
+  if(existingIframe)existingIframe.parentNode.removeChild(existingIframe);
+
+  var iframe=document.createElement('iframe');
+  iframe.id='print-iframe';
+  iframe.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:99999;background:#fff;';
+  document.body.appendChild(iframe);
+
+  // Dokument in iframe schreiben
+  var doc=iframe.contentDocument||iframe.contentWindow.document;
+  doc.open();
+  doc.write(inner);
+  doc.close();
+
+  // Warten bis iframe geladen ist
+  iframe.onload=function(){
     setTimeout(function(){
-      pd.style.cssText='display:none';
-      pd.innerHTML='';
-      if(app){app.style.display=app._savedDisplay||'';if(USER)app.classList.add('show');}
-      if(login)login.style.display=login._savedDisplay||'';
-    },800);
-  },150);
+      try{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }catch(e){
+        window.print();
+      }
+      // Aufräumen nach Druck
+      setTimeout(function(){
+        if(iframe.parentNode)iframe.parentNode.removeChild(iframe);
+      },1500);
+    },300);
+  };
+
+  // Fallback wenn onload nicht feuert
+  setTimeout(function(){
+    if(document.getElementById('print-iframe')){
+      try{iframe.contentWindow.print();}catch(e){window.print();}
+      setTimeout(function(){
+        if(iframe.parentNode)iframe.parentNode.removeChild(iframe);
+      },1500);
+    }
+  },1000);
 }
 
 // ── 1. STUNDENZETTEL (einzeln) ──
@@ -4620,26 +4909,58 @@ document.addEventListener('DOMContentLoaded', function(){
   function checkFbNotifications(){
     if(!USER||USER.role!=='chef')return;
     if(FB_DISABLED)return;
+    // Notifications (Tagesabrechnung etc.)
     fbGet('notifications',function(notifs){
       if(!notifs||typeof notifs!=='object')return;
       Object.keys(notifs).forEach(function(nid){
         var n=notifs[nid];
         if(!n||!n.ts)return;
-        // Nur neue Benachrichtigungen (nach letztem Check)
         if(n.ts>_lastNotifTs){
           _lastNotifTs=n.ts;
           if(n.typ==='tagesabrechnung'){
-            ajNotify(
-              '📋 Neue Tagesabrechnung!',
-              (n.hotel||'')+' · '+(n.datum||'')+'\nTeamleader: '+(n.tl||'')+' · '+(n.count||0)+' MA'
-            );
-            // Toast auch wenn App offen
+            ajNotify('📋 Neue Tagesabrechnung!',(n.hotel||'')+' · '+(n.datum||'')+'\nTeamleader: '+(n.tl||''));
             toast('📋 '+( n.hotel||'')+' · '+(n.datum||''),'info',4000);
-            // Dashboard aktualisieren
             if(currentTab==='dash')pgDash();
           }
         }
       });
+    });
+    // Krankmeldungen von Firebase holen und mergen
+    fbGet('global/krankmeldung',function(fbKm){
+      if(!fbKm||typeof fbKm!=='object')return;
+      var local={};
+      try{local=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(e){}
+      var changed=false;
+      Object.keys(fbKm).forEach(function(kid){
+        if(!local[kid]){
+          local[kid]=fbKm[kid];
+          changed=true;
+          // Neue KM — benachrichtigen!
+          var k=fbKm[kid];
+          ajNotify('🤒 Neue Krankmeldung!',(k.name||'?')+' · '+(k.hotel||'')+'\nAb: '+(k.von||''));
+          toast('🤒 Krankmeldung: '+(k.name||'?')+' · '+(k.hotel||''),'info',5000);
+          if(currentTab==='dash')setTimeout(pgDash,500);
+        }
+      });
+      if(changed)localStorage.setItem('aj_krankmeldung',JSON.stringify(local));
+    });
+    // Urlaubsanträge von Firebase holen
+    fbGet('global/urlaub',function(fbUrl){
+      if(!fbUrl||typeof fbUrl!=='object')return;
+      var local2={};
+      try{local2=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(e){}
+      var changed2=false;
+      Object.keys(fbUrl).forEach(function(uid){
+        if(!local2[uid]){
+          local2[uid]=fbUrl[uid];
+          changed2=true;
+          var u=fbUrl[uid];
+          ajNotify('🏖 Neuer Urlaubsantrag!',(u.name||'?')+' · '+(u.hotel||'')+'\n'+u.von+' – '+u.bis);
+          toast('🏖 Urlaubsantrag: '+(u.name||'?'),'info',5000);
+          if(currentTab==='dash')setTimeout(pgDash,500);
+        }
+      });
+      if(changed2)localStorage.setItem('aj_urlaub',JSON.stringify(local2));
     });
   }
 
@@ -4654,13 +4975,12 @@ document.addEventListener('DOMContentLoaded', function(){
           combined[fbKey(h)]={ta:DATA.ta[h]||{}};
         });
         checkFbNewData(combined);
-        // Auch notifications Pfad prüfen (alle Hotels)
         checkFbNotifications();
       }
     },2000);
   };
 
-  // Auch Krankmeldungen in Echtzeit prüfen
+  // Krankmeldungs-Check auch lokal
   var _lastKmKeys={};
   function checkNewKrankmeldung(){
     if(!USER||USER.role!=='chef')return;
@@ -4668,11 +4988,11 @@ document.addEventListener('DOMContentLoaded', function(){
     try{km=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(e){}
     Object.keys(km).forEach(function(kid){
       if(!_lastKmKeys[kid]){
-        _lastKmKeys[kid]=true;
-        if(Object.keys(_lastKmKeys).length>1){
+        if(Object.keys(_lastKmKeys).length>0){ // Nicht beim ersten Laden
           var k=km[kid];
-          ajNotify('🤒 Neue Krankmeldung!',(k.name||'')+' · '+(k.hotel||'')+'\nAb: '+(k.von||''));
+          ajNotify('🤒 Krankmeldung!',(k.name||'')+' · '+(k.hotel||''));
         }
+        _lastKmKeys[kid]=true;
       }
     });
   }
