@@ -189,64 +189,78 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;heigh
 
 <!-- LOGIN -->
 
-<div class="login-screen" id="login-screen">
-  <div class="login-box">
-    <div class="login-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="120px" height="64px" style="display:block;margin:0 auto;overflow:visible">
-        <text x="8" y="122" font-family="Georgia,'Times New Roman',serif" font-size="138" font-weight="900" fill="#d4a843" letter-spacing="-4">A&amp;J</text>
-        <line x1="8" y1="138" x2="290" y2="138" stroke="#d4a843" stroke-width="1.8"/>
-        <text x="8" y="162" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="600" fill="#c8a04b" letter-spacing="5">CLEANING SERVICES</text>
-        <path d="M296,128 L299,136 L307,136 L301,141 L304,149 L296,144 L289,149 L292,141 L286,136 L294,136 Z" fill="#c8a04b" opacity="0.9"/>
-      </svg>
-    </div>
-    <div class="login-sub">Cleaning Services GmbH</div>
+<div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#0e1118">
+  <div style="background:#161c28;border:1px solid rgba(212,168,67,0.25);padding:32px 28px;max-width:340px;width:100%;border-radius:10px;text-align:center">
 
 ```
-<!-- STEP 1: Rollenauswahl -->
+<div style="font-size:52px;font-weight:900;color:#d4a843;font-family:Georgia,serif;line-height:1;margin-bottom:4px">A&amp;J</div>
+<div style="font-size:9px;letter-spacing:4px;color:#c8a04b;margin-bottom:6px;text-transform:uppercase">Cleaning Services</div>
+<div style="font-size:9px;letter-spacing:4px;color:#c8a04b;margin-bottom:24px;text-transform:uppercase">GmbH</div>
+
+<!-- STEP 1 -->
 <div id="step1">
-  <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px;text-align:center">Wer bist du?</p>
-  <a href="javascript:void(0)" id="btn-tl" onclick="window.tlKlick&&window.tlKlick()" style="display:flex;width:100%;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);color:var(--cream);font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;padding:16px 14px;cursor:pointer;border-radius:4px;align-items:center;gap:12px;margin-bottom:10px;text-decoration:none;box-sizing:border-box;">
-    <span style="font-size:1.5rem">📋</span>
-    <div style="text-align:left"><b style="color:var(--gold)">TEAMLEADER</b><span style="display:block;font-size:0.58rem;color:#5a6a7a;text-transform:none;letter-spacing:0;margin-top:2px">Tagesabrechnung · Stundenzettel · Dienstplan</span></div>
-  </a>
-  <div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(212,168,67,0.1)">
-    <a href="javascript:void(0)" id="btn-chef-goto" onclick="window.chefKlick&&window.chefKlick()" style="color:#5a6a7a;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;padding:10px 20px;display:inline-block">🔒 Chef / Admin Login</a>
+  <p style="color:#c0c8d8;font-size:14px;margin-bottom:16px">Wer bist du?</p>
+  
+  <div onclick="document.getElementById('step1').style.display='none';document.getElementById('step-vora').style.display='block';ssHotel()" style="display:flex;align-items:center;gap:14px;background:rgba(212,168,67,0.07);border:1px solid rgba(212,168,67,0.3);border-radius:6px;padding:16px;margin-bottom:12px;cursor:pointer;text-align:left">
+    <span style="font-size:28px">📋</span>
+    <div>
+      <div style="color:#d4a843;font-weight:700;font-size:13px;letter-spacing:1px">TEAMLEADER</div>
+      <div style="color:#5a6a7a;font-size:10px;margin-top:2px">Tagesabrechnung · Stundenzettel</div>
+    </div>
+  </div>
+  
+  <div onclick="document.getElementById('step1').style.display='none';document.getElementById('step-chef').style.display='block';document.getElementById('chef-pw').focus()" style="color:#5a6a7a;font-size:11px;letter-spacing:2px;cursor:pointer;padding:10px;margin-top:8px">
+    🔒 CHEF / ADMIN LOGIN
   </div>
 </div>
 
-<!-- STEP 2: Teamleader Login -->
+<!-- STEP 2: Teamleader -->
 <div id="step-vora" style="display:none">
-  <p style="font-size:0.82rem;color:var(--gold);margin-bottom:14px;font-weight:600">Teamleader Login</p>
-  <div style="margin-bottom:10px">
-    <label class="lbl">Hotel</label>
-    <select id="v-hotel" style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--cream);font-size:0.82rem;padding:10px 12px;outline:none;border-radius:3px;-webkit-appearance:menulist">
+  <p style="color:#d4a843;font-weight:700;font-size:14px;margin-bottom:16px">Teamleader Login</p>
+  
+  <div style="margin-bottom:10px;text-align:left">
+    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">HOTEL</div>
+    <select id="v-hotel" style="width:100%;background:#0e1118;border:1px solid #2a3448;color:#c0c8d8;font-size:14px;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
       <option value="">Hotel auswählen...</option>
     </select>
   </div>
-  <div style="margin-bottom:10px">
-    <label class="lbl">Name</label>
-    <input id="v-name" type="text" autocomplete="name" placeholder="Name eingeben..." style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--gold);font-size:0.9rem;font-weight:600;padding:10px 12px;outline:none;border-radius:3px;box-sizing:border-box">
+  
+  <div style="margin-bottom:10px;text-align:left">
+    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">NAME</div>
+    <input id="v-name" type="text" placeholder="Name eingeben..." style="width:100%;background:#0e1118;border:1px solid #2a3448;color:#d4a843;font-size:15px;font-weight:700;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
   </div>
-  <div style="margin-bottom:14px">
-    <label class="lbl">Passwort <span style="font-size:0.55rem;opacity:0.5;text-transform:none;letter-spacing:0">(optional)</span></label>
-    <input id="v-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid var(--gold);color:#000;font-size:0.95rem;font-weight:700;padding:10px 12px;outline:none;border-radius:3px;box-sizing:border-box">
-    <div id="v-pw-err" style="color:#f4845f;font-size:0.68rem;margin-top:5px;display:none">Falsches Passwort!</div>
+  
+  <div style="margin-bottom:16px;text-align:left">
+    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">PASSWORT <span style="color:#333">(optional)</span></div>
+    <input id="v-pw" type="password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid #d4a843;color:#000;font-size:15px;font-weight:700;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
+    <div id="v-pw-err" style="color:#f4845f;font-size:11px;margin-top:4px;display:none">Falsches Passwort!</div>
   </div>
-  <a href="javascript:void(0)" id="btn-vora-login" onclick="window.loginKlick&&window.loginKlick()" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">Einloggen</a>
-  <a href="javascript:void(0)" id="btn-back-vora" onclick="window.backKlick&&window.backKlick()" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:8px">← Zurück</a>
+  
+  <div onclick="doVoraLogin()" style="background:#d4a843;color:#08090d;font-weight:700;font-size:15px;letter-spacing:2px;padding:15px;border-radius:4px;cursor:pointer;margin-bottom:10px">
+    EINLOGGEN
+  </div>
+  <div onclick="document.getElementById('step-vora').style.display='none';document.getElementById('step1').style.display='block'" style="color:#5a6a7a;font-size:11px;cursor:pointer;padding:8px">
+    ← Zurück
+  </div>
 </div>
 
-<!-- STEP 3: Chef Login -->
+<!-- STEP 3: Chef -->
 <div id="step-chef" style="display:none">
-  <p style="font-size:0.82rem;color:var(--gold);margin-bottom:12px;font-weight:600">🔒 Chef / Admin</p>
-  <input class="inp" id="chef-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="margin-bottom:8px;width:100%;box-sizing:border-box">
-  <div id="chef-pw-err" style="color:#f4845f;font-size:0.68rem;margin-bottom:8px;display:none">Falsches Passwort</div>
-  <a href="javascript:void(0)" id="btn-chef-login" onclick="window.chefLoginKlick&&window.chefLoginKlick()" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">✓ Als Chef einloggen</a>
-  <a href="javascript:void(0)" id="btn-back-chef" onclick="window.backKlick&&window.backKlick()" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:6px">← Zurück</a>
+  <p style="color:#d4a843;font-weight:700;font-size:14px;margin-bottom:16px">🔒 Chef / Admin</p>
+  
+  <input id="chef-pw" type="password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid #d4a843;color:#000;font-size:15px;font-weight:700;padding:12px;border-radius:4px;box-sizing:border-box;outline:none;margin-bottom:8px">
+  <div id="chef-pw-err" style="color:#f4845f;font-size:11px;margin-bottom:10px;display:none">Falsches Passwort</div>
+  
+  <div onclick="loginChef()" style="background:#d4a843;color:#08090d;font-weight:700;font-size:15px;letter-spacing:1px;padding:15px;border-radius:4px;cursor:pointer;margin-bottom:10px">
+    ✓ ALS CHEF EINLOGGEN
+  </div>
+  <div onclick="document.getElementById('step-chef').style.display='none';document.getElementById('step1').style.display='block'" style="color:#5a6a7a;font-size:11px;cursor:pointer;padding:8px">
+    ← Zurück
+  </div>
 </div>
 
-<div id="fb-live-indicator" style="text-align:center;margin-top:16px;font-size:0.55rem;color:#5a6a7a;display:flex;align-items:center;justify-content:center;gap:5px">
-  <span id="fb-live-dot" style="width:6px;height:6px;border-radius:50%;background:#5a6472;display:inline-block"></span>
+<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;font-size:10px;color:#3a4458">
+  <span id="fb-live-dot" style="width:6px;height:6px;border-radius:50%;background:#3a4458;display:inline-block"></span>
   Firebase Live-Sync
 </div>
 ```
@@ -651,9 +665,32 @@ function saveData(){
 // ============================================================
 // LOGIN
 // ============================================================
+// ssHotel: fuellt Hotel-Dropdown beim Teamleader-Login
+function ssHotel(){
+  var sel=document.getElementById('v-hotel');
+  if(!sel)return;
+  sel.innerHTML='<option value="">Hotel auswählen...</option>';
+  Object.keys(HOTELS).forEach(function(h){
+    var o=document.createElement('option');
+    o.value=h;
+    o.textContent=HOTELS[h].nr+' - '+h;
+    sel.appendChild(o);
+  });
+  sel.onchange=function(){
+    var ni=document.getElementById('v-name');
+    if(ni&&this.value){
+      var found=VORA_NAMES[this.value]||'';
+      ni.value=found;
+    }
+  };
+  var ni2=document.getElementById('v-name');
+  if(ni2){ni2.value='';ni2.focus();}
+}
+
 function showStep(id){
   ['step1','step-vora','step-chef'].forEach(function(s){
-    var el=ge(s);if(el)el.style.display=s===id?'':'none';
+    var el=document.getElementById(s);
+    if(el)el.style.display=s===id?'block':'none';
   });
 }
 
