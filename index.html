@@ -134,27 +134,28 @@ flex-shrink:0;
 
 /* ── PRINT ── */
 @media print{
-/* ALLES verstecken — Schritt 1 */
-*{visibility:hidden!important;background:transparent!important;color:#000!important}
-/* Nur print-area sichtbar — Schritt 2 */
-#print-area,#print-area *{visibility:visible!important}
-/* print-area positionieren */
-#print-area{
-position:absolute!important;
+/* Alles verstecken */
+*{visibility:hidden!important;background:transparent!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+/* Nur print-area zeigen */
+#print-area,#print-area *,#dp-print-area,#dp-print-area *{visibility:visible!important}
+#print-area,#dp-print-area{
+position:fixed!important;
 top:0!important;left:0!important;
 width:100%!important;
 background:#fff!important;
 display:block!important;
 overflow:visible!important;
+padding:0!important;
+margin:0!important;
 }
-/* Schwarze Tabellen-Header */
-#print-area th{background:#000!important;color:#fff!important;visibility:visible!important}
-#print-area .prt-ges td{background:#000!important;color:#fff!important}
+/* Tabellen */
+#print-area th,#dp-print-area th{background:#1a2e6b!important;color:#c8a84b!important;visibility:visible!important}
+#print-area .prt-ges td,#dp-print-area .prt-ges td{background:#1a2e6b!important;color:#c8a84b!important}
 #print-area tr:nth-child(even) td{background:#f5f5f5!important}
 /* Seite */
 html,body{background:#fff!important;margin:0!important;padding:0!important;height:auto!important;overflow:visible!important}
+.login-screen,.app-wrap,.topbar,.navbar{display:none!important;visibility:hidden!important}
 @page{size:A4 portrait;margin:10mm}
-@page:blank{display:none}
 }
 #print-area,#dp-print-area{display:none;background:#fff!important;color:#000!important}
 
@@ -199,43 +200,57 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;heigh
       </svg>
     </div>
     <div class="login-sub">Cleaning Services GmbH</div>
-    <div id="step1">
-      <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px">Wer bist du?</p>
-      <div onclick="showStep('step-vora');initVoraLogin();" style="width:100%;background:transparent;border:1px solid rgba(212,168,67,0.3);color:var(--cream);font-size:0.78rem;letter-spacing:0.12em;text-transform:uppercase;padding:14px;cursor:pointer;border-radius:3px;text-align:left;display:flex;align-items:center;gap:12px;margin-bottom:10px;-webkit-user-select:none;user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:rgba(212,168,67,0.3)">
-        <span style="font-size:1.4rem">📋</span>
-        <div><b>TEAMLEADER</b><span style="display:block;font-size:0.6rem;color:var(--muted);text-transform:none;letter-spacing:0;margin-top:3px">Tagesabrechnung · Stundenzettel · Dienstplan</span></div>
-      </div>
-      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-        <div onclick="showStep('step-chef');" style="background:transparent;border:none;color:var(--muted);font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;width:100%;padding:8px;text-align:center;-webkit-user-select:none;user-select:none;touch-action:manipulation">🔒 Chef / Admin Login</div>
-      </div>
-    </div>
-    <div id="step-vora" style="display:none">
-      <p style="font-size:0.82rem;color:var(--gold);margin-bottom:14px;font-weight:600">Teamleader Login</p>
-      <div style="margin-bottom:10px">
-        <label class="lbl">Hotel</label>
-        <select id="v-hotel" style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--cream);font-size:0.82rem;padding:10px 12px;outline:none;border-radius:3px">
-          <option value="">Hotel auswählen...</option>
-        </select>
-      </div>
-      <div style="margin-bottom:10px">
-        <label class="lbl">Name</label>
-        <input id="v-name" placeholder="Name..." style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--gold);font-size:0.9rem;font-weight:600;padding:10px 12px;outline:none;border-radius:3px">
-      </div>
-      <div style="margin-bottom:12px">
-        <label class="lbl">Passwort <span style="font-size:0.55rem;opacity:0.5;text-transform:none;letter-spacing:0">(optional)</span></label>
-        <input id="v-pw" type="password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid var(--gold);color:#000;font-size:0.95rem;font-weight:700;padding:10px 12px;outline:none;border-radius:3px">
-        <div id="v-pw-err" style="color:#f4845f;font-size:0.68rem;margin-top:5px;display:none">Falsches Passwort!</div>
-      </div>
-      <div onclick="doVoraLogin();" style="width:100%;background:var(--gold);color:var(--bg);border:none;font-size:0.85rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:14px;border-radius:3px;cursor:pointer;text-align:center;-webkit-user-select:none;user-select:none;touch-action:manipulation">Einloggen</div>
-      <div onclick="showStep('step1');" style="background:transparent;border:none;color:var(--muted);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:6px;margin-top:8px;text-align:center;-webkit-user-select:none;user-select:none;touch-action:manipulation">← Zurück</div>
-    </div>
-    <div id="step-chef" style="display:none">
-      <p style="font-size:0.82rem;color:var(--gold);margin-bottom:10px;font-weight:600">🔒 Chef / Admin</p>
-      <input class="inp" id="chef-pw" type="password" placeholder="Passwort..." style="margin-bottom:8px">
-      <div id="chef-pw-err" style="color:#f4845f;font-size:0.68rem;margin-bottom:8px;display:none">Falsches Passwort</div>
-      <div onclick="loginChef();" style="width:100%;background:var(--gold);color:var(--bg);font-size:0.85rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:14px;border-radius:3px;cursor:pointer;text-align:center;margin-bottom:8px;-webkit-user-select:none;user-select:none;touch-action:manipulation">✓ Als Chef einloggen</div>
-      <div onclick="showStep('step1');" style="background:transparent;border:none;color:var(--muted);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;width:100%;padding:4px;text-align:center;-webkit-user-select:none;user-select:none;touch-action:manipulation">← Zurück</div>
-    </div>
+
+```
+<!-- STEP 1: Rollenauswahl -->
+<div id="step1">
+  <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px;text-align:center">Wer bist du?</p>
+  <a href="javascript:void(0)" id="btn-tl" style="display:flex;width:100%;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);color:var(--cream);font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;padding:16px 14px;cursor:pointer;border-radius:4px;align-items:center;gap:12px;margin-bottom:10px;text-decoration:none;box-sizing:border-box;">
+    <span style="font-size:1.5rem">📋</span>
+    <div style="text-align:left"><b style="color:var(--gold)">TEAMLEADER</b><span style="display:block;font-size:0.58rem;color:#5a6a7a;text-transform:none;letter-spacing:0;margin-top:2px">Tagesabrechnung · Stundenzettel · Dienstplan</span></div>
+  </a>
+  <div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(212,168,67,0.1)">
+    <a href="javascript:void(0)" id="btn-chef-goto" style="color:#5a6a7a;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;padding:10px 20px;display:inline-block">🔒 Chef / Admin Login</a>
+  </div>
+</div>
+
+<!-- STEP 2: Teamleader Login -->
+<div id="step-vora" style="display:none">
+  <p style="font-size:0.82rem;color:var(--gold);margin-bottom:14px;font-weight:600">Teamleader Login</p>
+  <div style="margin-bottom:10px">
+    <label class="lbl">Hotel</label>
+    <select id="v-hotel" style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--cream);font-size:0.82rem;padding:10px 12px;outline:none;border-radius:3px;-webkit-appearance:menulist">
+      <option value="">Hotel auswählen...</option>
+    </select>
+  </div>
+  <div style="margin-bottom:10px">
+    <label class="lbl">Name</label>
+    <input id="v-name" type="text" autocomplete="name" placeholder="Name eingeben..." style="width:100%;background:var(--navy3);border:1px solid var(--border2);color:var(--gold);font-size:0.9rem;font-weight:600;padding:10px 12px;outline:none;border-radius:3px;box-sizing:border-box">
+  </div>
+  <div style="margin-bottom:14px">
+    <label class="lbl">Passwort <span style="font-size:0.55rem;opacity:0.5;text-transform:none;letter-spacing:0">(optional)</span></label>
+    <input id="v-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid var(--gold);color:#000;font-size:0.95rem;font-weight:700;padding:10px 12px;outline:none;border-radius:3px;box-sizing:border-box">
+    <div id="v-pw-err" style="color:#f4845f;font-size:0.68rem;margin-top:5px;display:none">Falsches Passwort!</div>
+  </div>
+  <a href="javascript:void(0)" id="btn-vora-login" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">Einloggen</a>
+  <a href="javascript:void(0)" id="btn-back-vora" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:8px">← Zurück</a>
+</div>
+
+<!-- STEP 3: Chef Login -->
+<div id="step-chef" style="display:none">
+  <p style="font-size:0.82rem;color:var(--gold);margin-bottom:12px;font-weight:600">🔒 Chef / Admin</p>
+  <input class="inp" id="chef-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="margin-bottom:8px;width:100%;box-sizing:border-box">
+  <div id="chef-pw-err" style="color:#f4845f;font-size:0.68rem;margin-bottom:8px;display:none">Falsches Passwort</div>
+  <a href="javascript:void(0)" id="btn-chef-login" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">✓ Als Chef einloggen</a>
+  <a href="javascript:void(0)" id="btn-back-chef" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:6px">← Zurück</a>
+</div>
+
+<div id="fb-live-indicator" style="text-align:center;margin-top:16px;font-size:0.55rem;color:#5a6a7a;display:flex;align-items:center;justify-content:center;gap:5px">
+  <span id="fb-live-dot" style="width:6px;height:6px;border-radius:50%;background:#5a6472;display:inline-block"></span>
+  Firebase Live-Sync
+</div>
+```
+
   </div>
 </div>
 
@@ -452,6 +467,20 @@ function fbPollNow(){
     if(USER.role==='chef'){
       fbGet('chef/inbox/tagesabrechnung',function(inbox){
         if(!inbox||typeof inbox!=='object')return;
+        // Cache in localStorage
+        try{
+          var cached={};
+          try{cached=JSON.parse(localStorage.getItem('aj_chef_inbox')||'{}');}catch(ex){}
+          Object.keys(inbox).forEach(function(k){cached[k]=inbox[k];});
+          localStorage.setItem('aj_chef_inbox',JSON.stringify(cached));
+          // Auch in DATA.ta mergen
+          Object.keys(inbox).forEach(function(k){
+            var ta=inbox[k];
+            if(!ta||!ta.hotel||!ta.datum)return;
+            if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};
+            DATA.ta[ta.hotel][ta.datum]=ta;
+          });
+        }catch(ex){}
         if(!window._seenInbox)window._seenInbox={};
         Object.keys(inbox).forEach(function(key){
           if(window._seenInbox[key])return;
@@ -506,21 +535,24 @@ function fbPollNow(){
 var FB_POLL_STARTED=false;
 
 function fbStartPoll(){
-  // Guard: verhindert mehrfachen Start und Stack Overflow
-  if(FB_POLL){clearInterval(FB_POLL);FB_POLL=null;}
-  FB_POLL_STARTED=false;
-  if(FB_POLL_STARTED)return;
+  // Guard: nur EINMAL starten
+  if(FB_POLL_STARTED){
+    console.log('[fbStartPoll] already running, skip');
+    return;
+  }
   FB_POLL_STARTED=true;
+  if(FB_POLL){clearInterval(FB_POLL);FB_POLL=null;}
   // Sofort einmal holen
   setTimeout(function(){
     if(!FB_DISABLED)try{fbPollNow();}catch(e){console.warn('[fbPoll]',e.message);}
-  },500);
+  },800);
   // Dann alle 6s
   FB_POLL=setInterval(function(){
     if(!FB_DISABLED&&USER){
       try{fbPollNow();}catch(e){console.warn('[fbPoll interval]',e.message);}
     }
   },6000);
+  console.log('[fbStartPoll] gestartet');
 }
 
 // ============================================================
@@ -683,10 +715,12 @@ function loginChef(){
 function doLogout(){
   USER=null;
   if(FB_POLL){clearInterval(FB_POLL);FB_POLL=null;}
+  FB_POLL_STARTED=false; // Reset damit Poll nach neuem Login wieder startet
   var ls=ge('login-screen'),aw=ge('app-wrap');
   if(ls)ls.style.display='flex';
   if(aw)aw.classList.remove('show');
   var cp=ge('chef-pw');if(cp)cp.value='';
+  showStep('step1');
 }
 
 // ============================================================
@@ -907,12 +941,131 @@ function pgDash(){
   html+='<div class="stat"><span class="stat-v">'+totZiMon+'</span><span class="stat-l">Zimmer '+mon+'</span></div>';
   html+='<div class="stat"><span class="stat-v">'+totIstMon.toFixed(0)+'</span><span class="stat-l">Stunden '+mon+'</span></div>';
   html+='</div>';
+
+  // Tabs: Inbox, Heute, Hotels, Auswertung
+  // Inbox Badge
+  var inboxData={};
+  try{
+    var fbInbox=window._fbInboxCache||{};
+    Object.assign(inboxData,fbInbox);
+  }catch(e){}
+  // Also check DATA.ta for pending
+  var pendingCount=0;
+  Object.keys(DATA.ta||{}).forEach(function(h){
+    Object.keys(DATA.ta[h]||{}).forEach(function(d){
+      var ta=DATA.ta[h][d];
+      if(ta&&ta.status==='pending')pendingCount++;
+    });
+  });
+
   html+='<div style="display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap" id="dtabbar">';
-  ['heute','hotels','auswertung'].forEach(function(t,i){
-    html+='<div data-dtab="'+t+'" style="padding:5px 14px;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:2px;'+(i===0?'background:var(--gold);color:var(--bg);font-weight:700':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+t.charAt(0).toUpperCase()+t.slice(1)+'</div>';
+  var dtabs=[
+    {id:'inbox',lbl:'📥 Inbox'+(pendingCount>0?' <b style="color:#e05555">('+pendingCount+')</b>':'')},
+    {id:'heute',lbl:'Heute'},
+    {id:'hotels',lbl:'Hotels'},
+    {id:'auswertung',lbl:'Auswertung'}
+  ];
+  dtabs.forEach(function(t,i){
+    html+='<div data-dtab="'+t.id+'" style="padding:5px 14px;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;border-radius:2px;'+(i===0?'background:var(--gold);color:var(--bg);font-weight:700':'background:transparent;color:var(--muted);border:1px solid var(--border)')+'">'+t.lbl+'</div>';
   });
   html+='<div style="margin-left:auto"><button class="btn sm primary" id="btn-dash-print">🖶 Heute</button></div>';
   html+='</div>';
+
+  // ── INBOX PANEL ──
+  html+='<div id="dpanel-inbox">';
+  html+='<div class="card" style="padding:10px">';
+  html+='<div class="card-title" style="font-size:0.8rem">📥 Alle Tagesabrechnungen (Chef-Inbox)</div>';
+
+  // Alle TA aus DATA.ta sammeln
+  var allTa=[];
+  Object.keys(DATA.ta||{}).forEach(function(h){
+    Object.keys(DATA.ta[h]||{}).forEach(function(d){
+      var ta=DATA.ta[h][d];
+      if(ta)allTa.push(ta);
+    });
+  });
+  // Auch aus localStorage inbox
+  try{
+    var storedInbox=JSON.parse(localStorage.getItem('aj_chef_inbox')||'{}');
+    Object.keys(storedInbox).forEach(function(k){
+      var ta=storedInbox[k];
+      if(ta&&!allTa.find(function(t){return t.datum===ta.datum&&t.hotel===ta.hotel;})){
+        allTa.push(ta);
+      }
+    });
+  }catch(e){}
+
+  allTa.sort(function(a,b){return (b.createdAt||b.datum||'')>(a.createdAt||a.datum||'')?1:-1;});
+
+  if(!allTa.length){
+    html+='<div class="empty">Noch keine Tagesabrechnungen</div>';
+  } else {
+    allTa.forEach(function(ta,idx){
+      var status=ta.status||'pending';
+      var statusColor=status==='genehmigt'?'#4caf7d':status==='abgelehnt'?'#e05555':'#d4a843';
+      var statusTxt=status==='genehmigt'?'✅ Genehmigt':status==='abgelehnt'?'❌ Abgelehnt':'⏳ Ausstehend';
+      var taKey='ta_'+idx;
+      html+='<div style="border:1px solid rgba(212,168,67,0.15);border-radius:4px;margin-bottom:8px;overflow:hidden">';
+      // Header
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);cursor:pointer" data-ta-toggle="'+taKey+'">';
+      html+='<div>';
+      html+='<span style="font-weight:700;font-size:0.8rem;color:var(--gold)">'+(ta.hotel||'?')+'</span>';
+      html+='<span style="font-size:0.65rem;color:var(--muted);margin-left:8px">'+(ta.datum||ta.date||'?')+'</span>';
+      html+='<span style="font-size:0.6rem;color:var(--muted);margin-left:8px">von: '+(ta.tl||ta.createdBy||'?')+'</span>';
+      html+='</div>';
+      html+='<div style="display:flex;gap:6px;align-items:center">';
+      html+='<span style="font-size:0.6rem;color:'+statusColor+'">'+statusTxt+'</span>';
+      html+='<span style="color:var(--muted);font-size:0.7rem">▼</span>';
+      html+='</div></div>';
+      // Detail (collapsed by default)
+      html+='<div id="'+taKey+'" style="display:none;padding:10px">';
+      // Rows Tabelle
+      if(ta.rows&&ta.rows.length){
+        html+='<div style="overflow-x:auto;margin-bottom:8px"><table style="width:100%;border-collapse:collapse;font-size:0.7rem">';
+        html+='<thead><tr style="background:var(--navy3)">';
+        html+='<th style="padding:5px 6px;text-align:left;color:var(--gold);font-size:0.58rem">Mitarbeiter</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">Zimmer</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">GR</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">Check</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">Pub</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">Wäsche</th>';
+        html+='<th style="padding:5px;text-align:center;color:var(--gold);font-size:0.58rem">Sonder</th>';
+        html+='<th style="padding:5px;text-align:center;color:#81c784;font-size:0.58rem">Std</th>';
+        html+='</tr></thead><tbody>';
+        ta.rows.forEach(function(r,ri){
+          var bg=ri%2===0?'':'background:rgba(255,255,255,0.02)';
+          html+='<tr style="'+bg+'">';
+          html+='<td style="padding:4px 6px;font-weight:600;color:var(--cream)">'+(r.name||'?')+'</td>';
+          html+='<td style="padding:4px;text-align:center;color:#5b9bd5">'+(r.zimmer||r.zi||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center">'+(r.grundrein||r.gr||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center">'+(r.check||r.chk||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center">'+(r.publik||r.pub||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center">'+(r.waesche||r.wae||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center">'+(r.sonder||r.son||0)+'</td>';
+          html+='<td style="padding:4px;text-align:center;color:#81c784">'+(r.istStd||r.ist||0)+'</td>';
+          html+='</tr>';
+        });
+        html+='</tbody></table></div>';
+      }
+      // Meta Info
+      html+='<div style="font-size:0.6rem;color:var(--muted);margin-bottom:8px">';
+      html+='Eingetragen: '+(ta.createdAt?new Date(ta.createdAt).toLocaleString('de-DE'):(ta.datum||'?'));
+      html+=' · Von: '+(ta.tl||ta.createdBy||'?');
+      html+='</div>';
+      // Aktionen
+      if(status==='pending'){
+        html+='<div style="display:flex;gap:6px">';
+        html+='<button class="btn sm primary" data-ta-ok="'+idx+'" style="color:#4caf7d;border-color:rgba(76,175,125,0.3);background:rgba(76,175,125,0.1);font-weight:700">✅ Genehmigen</button>';
+        html+='<button class="btn sm danger" data-ta-ab="'+idx+'" style="font-weight:700">❌ Ablehnen</button>';
+        html+='</div>';
+      } else {
+        html+='<div style="font-size:0.65rem;color:'+statusColor+'">'+statusTxt+'</div>';
+      }
+      html+='</div></div>';
+    });
+  }
+  html+='</div></div>';
+
 
   // HEUTE
   html+='<div id="dpanel-heute">';
@@ -988,56 +1141,115 @@ function pgDash(){
   // Druck Button
   var bdp=ge('btn-dash-print');if(bdp)bdp.onclick=function(){dashPrintToday();};
 
-  // Tab events -- event delegation
+  // Tab events
   var dtbar=ge('dtabbar');
   if(dtbar)dtbar.onclick=function(e){
     var tab=e.target.getAttribute('data-dtab');
     if(!tab)return;
-    ['heute','hotels','auswertung'].forEach(function(t){
+    ['inbox','heute','hotels','auswertung'].forEach(function(t){
       var p=ge('dpanel-'+t),b=dtbar.querySelector('[data-dtab="'+t+'"]');
       if(p)p.style.display=t===tab?'block':'none';
-      if(b){b.style.background=t===tab?'var(--gold)':'transparent';b.style.color=t===tab?'var(--bg)':'var(--muted)';}
+      if(b){b.style.background=t===tab?'var(--gold)':'transparent';b.style.color=t===tab?'var(--bg)':'var(--muted)';b.style.fontWeight=t===tab?'700':'400';}
     });
+    // Heute tab default hidden
+    if(tab!=='heute')ge('dpanel-heute')&&(ge('dpanel-heute').style.display='none');
   };
+  // Default: show inbox, hide others
+  ['heute','hotels','auswertung'].forEach(function(t){var p=ge('dpanel-'+t);if(p)p.style.display='none';});
 
-  // Hotel expand/print + Krankmeldung/Urlaub Buttons -- event delegation
+  // TA-Liste aus DATA holen für Aktionen
+  var _allTaForAction=[];
+  Object.keys(DATA.ta||{}).forEach(function(h){
+    Object.keys(DATA.ta[h]||{}).forEach(function(d){
+      var ta=DATA.ta[h][d];
+      if(ta)_allTaForAction.push({ta:ta,hotel:h,datum:d});
+    });
+  });
+  try{
+    var _si=JSON.parse(localStorage.getItem('aj_chef_inbox')||'{}');
+    Object.keys(_si).forEach(function(k){
+      var ta=_si[k];
+      if(ta&&!_allTaForAction.find(function(x){return x.datum===ta.datum&&x.hotel===ta.hotel;})){
+        _allTaForAction.push({ta:ta,hotel:ta.hotel,datum:ta.datum});
+      }
+    });
+  }catch(e){}
+
+  // Hotel expand/print + KM/Urlaub/TA Buttons -- event delegation
   c.onclick=function(e){
     var t=e.target;
     while(t&&t!==c){
+      // TA Toggle (expand/collapse)
+      var taToggle=t.getAttribute&&t.getAttribute('data-ta-toggle');
+      if(taToggle){
+        var det=ge(taToggle);
+        if(det){det.style.display=det.style.display==='none'?'block':'none';}
+        return;
+      }
+      // TA Genehmigen
+      var taOk=t.getAttribute&&t.getAttribute('data-ta-ok');
+      if(taOk){
+        var idx2=parseInt(taOk);
+        if(_allTaForAction[idx2]){
+          var taObj=_allTaForAction[idx2].ta;
+          taObj.status='genehmigt';
+          taObj.genehmigtVon=USER.name;
+          taObj.genehmigtAt=new Date().toISOString();
+          var h2=_allTaForAction[idx2].hotel;
+          var d2=_allTaForAction[idx2].datum;
+          if(DATA.ta[h2])DATA.ta[h2][d2]=taObj;
+          try{saveData();}catch(ex){}
+          // Firebase updaten
+          var hk2=safeKey(h2);
+          var dk2=safeKey(d2);
+          fbPut('hotels/'+hk2+'/tagesabrechnung/'+dk2,taObj,null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+dk2+'_'+hk2,taObj,null,null);
+          toast('✅ Tagesabrechnung genehmigt!','ok',3000);
+          pgDash();
+        }
+        return;
+      }
+      // TA Ablehnen
+      var taAb=t.getAttribute&&t.getAttribute('data-ta-ab');
+      if(taAb){
+        var idx3=parseInt(taAb);
+        if(_allTaForAction[idx3]){
+          var taObj2=_allTaForAction[idx3].ta;
+          taObj2.status='abgelehnt';
+          taObj2.abgelehntVon=USER.name;
+          taObj2.abgelehntAt=new Date().toISOString();
+          var h3=_allTaForAction[idx3].hotel;
+          var d3=_allTaForAction[idx3].datum;
+          if(DATA.ta[h3])DATA.ta[h3][d3]=taObj2;
+          try{saveData();}catch(ex){}
+          var hk3=safeKey(h3);
+          var dk3=safeKey(d3);
+          fbPut('hotels/'+hk3+'/tagesabrechnung/'+dk3,taObj2,null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+dk3+'_'+hk3,taObj2,null,null);
+          toast('Tagesabrechnung abgelehnt','info',3000);
+          pgDash();
+        }
+        return;
+      }
+      // Hotel expand
       if(t.classList&&t.classList.contains('hotel-hdr')){
-        var det=t.nextElementSibling;
-        if(det){var open=det.style.display!=='none';det.style.display=open?'none':'block';}
+        var det2=t.nextElementSibling;
+        if(det2){var open=det2.style.display!=='none';det2.style.display=open?'none':'block';}
         return;
       }
       if(t.getAttribute&&t.getAttribute('data-print-hotel')){dashPrintHotel(t.getAttribute('data-print-hotel'));return;}
-      // Krankmeldung buttons
+      // Krankmeldung
       var kg=t.getAttribute&&t.getAttribute('data-km-gesehen-d');
-      if(kg){
-        var km2={};try{km2=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(ex){}
-        if(km2[kg]){km2[kg].gesehen=true;localStorage.setItem('aj_krankmeldung',JSON.stringify(km2));toast('✓ Als gesehen markiert','ok');pgDash();}return;
-      }
+      if(kg){var km2={};try{km2=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(ex){}if(km2[kg]){km2[kg].gesehen=true;localStorage.setItem('aj_krankmeldung',JSON.stringify(km2));toast('✓ Gesehen','ok');pgDash();}return;}
       var kp=t.getAttribute&&t.getAttribute('data-km-pdf-d');
-      if(kp){
-        var km3={};try{km3=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(ex){}
-        if(km3[kp])kmPdf(km3[kp]);return;
-      }
-      // Urlaub buttons
+      if(kp){var km3={};try{km3=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');}catch(ex){}if(km3[kp])kmPdf(km3[kp]);return;}
+      // Urlaub
       var uo=t.getAttribute&&t.getAttribute('data-url-ok-d');
-      if(uo){
-        var ud2={};try{ud2=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}
-        if(ud2[uo]){ud2[uo].status='genehmigt';localStorage.setItem('aj_urlaub',JSON.stringify(ud2));toast('✓ Urlaub genehmigt!','ok');pgDash();}return;
-      }
+      if(uo){var ud2={};try{ud2=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}if(ud2[uo]){ud2[uo].status='genehmigt';localStorage.setItem('aj_urlaub',JSON.stringify(ud2));toast('✓ Urlaub genehmigt!','ok');pgDash();}return;}
       var ua=t.getAttribute&&t.getAttribute('data-url-ab-d');
-      if(ua){
-        var ud3={};try{ud3=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}
-        if(ud3[ua]){ud3[ua].status='abgelehnt';localStorage.setItem('aj_urlaub',JSON.stringify(ud3));toast('Urlaub abgelehnt','info');pgDash();}return;
-      }
+      if(ua){var ud3={};try{ud3=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}if(ud3[ua]){ud3[ua].status='abgelehnt';localStorage.setItem('aj_urlaub',JSON.stringify(ud3));toast('Abgelehnt','info');pgDash();}return;}
       var up=t.getAttribute&&t.getAttribute('data-url-pdf-d');
-      if(up){
-        var ud4={};try{ud4=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}
-        if(ud4[up])urlPdf(ud4[up]);return;
-      }
-      // Goto tab
+      if(up){var ud4={};try{ud4=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');}catch(ex){}if(ud4[up])urlPdf(ud4[up]);return;}
       var gt=t.getAttribute&&t.getAttribute('data-goto');
       if(gt){switchTab(gt);return;}
       t=t.parentNode;
@@ -4690,29 +4902,36 @@ console.error(‘Unhandled Promise:’,e.reason);
 // ============================================================
 // INITIALIZATION
 // ============================================================
+var _loginButtonsInit=false;
 function initLoginButtons(){
-var bindings={
-‘btn-tl’: function(){showStep(‘step-vora’);initVoraLogin();},
-‘btn-chef-goto’: function(){showStep(‘step-chef’);setTimeout(function(){var p=ge(‘chef-pw’);if(p)p.focus();},50);},
-‘btn-vora-login’: function(){doVoraLogin();},
-‘btn-back-vora’: function(){showStep(‘step1’);},
-‘btn-chef-login’: function(){loginChef();},
-‘btn-back-chef’: function(){showStep(‘step1’);},
-‘btn-ios-close’: function(){var el=ge(‘aj-ios’);if(el)el.style.display=‘none’;}
-};
-Object.keys(bindings).forEach(function(id){
-var el=ge(id);
-if(el){
-el.onclick=bindings[id];
-// iOS Safari braucht auch touchend
-el.addEventListener(‘touchend’,function(e){
-e.preventDefault();
-bindings[id]();
-},{passive:false});
-}
-});
-var cp=ge(‘chef-pw’);if(cp)cp.onkeydown=function(e){if(e.keyCode===13)loginChef();};
-var vp=ge(‘v-pw’);if(vp)vp.onkeydown=function(e){if(e.keyCode===13)doVoraLogin();};
+if(_loginButtonsInit)return; // nur einmal
+_loginButtonsInit=true;
+
+var btl=document.getElementById(‘btn-tl’);
+if(btl) btl.onclick=function(e){e.preventDefault();showStep(‘step-vora’);initVoraLogin();};
+
+var bcg=document.getElementById(‘btn-chef-goto’);
+if(bcg) bcg.onclick=function(e){e.preventDefault();showStep(‘step-chef’);setTimeout(function(){var p=document.getElementById(‘chef-pw’);if(p)p.focus();},100);};
+
+var bvl=document.getElementById(‘btn-vora-login’);
+if(bvl) bvl.onclick=function(e){e.preventDefault();doVoraLogin();};
+
+var bbv=document.getElementById(‘btn-back-vora’);
+if(bbv) bbv.onclick=function(e){e.preventDefault();showStep(‘step1’);};
+
+var bcl=document.getElementById(‘btn-chef-login’);
+if(bcl) bcl.onclick=function(e){e.preventDefault();loginChef();};
+
+var bbc=document.getElementById(‘btn-back-chef’);
+if(bbc) bbc.onclick=function(e){e.preventDefault();showStep(‘step1’);};
+
+var cp=document.getElementById(‘chef-pw’);
+if(cp) cp.onkeydown=function(e){if(e.keyCode===13)loginChef();};
+
+var vp=document.getElementById(‘v-pw’);
+if(vp) vp.onkeydown=function(e){if(e.keyCode===13)doVoraLogin();};
+
+console.log(’[Login] Buttons gebunden’);
 }
 
 document.addEventListener(‘DOMContentLoaded’, function(){
@@ -4726,10 +4945,6 @@ if(isIos&&isSafari&&!isStandalone){
 setTimeout(function(){var h=ge(‘aj-ios’);if(h)h.style.display=‘flex’;},3500);
 }
 });
-
-// Fallback bindings
-setTimeout(initLoginButtons, 500);
-window.addEventListener(‘load’, initLoginButtons);
 
 // Global aliases for dynamic content
 window.saveDp=function(){if(typeof dpSaveNew===‘function’)dpSaveNew();};
