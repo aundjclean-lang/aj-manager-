@@ -1228,33 +1228,36 @@ function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
   var wae=parseFloat(gv('ta_wae_'+ri))||0;
   var auf=parseFloat(gv('ta_auf_'+ri))||0;
 
-  // ── 1. STUNDENZETTEL transfer (komplett) ──
+  // Keys für Firebase bereinigen (keine Sonderzeichen!)
+  var maKey=fbKey(maName); // Leerzeichen → _
+  var dayKey='d'+String(day).padStart(2,'0'); // Zahl → String z.B. "d26"
+
+  // ── 1. STUNDENZETTEL transfer ──
   if(!DATA.sz[hotel])DATA.sz[hotel]={};
-  if(!DATA.sz[hotel][maName])DATA.sz[hotel][maName]={};
-  if(!DATA.sz[hotel][maName][monat])DATA.sz[hotel][maName][monat]={tage:{},istGes:0,ziGes:0,grGes:0};
+  if(!DATA.sz[hotel][maKey])DATA.sz[hotel][maKey]={name:maName};
+  if(!DATA.sz[hotel][maKey][monat])DATA.sz[hotel][maKey][monat]={tage:{},istGes:0,ziGes:0,grGes:0};
   var von='09:00';
   var bis=ist>0?m2t((t2m(von)||540)+Math.round(ist*60)+30):'';
-  DATA.sz[hotel][maName][monat].tage[day]={
-    zi:zi||'',gr:gr||'',ses:ses||'',chk:chk||'',
-    pub:pub||'',son:son||'',mini:mini||'',wae:wae||'',
-    von:von,bis:bis,ist:ist>0?ist.toFixed(2):'',pause:'0,50'
+  DATA.sz[hotel][maKey][monat].tage[dayKey]={
+    zi:zi||0,gr:gr||0,ses:ses||0,chk:chk||0,
+    pub:pub||0,son:son||0,mini:mini||0,wae:wae||0,
+    von:von,bis:bis,ist:ist>0?parseFloat(ist.toFixed(2)):0,pause:0.5
   };
-  // Monatssummen neu berechnen
+  // Monatssummen
   var totIst=0,totZi=0,totGr=0;
-  Object.keys(DATA.sz[hotel][maName][monat].tage).forEach(function(d){
-    var t=DATA.sz[hotel][maName][monat].tage[d];
-    totIst+=parseFloat(t.ist||0);
-    totZi+=parseInt(t.zi||0);
-    totGr+=parseInt(t.gr||0);
+  Object.keys(DATA.sz[hotel][maKey][monat].tage).forEach(function(d){
+    var t=DATA.sz[hotel][maKey][monat].tage[d];
+    totIst+=parseFloat(t.ist)||0;
+    totZi+=parseInt(t.zi)||0;
+    totGr+=parseInt(t.gr)||0;
   });
-  DATA.sz[hotel][maName][monat].istGes=totIst.toFixed(2);
-  DATA.sz[hotel][maName][monat].ziGes=totZi;
-  DATA.sz[hotel][maName][monat].grGes=totGr;
+  DATA.sz[hotel][maKey][monat].istGes=parseFloat(totIst.toFixed(2));
+  DATA.sz[hotel][maKey][monat].ziGes=totZi;
+  DATA.sz[hotel][maKey][monat].grGes=totGr;
 
-  // ── 2. LEISTUNGSÜBERSICHT transfer (Tagessumme aller MA) ──
+  // ── 2. LEISTUNGSÜBERSICHT transfer ──
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   if(!DATA.lu[hotel][monat])DATA.lu[hotel][monat]={rows:{}};
-  var isRS=hotel.indexOf('Bruhl')>=0,isSp=hotelTyp(hotel)==='spark';
   var totDay={zi:0,gr:0,ses:0,chk:0,pub:0,wae:0,son:0,auf:0,mini:0,ist:0};
   for(var r=0;r<TA_ROWS;r++){
     totDay.zi+=parseFloat(gv('ta_zi_'+r))||0;
@@ -1267,11 +1270,10 @@ function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
     totDay.auf+=parseFloat(gv('ta_auf_'+r))||0;
     totDay.mini+=parseFloat(gv('ta_mini_'+r))||0;
   }
-  // Tages-Ist-Stunden
   var totDayIst=0;
   for(var r2=0;r2<TA_ROWS;r2++){totDayIst+=parseFloat(gv('ta_ist_'+r2))||0;}
   totDay.ist=parseFloat(totDayIst.toFixed(2));
-  DATA.lu[hotel][monat].rows[day]=totDay;
+  DATA.lu[hotel][monat].rows[dayKey]=totDay;
 
   // R1 Transfer
   var isR1=false;
