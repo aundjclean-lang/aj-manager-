@@ -318,111 +318,146 @@ var FB_DISABLED=false;
 var FB_TOAST_SHOWN=false;
 var FB_CONFIRMED=false;
 
+// ============================================================
+// FIREBASE REALTIME DATABASE - Bulletproof Write
+// URL Format: FB_URL/PFAD.json
+// Normales JSON, PUT Methode, keine Sonderzeichen in Keys
+// ============================================================
+
+// Bereinigt einen String als Firebase-Key
 function fbKey(s){
-  if(!s)return'unknown';
-  return s.replace(/[.#$\[\] \/\\]/g,'_');
+  if(!s&&s!==0)return'x';
+  return String(s).replace(/[^a-zA-Z0-9_\-]/g,'_').replace(/^_+|_+$/g,'').slice(0,64)||'x';
 }
-function fbRef(p){return FB_URL+'/'+p+'.json';}
 
-function fbXHR(method,path,data,cb){
+function fbRef(p){
+  // Sicherstellen dass Pfad keine doppelten Slashes hat
+  var clean=p.replace(/\/+/g,'/').replace(/^\/|\/$/g,'');
+  return FB_URL+'/'+clean+'.json';
+}
+
+// Rekursiv alle Werte bereinigen für Firebase
+function fbClean(val){
+  if(val===null||val===undefined)return 0;
+  if(typeof val==='boolean')return val;
+  if(typeof val==='number'){
+    if(!isFinite(val))return 0;
+    return val;
+  }
+  if(typeof val==='string')return val;
+  if(typeof val==='function')return undefined;
+  if(Array.isArray(val)){
+    var arr=[];
+    val.forEach(function(v){
+      var c=fbClean(v);
+      if(c!==undefined)arr.push(c);
+    });
+    return arr;
+  }
+  if(typeof val==='object'){
+    var obj={};
+    Object.keys(val).forEach(function(k){
+      // Key bereinigen
+      var safeK=fbKey(k);
+      if(!safeK)return;
+      var c=fbClean(val[k]);
+      if(c!==undefined)obj[safeK]=c;
+    });
+    return obj;
+  }
+  return 0;
+}
+
+// Schreibt Daten zu Firebase Realtime Database
+function fbWrite(path,data,onSuccess,onError){
+  if(FB_DISABLED){if(onError)onError('disabled');return;}
+
+  var cleaned=fbClean(data);
   var url=fbRef(path);
-  var xhr=new XMLHttpRequest();
-  xhr.open(method,url,true);
-  if(data)xhr.setRequestHeader('Content-Type','application/json');
-  xhr.timeout=12000;
-  xhr.ontimeout=function(){cb&&cb(null,new Error('Timeout'),0);};
-  xhr.onerror=function(){cb&&cb(null,new Error('Netzwerkfehler'),0);};
-  xhr.onload=function(){
-    var status=xhr.status;
-    if(status>=200&&status<300){
-      var d=null;
-      try{if(xhr.responseText&&xhr.responseText!=='null')d=JSON.parse(xhr.responseText);}catch(e){}
-      cb&&cb(d,null,status);
-    } else {
-      cb&&cb(null,new Error('HTTP '+status),status);
-    }
-  };
-  try{xhr.send(data?JSON.stringify(data):null);}
-  catch(e){cb&&cb(null,e,0);}
-}
+  var body=JSON.stringify(cleaned);
 
-function fbGet(p,cb){
-  if(FB_DISABLED){cb(null);return;}
-  fbXHR('GET',p,null,function(data,err,status){
-    var dot=ge('fb-live-dot');
-    if(err){
-      FB_FAIL_COUNT++;
-      if(dot)dot.style.background='#e05555';
-      if(FB_FAIL_COUNT>=5&&!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('Firebase offline — lokal gespeichert','info',4000);}
-      if(FB_FAIL_COUNT>=10)FB_DISABLED=true;
-      cb(null);
-    } else if(status===401||status===403){
-      if(!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('⚠ Firebase Regeln: .read/.write auf true setzen!','err',8000);}
-      if(dot)dot.style.background='#e05555';
-      FB_DISABLED=true;cb(null);
-    } else {
-      FB_FAIL_COUNT=0;FB_CONFIRMED=true;
-      if(dot)dot.style.background='#4caf7d';
-      cb(data);
-    }
-  });
-}
-
-function fbGetXHR(p,cb){fbGet(p,cb);}
-
-function fbPatch(p,data){
-  if(FB_DISABLED)return;
-  if(!data||typeof data!=='object')return;
-  // Daten bereinigen: undefined/NaN/Infinity entfernen
-  var cleaned;
-  try{
-    cleaned=JSON.parse(JSON.stringify(data,function(k,v){
-      if(v===undefined||v===null||(typeof v==='number'&&!isFinite(v)))return 0;
-      return v;
-    }));
-  }catch(e){console.warn('fbPatch JSON:',e.message);return;}
-
-  var url=FB_URL+'/'+p+'.json';
-  console.log('Firebase WRITE URL:',url);
-  console.log('Firebase WRITE DATA:',JSON.stringify(cleaned).slice(0,200));
+  console.log('[FB WRITE] URL:',url);
+  console.log('[FB WRITE] DATA:',body.slice(0,300));
 
   var xhr=new XMLHttpRequest();
   xhr.open('PUT',url,true);
   xhr.setRequestHeader('Content-Type','application/json');
-  xhr.timeout=12000;
+  xhr.timeout=15000;
+
   xhr.onload=function(){
     var dot=ge('fb-live-dot');
     if(xhr.status>=200&&xhr.status<300){
       if(dot)dot.style.background='#4caf7d';
       FB_FAIL_COUNT=0;
-      console.log('Firebase OK:',p);
+      console.log('[FB WRITE] OK:',path);
+      if(onSuccess)onSuccess();
     } else {
       if(dot)dot.style.background='#e05555';
       FB_FAIL_COUNT++;
-      var errMsg=xhr.responseText||'';
-      console.error('Firebase Fehler',xhr.status,p,errMsg);
-      // Fehlermeldung sichtbar anzeigen
-      if(FB_FAIL_COUNT<=2){
-        toast('⚠ Firebase '+xhr.status+': '+errMsg.slice(0,80),'err',6000);
-      }
+      var errText=xhr.responseText||'';
+      console.error('[FB WRITE] FEHLER',xhr.status,path,errText);
+      // Vollständige Fehlermeldung anzeigen
+      toast('Firebase '+xhr.status+': '+errText.slice(0,100),'err',8000);
+      if(onError)onError(xhr.status+': '+errText);
     }
   };
   xhr.onerror=function(){
     var dot=ge('fb-live-dot');
     if(dot)dot.style.background='#e05555';
-    console.error('Firebase Netzwerkfehler:',p);
-    toast('⚠ Firebase: Netzwerkfehler','err',4000);
+    console.error('[FB WRITE] Netzwerkfehler:',path);
+    if(onError)onError('network');
   };
   xhr.ontimeout=function(){
-    console.warn('Firebase Timeout:',p);
+    console.error('[FB WRITE] Timeout:',path);
+    if(onError)onError('timeout');
   };
-  try{xhr.send(JSON.stringify(cleaned));}
-  catch(e){console.error('Firebase send:',e.message);}
+  xhr.send(body);
 }
 
-function fbSet(p,data){fbPatch(p,data);}
+// Aliases für Kompatibilität
+function fbPatch(p,data){fbWrite(p,data,null,null);}
+function fbSet(p,data){fbWrite(p,data,null,null);}
 
-// ── PUSH — schreibt Hotel-Daten sofort zu Firebase ──
+
+// Liest Daten von Firebase
+function fbGet(p,cb){
+  if(FB_DISABLED){cb(null);return;}
+  var url=fbRef(p);
+  var xhr=new XMLHttpRequest();
+  xhr.open('GET',url,true);
+  xhr.timeout=12000;
+  xhr.ontimeout=function(){
+    FB_FAIL_COUNT++;
+    if(FB_FAIL_COUNT>=10)FB_DISABLED=true;
+    cb(null);
+  };
+  xhr.onerror=function(){
+    FB_FAIL_COUNT++;
+    var dot=ge('fb-live-dot');if(dot)dot.style.background='#e05555';
+    if(FB_FAIL_COUNT>=5&&!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('Firebase offline','info',3000);}
+    if(FB_FAIL_COUNT>=10)FB_DISABLED=true;
+    cb(null);
+  };
+  xhr.onload=function(){
+    if(xhr.status===200){
+      FB_FAIL_COUNT=0;FB_CONFIRMED=true;
+      var dot=ge('fb-live-dot');if(dot)dot.style.background='#4caf7d';
+      var d=null;
+      try{if(xhr.responseText&&xhr.responseText!=='null')d=JSON.parse(xhr.responseText);}catch(e){}
+      cb(d);
+    } else if(xhr.status===401||xhr.status===403){
+      if(!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('⚠ Firebase Regeln prüfen!','err',6000);}
+      var dot2=ge('fb-live-dot');if(dot2)dot2.style.background='#e05555';
+      FB_DISABLED=true;cb(null);
+    } else {
+      FB_FAIL_COUNT++;cb(null);
+    }
+  };
+  xhr.send();
+}
+function fbGetXHR(p,cb){fbGet(p,cb);}
+
+
 function fbPush(){
   if(!USER||!USER.hotel||FB_DISABLED)return;
   var h=USER.hotel,hk=fbKey(h),pl={};
@@ -445,8 +480,28 @@ function fbPollNow(){
 
   if(USER.role==='chef'){
     // Chef: alle Pfade abrufen
-    // 1. Notifications
-    fbGet('notifications',function(notifs){
+    // Chef Inbox — neue Tagesabrechnungen
+    fbGet('chef/inbox/tagesabrechnung',function(inbox){
+      if(!inbox||typeof inbox!=='object')return;
+      var dot=ge('fb-live-dot');if(dot)dot.style.background='#4caf7d';
+      if(!window._seenInbox)window._seenInbox={};
+      Object.keys(inbox).forEach(function(key){
+        if(window._seenInbox[key])return;
+        window._seenInbox[key]=true;
+        var ta=inbox[key];
+        if(!ta)return;
+        toast('📋 Neue TA: '+(ta.hotel||'')+' · '+(ta.datum||'')+' · '+(ta.tl||''),'info',6000);
+        if(typeof ajNotify==='function')ajNotify('📋 Neue Tagesabrechnung!',(ta.hotel||'')+' · '+(ta.datum||''));
+        // In DATA mergen
+        if(ta.hotel&&ta.datum){
+          if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};
+          DATA.ta[ta.hotel][ta.datum]=ta;
+        }
+        if(currentTab==='dash')setTimeout(pgDash,500);
+      });
+    });
+
+    // Notifications
       if(!notifs||typeof notifs!=='object')return;
       var dot=ge('fb-live-dot');if(dot)dot.style.background='#4caf7d';
       Object.keys(notifs).forEach(function(nid){
@@ -1340,71 +1395,71 @@ function saveTa(){
 
   saveData();
 
-  // ── FIREBASE SCHREIBEN — alle Daten bereinigt ──
+  // ── FIREBASE REALTIME DATABASE ──
+  // Pfad-Regeln: nur a-z A-Z 0-9 _ - erlaubt
   var hk=fbKey(hotel);
   var ts=Date.now();
-  var datumKey=datum.replace(/[.\-\/]/g,'_'); // 26.04.2026 → 26_04_2026
 
-  // Hilfsfunktion: bereinigt komplettes Objekt für Firebase
-  function cleanForFb(obj){
-    return JSON.parse(JSON.stringify(obj,function(k,v){
-      // Keys mit Sonderzeichen? Überspringen (werden durch fbKey gefixt)
-      if(v===undefined||v===null)return 0;
-      if(typeof v==='number'&&!isFinite(v))return 0;
-      if(typeof v==='function')return undefined;
-      return v;
-    }));
+  // Datum: 26.04.2026 → ISO 2026-04-26 → Key 2026_04_26
+  var datumIso=datum;
+  if(datum.indexOf('.')>=0){
+    var dp=datum.split('.');
+    datumIso=(dp[2]||'2026')+'-'+String(dp[1]||'01').padStart(2,'0')+'-'+String(dp[0]||'01').padStart(2,'0');
   }
+  var datumKey=fbKey(datumIso);
 
-  // 1. Tagesabrechnung — saubere rows bauen
-  var safeRows=rows.map(function(r){
-    return {
-      name:String(r.name||''),
-      zi:Number(r.zi)||0, gr:Number(r.gr)||0,
-      ses:Number(r.ses)||0, chk:Number(r.chk)||0,
-      pub:Number(r.pub)||0, wae:Number(r.wae)||0,
-      son:Number(r.son)||0, auf:Number(r.auf)||0,
-      mini:Number(r.mini)||0, ist:Number(r.ist)||0
-    };
-  });
-  var taClean={
-    datum:String(datum),hotel:String(hotel),
+  // Saubere Tagesabrechnung — NUR erlaubte Typen
+  var taData={
+    datum:datumIso,
+    hotel:String(hotel),
     tl:String(USER.name||''),
-    rows:safeRows,savedAt:ts
+    ts:ts,
+    status:'pending',
+    zimmer_gesamt:Number(rows.reduce(function(s,r){return s+(Number(r.zi)||0);},0)),
+    rows:rows.map(function(r){
+      return {
+        name:String(r.name||''),
+        zimmer:Number(r.zi)||0,
+        grundrein:Number(r.gr)||0,
+        check:Number(r.chk)||0,
+        publik:Number(r.pub)||0,
+        waesche:Number(r.wae)||0,
+        sonder:Number(r.son)||0,
+        aufbett:Number(r.auf)||0,
+        sessel:Number(r.ses)||0,
+        mini:Number(r.mini)||0,
+        ist_std:Number(r.ist)||0
+      };
+    })
   };
-  fbPatch('dailyReports/'+hk+'/'+datumKey,taClean);
-  fbPatch('hotels/'+hk+'/ta/'+datumKey,taClean);
 
-  // 2. Stundenzettel — aus DATA.sz, bereinigt
-  if(DATA.sz&&DATA.sz[hotel]){
-    var szClean={};
-    Object.keys(DATA.sz[hotel]).forEach(function(mk){
-      var safeKey=fbKey(mk); // Leerzeichen → _
-      szClean[safeKey]=cleanForFb(DATA.sz[hotel][mk]);
-    });
-    fbPatch('timesheets/'+hk,szClean);
-    fbPatch('hotels/'+hk+'/sz',szClean);
-  }
+  console.log('[saveTa] Hotel Key:', hk);
+  console.log('[saveTa] Datum ISO:', datumIso, '→ Key:', datumKey);
+  console.log('[saveTa] Daten:', JSON.stringify(taData).slice(0,300));
 
-  // 3. Leistung — aus DATA.lu, bereinigt
-  if(DATA.lu&&DATA.lu[hotel]){
-    fbPatch('leistung/'+hk,cleanForFb(DATA.lu[hotel]));
-  }
+  // 1. Hotel-Pfad
+  fbWrite('hotels/'+hk+'/tagesabrechnung/'+datumKey, taData, null, null);
 
-  // 4. Notification für Chef
-  fbPatch('notifications/ta_'+ts,{
+  // 2. Chef-Inbox (damit Chef es sofort sieht!)
+  var inboxKey=datumKey+'_'+hk;
+  fbWrite('chef/inbox/tagesabrechnung/'+inboxKey, taData, null, null);
+
+  // 3. Notification
+  fbWrite('notifications/ta_'+ts, {
     typ:'tagesabrechnung',
     hotel:String(hotel),
     hotelKey:String(hk),
-    datum:String(datum),
+    datum:datumIso,
+    inboxKey:String(inboxKey),
     tl:String(USER.name||''),
     count:Number(transferCount)||0,
     ts:ts,
     gelesen:false
-  });
+  }, null, null);
 
   toast('✅ Gespeichert & an Chef gesendet!','ok',4000);
 }
+
 
 // ============================================================
 // STUNDENZETTEL
