@@ -205,12 +205,12 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;heigh
 <!-- STEP 1: Rollenauswahl -->
 <div id="step1">
   <p style="font-size:0.85rem;color:var(--cream);margin-bottom:18px;text-align:center">Wer bist du?</p>
-  <a href="javascript:void(0)" id="btn-tl" style="display:flex;width:100%;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);color:var(--cream);font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;padding:16px 14px;cursor:pointer;border-radius:4px;align-items:center;gap:12px;margin-bottom:10px;text-decoration:none;box-sizing:border-box;">
+  <a href="javascript:void(0)" id="btn-tl" onclick="window.tlKlick&&window.tlKlick()" style="display:flex;width:100%;background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.35);color:var(--cream);font-size:0.82rem;letter-spacing:0.1em;text-transform:uppercase;padding:16px 14px;cursor:pointer;border-radius:4px;align-items:center;gap:12px;margin-bottom:10px;text-decoration:none;box-sizing:border-box;">
     <span style="font-size:1.5rem">📋</span>
     <div style="text-align:left"><b style="color:var(--gold)">TEAMLEADER</b><span style="display:block;font-size:0.58rem;color:#5a6a7a;text-transform:none;letter-spacing:0;margin-top:2px">Tagesabrechnung · Stundenzettel · Dienstplan</span></div>
   </a>
   <div style="text-align:center;margin-top:16px;padding-top:14px;border-top:1px solid rgba(212,168,67,0.1)">
-    <a href="javascript:void(0)" id="btn-chef-goto" style="color:#5a6a7a;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;padding:10px 20px;display:inline-block">🔒 Chef / Admin Login</a>
+    <a href="javascript:void(0)" id="btn-chef-goto" onclick="window.chefKlick&&window.chefKlick()" style="color:#5a6a7a;font-size:0.6rem;letter-spacing:0.12em;text-transform:uppercase;text-decoration:none;padding:10px 20px;display:inline-block">🔒 Chef / Admin Login</a>
   </div>
 </div>
 
@@ -232,8 +232,8 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;heigh
     <input id="v-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid var(--gold);color:#000;font-size:0.95rem;font-weight:700;padding:10px 12px;outline:none;border-radius:3px;box-sizing:border-box">
     <div id="v-pw-err" style="color:#f4845f;font-size:0.68rem;margin-top:5px;display:none">Falsches Passwort!</div>
   </div>
-  <a href="javascript:void(0)" id="btn-vora-login" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">Einloggen</a>
-  <a href="javascript:void(0)" id="btn-back-vora" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:8px">← Zurück</a>
+  <a href="javascript:void(0)" id="btn-vora-login" onclick="window.loginKlick&&window.loginKlick()" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">Einloggen</a>
+  <a href="javascript:void(0)" id="btn-back-vora" onclick="window.backKlick&&window.backKlick()" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:8px">← Zurück</a>
 </div>
 
 <!-- STEP 3: Chef Login -->
@@ -241,8 +241,8 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;heigh
   <p style="font-size:0.82rem;color:var(--gold);margin-bottom:12px;font-weight:600">🔒 Chef / Admin</p>
   <input class="inp" id="chef-pw" type="password" autocomplete="current-password" placeholder="Passwort..." style="margin-bottom:8px;width:100%;box-sizing:border-box">
   <div id="chef-pw-err" style="color:#f4845f;font-size:0.68rem;margin-bottom:8px;display:none">Falsches Passwort</div>
-  <a href="javascript:void(0)" id="btn-chef-login" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">✓ Als Chef einloggen</a>
-  <a href="javascript:void(0)" id="btn-back-chef" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:6px">← Zurück</a>
+  <a href="javascript:void(0)" id="btn-chef-login" onclick="window.chefLoginKlick&&window.chefLoginKlick()" style="display:block;width:100%;background:var(--gold);color:#08090d;font-size:0.9rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:15px;border-radius:3px;cursor:pointer;text-align:center;text-decoration:none;box-sizing:border-box;margin-bottom:10px">✓ Als Chef einloggen</a>
+  <a href="javascript:void(0)" id="btn-back-chef" onclick="window.backKlick&&window.backKlick()" style="display:block;text-align:center;color:#5a6a7a;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;text-decoration:none;padding:6px">← Zurück</a>
 </div>
 
 <div id="fb-live-indicator" style="text-align:center;margin-top:16px;font-size:0.55rem;color:#5a6a7a;display:flex;align-items:center;justify-content:center;gap:5px">
@@ -4902,6 +4902,30 @@ console.error(‘Unhandled Promise:’,e.reason);
 // ============================================================
 // INITIALIZATION
 // ============================================================
+// === GLOBALE LOGIN FUNKTIONEN (direkt auf window) ===
+// Diese Funktionen müssen global sein für inline onclick
+window.tlKlick=function(){
+console.log(‘Teamleader geklickt’);
+showStep(‘step-vora’);
+initVoraLogin();
+};
+window.chefKlick=function(){
+console.log(‘Admin geklickt’);
+showStep(‘step-chef’);
+setTimeout(function(){var p=ge(‘chef-pw’);if(p)p.focus();},100);
+};
+window.loginKlick=function(){
+console.log(‘Login geklickt’);
+doVoraLogin();
+};
+window.chefLoginKlick=function(){
+console.log(‘Chef Login geklickt’);
+loginChef();
+};
+window.backKlick=function(){
+console.log(‘Zurück geklickt’);
+showStep(‘step1’);
+};
 var _loginButtonsInit=false;
 function initLoginButtons(){
 if(_loginButtonsInit)return; // nur einmal
