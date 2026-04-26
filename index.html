@@ -373,11 +373,19 @@ function fbGetXHR(p,cb){fbGet(p,cb);}
 function fbPatch(p,data){
   if(FB_DISABLED)return;
   if(!data||typeof data!=='object')return;
-  // undefined Werte entfernen (Firebase 400 Fehler)
-  var clean;
-  try{clean=JSON.parse(JSON.stringify(data));}
-  catch(e){console.warn('fbPatch JSON Fehler:',e.message);return;}
-  var url=fbRef(p);
+  // Daten bereinigen: undefined/NaN/Infinity entfernen
+  var cleaned;
+  try{
+    cleaned=JSON.parse(JSON.stringify(data,function(k,v){
+      if(v===undefined||v===null||(typeof v==='number'&&!isFinite(v)))return 0;
+      return v;
+    }));
+  }catch(e){console.warn('fbPatch JSON:',e.message);return;}
+
+  var url=FB_URL+'/'+p+'.json';
+  console.log('Firebase WRITE URL:',url);
+  console.log('Firebase WRITE DATA:',JSON.stringify(cleaned).slice(0,200));
+
   var xhr=new XMLHttpRequest();
   xhr.open('PUT',url,true);
   xhr.setRequestHeader('Content-Type','application/json');
@@ -387,23 +395,32 @@ function fbPatch(p,data){
     if(xhr.status>=200&&xhr.status<300){
       if(dot)dot.style.background='#4caf7d';
       FB_FAIL_COUNT=0;
+      console.log('Firebase OK:',p);
     } else {
       if(dot)dot.style.background='#e05555';
-      console.warn('Firebase Fehler HTTP',xhr.status,p,xhr.responseText.slice(0,100));
-      if(xhr.status!==400||FB_FAIL_COUNT===0)toast('⚠ Firebase Fehler '+xhr.status,'err',3000);
       FB_FAIL_COUNT++;
+      var errMsg=xhr.responseText||'';
+      console.error('Firebase Fehler',xhr.status,p,errMsg);
+      // Fehlermeldung sichtbar anzeigen
+      if(FB_FAIL_COUNT<=2){
+        toast('⚠ Firebase '+xhr.status+': '+errMsg.slice(0,80),'err',6000);
+      }
     }
   };
   xhr.onerror=function(){
     var dot=ge('fb-live-dot');
     if(dot)dot.style.background='#e05555';
+    console.error('Firebase Netzwerkfehler:',p);
+    toast('⚠ Firebase: Netzwerkfehler','err',4000);
   };
-  xhr.ontimeout=function(){console.warn('Firebase Timeout',p);};
-  try{xhr.send(JSON.stringify(clean));}
-  catch(e){console.warn('Firebase send:',e.message);}
+  xhr.ontimeout=function(){
+    console.warn('Firebase Timeout:',p);
+  };
+  try{xhr.send(JSON.stringify(cleaned));}
+  catch(e){console.error('Firebase send:',e.message);}
 }
 
-function fbSet(p,data){fbPatch(p,data);}// Alias
+function fbSet(p,data){fbPatch(p,data);}
 
 // ── PUSH — schreibt Hotel-Daten sofort zu Firebase ──
 function fbPush(){
