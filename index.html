@@ -35,14 +35,17 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 
 /* ── ALLE INPUTS HELL ── */
 input,select,textarea{
-color:var(–cream)!important;
--webkit-text-fill-color:var(–cream)!important;
+color:#dff0ff!important;
+-webkit-text-fill-color:#dff0ff!important;
 background-color:transparent!important;
 opacity:1!important;
+-webkit-appearance:none;
 }
 input[type=number],input[type=text],input[type=password],input[type=month],input[type=date]{
-color:var(–cream)!important;
--webkit-text-fill-color:var(–cream)!important;
+color:#dff0ff!important;
+-webkit-text-fill-color:#dff0ff!important;
+-webkit-appearance:none;
+appearance:none;
 }
 input::placeholder,textarea::placeholder{
 color:var(–muted)!important;
@@ -52,7 +55,7 @@ opacity:1!important;
 input::-webkit-input-placeholder{color:var(–muted)!important;-webkit-text-fill-color:var(–muted)!important;}
 
 /* ── LOGIN ── */
-.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,#050d1a 0%,#050810 60%,#081018 100%)}
+.login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;padding-top:max(80px,calc(env(safe-area-inset-top)+60px));padding-bottom:max(40px,calc(env(safe-area-inset-bottom)+20px));background:linear-gradient(160deg,#050d1a 0%,#050810 60%,#081018 100%)}
 .login-box{background:linear-gradient(160deg,var(–bg2),var(–bg3));border:1px solid rgba(0,194,255,0.2);padding:40px 32px;max-width:380px;width:100%;text-align:center;border-radius:16px;box-shadow:0 0 60px rgba(0,194,255,0.08),0 24px 80px rgba(0,0,0,0.8)}
 .login-logo{font-family:Georgia,serif;font-size:3.6rem;font-weight:900;background:linear-gradient(135deg,var(–gold),var(–acc));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-1px;line-height:1}
 .login-sub{font-size:0.48rem;letter-spacing:0.5em;text-transform:uppercase;color:var(–muted);margin:8px 0 30px}
@@ -2252,7 +2255,8 @@ function pgTa(){
   html+='<th style="min-width:52px;background:rgba(20,80,40,0.35);color:#81c784">Ist-Std</th>';
   html+='</tr></thead><tbody id="ta-body"></tbody></table></div>';
   html+='<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-  html+='<button class="btn primary" id="btn-save-ta">💾 Speichern</button>';
+  html+='<button class="btn primary" id="btn-save-ta">💾 Speichern & Verteilen</button>';
+  html+='<div id="ta-result-panel"></div>';
   html+='<button class="btn sm" id="btn-print-ta">🖶 Drucken</button>';
   html+='<span id="ta-info" style="font-size:0.62rem;color:#5dbf8a;margin-left:4px"></span>';
   html+='</div></div>';
@@ -2274,7 +2278,7 @@ function buildTaRows(cfg,saved){
   for(var ri=0;ri<TA_ROWS;ri++){
     var sv=(saved&&saved.rows&&saved.rows[ri])||{};
     rows+='<tr id="tar'+ri+'"><td style="min-width:130px"><input class="ti nm" type="text" id="ta_nm_'+ri+'" placeholder="" value="'+(sv.name||'')+'"></td>';
-    rows+='<td><input class="ti zi" type="number" min="0" id="ta_zi_'+ri+'" value="'+(sv.zi||'')+'"></td>';
+    rows+='<td><input class="ti zi" type="number" min="0" style="color:#ffd980!important;-webkit-text-fill-color:#ffd980!important" id="ta_zi_'+ri+'" value="'+(sv.zi||'')+'"></td>';
     if(isRS){
       rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
       rows+='<td><input class="ti" type="number" min="0" id="ta_ses_'+ri+'" value="'+(sv.ses||'')+'"></td>';
@@ -2603,24 +2607,27 @@ function saveTa(){
   // 10. saveToFirebase - alles senden
   saveToFirebase(hotel,rows,payload,datumKey,inboxKey,Date.now());
 
-  // 11. Erfolgsmeldung
+  // 11. Erfolgsmeldung + sichtbares Panel
   var szCount=rows.filter(function(r){return r.ist>0;}).length;
   var luZi=DATA.lu[hotel]&&DATA.lu[hotel][monat]&&DATA.lu[hotel][monat].rows&&DATA.lu[hotel][monat].rows[dayKey]?DATA.lu[hotel][monat].rows[dayKey].zi:0;
   var hasR1=DATA.r1[hotel]&&DATA.r1[hotel][monat]&&DATA.r1[hotel][monat][dayKey]&&DATA.r1[hotel][monat][dayKey].length>0;
-  // Debug: zeige was gespeichert wurde
-  var _dbg='✅ GESPEICHERT\n';
-  _dbg+='📋 TA: '+rows.length+' MA\n';
-  _dbg+='⏱ SZ: '+szCount+' MA mit Std\n';
-  _dbg+='📊 LU: '+luZi+' Zi gesamt\n';
-  if(hasR1)_dbg+='🏢 SUB: erkannt\n';
-  _dbg+='🔥 Firebase: '+hotel+'\n';
-  _dbg+='📅 '+datum+' / '+monat+' / '+dayKey;
-  toast(_dbg,'ok',6000);
-  console.log('=== SAVE COMPLETE ===');
-  console.log('Hotel:', hotel, 'Datum:', datum);
-  console.log('Rows:', rows.map(function(r){return r.name+':'+r.zi+'zi/'+r.ist+'h';}));
-  console.log('DATA.sz[hotel]:', JSON.stringify(DATA.sz[hotel]||{}));
-  console.log('DATA.lu[hotel]:', JSON.stringify(DATA.lu[hotel]||{}));
+  toast('✅ Gespeichert! '+rows.length+' MA · '+luZi+' Zi · Firebase ✓','ok',4000);
+  // Zeige Ergebnis-Panel direkt auf TA-Seite
+  var resultDiv=ge('ta-result-panel');
+  if(resultDiv){
+    var rHtml='<div style="background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);border-radius:8px;padding:12px;margin-top:10px">';
+    rHtml+='<div style="font-size:0.72rem;font-weight:700;color:#00e676;margin-bottom:8px">✅ Automatisch verteilt:</div>';
+    rHtml+='<div style="font-size:0.68rem;color:#dff0ff;line-height:1.8">';
+    rows.forEach(function(r){
+      var isSub=/\s[A-Z0-9]{1,4}$/.test(r.name);
+      rHtml+=(isSub?'🏢':'👤')+' <b>'+r.name+'</b> → SZ: '+r.zi+' Zi / '+r.ist+' Std<br>';
+    });
+    rHtml+='<span style="color:#00c2ff">📊 LU: '+luZi+' Zi gesamt</span><br>';
+    rHtml+='<span style="color:#ffc145">🔥 Firebase: gesendet</span>';
+    rHtml+='</div></div>';
+    resultDiv.innerHTML=rHtml;
+  }
+  console.log('[SAVE] OK:',rows.map(function(r){return r.name+':'+r.zi+'zi/'+r.ist+'h';}));
 
   // 12. Tab aktualisieren
   DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now(),firstMa:rows.length>0?rows[0].name:''};
