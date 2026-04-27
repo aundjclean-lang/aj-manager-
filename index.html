@@ -2068,29 +2068,30 @@ function taCalcGes(){
 }
 
 // Neue Funktion: Transfer aus row-Objekt (nach taCalc berechnet)
-function taAutoTransferRow(row,cfg){
+function taAutoTransferRow(row,cfg,hotelIn,monatIn,dayKeyIn){
   if(!row||!row.name||!row.name.trim())return;
-  var hotel=USER.hotel;
+  var hotel=hotelIn||USER.hotel;
   if(!hotel)return;
 
-  var datumStr=gv('ta-datum')||'';
-  if(!datumStr)return;
-
-  // Datum parsen: 26.04.2026 oder 2026-04-26
-  var day,monat;
-  if(datumStr.indexOf('.')>=0){
-    var dp=datumStr.split('.');
-    day=parseInt(dp[0]);
-    monat=(dp[2]||new Date().getFullYear())+'-'+String(dp[1]||1).padStart(2,'0');
-  } else {
-    day=parseInt(datumStr.slice(8,10));
-    monat=datumStr.slice(0,7);
+  // monat+dayKey direkt übergeben (von saveTa) oder aus DOM lesen
+  var monat=monatIn,dayKey=dayKeyIn;
+  if(!monat||!dayKey){
+    var datumStr=gv('ta-datum')||'';
+    if(!datumStr)return;
+    if(datumStr.indexOf('.')>=0){
+      var dp=datumStr.split('.');
+      var day2=parseInt(dp[0]);
+      monat=(dp[2]||new Date().getFullYear())+'-'+String(dp[1]||1).padStart(2,'0');
+      dayKey='d'+String(day2).padStart(2,'0');
+    } else {
+      monat=datumStr.slice(0,7);
+      dayKey='d'+datumStr.slice(8,10);
+    }
+    if(!monat||!dayKey)return;
   }
-  if(!day||day<1||day>31||!monat)return;
 
   var maName=row.name.trim();
   var maKey=safeKey(maName);
-  var dayKey='d'+String(day).padStart(2,'0');
   var zi=Number(row.zi)||0,gr=Number(row.gr)||0;
   var chk=Number(row.chk)||0,pub=Number(row.pub)||0;
   var son=Number(row.son)||0,ist=Number(row.ist)||0;
@@ -2099,7 +2100,6 @@ function taAutoTransferRow(row,cfg){
 
   console.log('[SZ]',maName,'zi='+zi,'ist='+ist,'tag='+dayKey,'monat='+monat);
 
-  // 1. STUNDENZETTEL
   if(!DATA.sz[hotel])DATA.sz[hotel]={};
   if(!DATA.sz[hotel][maKey])DATA.sz[hotel][maKey]={name:maName};
   if(!DATA.sz[hotel][maKey][monat])DATA.sz[hotel][maKey][monat]={tage:{},istGes:0,ziGes:0,grGes:0};
@@ -2109,7 +2109,6 @@ function taAutoTransferRow(row,cfg){
     zi:zi,gr:gr,ses:ses,chk:chk,pub:pub,son:son,mini:mini,wae:wae,auf:auf,
     von:von,bis:bis,ist:ist>0?Math.round(ist*100)/100:0,pause:0.5
   };
-  // Monatssummen neu berechnen
   var totIst=0,totZi=0,totGr=0;
   Object.keys(DATA.sz[hotel][maKey][monat].tage).forEach(function(dk){
     var t=DATA.sz[hotel][maKey][monat].tage[dk];
@@ -2119,7 +2118,6 @@ function taAutoTransferRow(row,cfg){
   DATA.sz[hotel][maKey][monat].ziGes=totZi;
   DATA.sz[hotel][maKey][monat].grGes=totGr;
 }
-
 function updateLeistungsuebersicht(hotel,monat,dayKey){
   // Tagessumme aus ALLEN MA im SZ berechnen
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
@@ -2149,15 +2147,30 @@ function updateLeistungsuebersicht(hotel,monat,dayKey){
 
 function updateSubunternehmer(row,hotel,monat,dayKey){
   var maName=row.name.trim();
-  // R1 Firms aus localStorage holen
-  var firms=[];
-  try{firms=JSON.parse(localStorage.getItem('aj_r1_firms')||'[]');}catch(e){}
-  if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
-  var isR1=firms.some(function(f){
-    return f.aktiv!==false&&f.kuerzel&&
-      maName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;
-  });
+  
+  // SUB-Erkennung: Name endet mit Leerzeichen + 2-4 Großbuchstaben
+  // z.B. "Ali SO", "Nast SUB", "Mohamed SP", "Vlada R1"
+  var isR1=false;
+  var subMatch=maName.match(/\s([A-Z0-9]{1,4})$/);
+  if(subMatch){
+    isR1=true;
+    console.log('[SUB] erkannt per Kürzel:',maName,'Kürzel:',subMatch[1]);
+  }
+  
+  // Auch aus R1_FIRMS prüfen (Firmen-Konfiguration)
+  if(!isR1){
+    var firms=[];
+    try{firms=JSON.parse(localStorage.getItem('aj_r1_firms')||'[]');}catch(e){}
+    if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
+    isR1=firms.some(function(f){
+      return f.aktiv!==false&&f.kuerzel&&
+        maName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;
+    });
+    if(isR1)console.log('[SUB] erkannt per Firma:',maName);
+  }
+  
   if(!isR1)return;
+  
   if(!DATA.r1[hotel])DATA.r1[hotel]={};
   if(!DATA.r1[hotel][monat])DATA.r1[hotel][monat]={};
   if(!DATA.r1[hotel][monat][dayKey])DATA.r1[hotel][monat][dayKey]=[];
@@ -2171,9 +2184,7 @@ function updateSubunternehmer(row,hotel,monat,dayKey){
     pub:Number(row.pub)||0,ist:Number(row.ist)||0
   };
   if(idx>=0)list[idx]=entry;else list.push(entry);
-  console.log('[SUB] erkannt:',maName);
 }
-
 function saveToFirebase(hotel,rows,payload,datumKey,inboxKey,ts){
   var hk=safeKey(hotel);
   // 1. Tagesabrechnung
@@ -2263,7 +2274,7 @@ function saveTa(){
   // 5. updateStundenzettel - jeden MA verarbeiten
   var cfg=getCfg(hotel);
   rows.forEach(function(row){
-    taAutoTransferRow(row,cfg);
+    taAutoTransferRow(row,cfg,hotel,monat,dayKey);
   });
 
   // 6. updateLeistungsuebersicht - Tagessumme berechnen
