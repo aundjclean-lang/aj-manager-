@@ -1238,11 +1238,9 @@ function buildTabs(){
     {id:'ta',lb:'📋 Tagesabr.'},
     {id:'sz',lb:'⏱ Stundenzettel'},
     {id:'lu',lb:'📊 Leistung'},
-    {id:'dp',lb:'▪ Dienstplan'},
-    {id:'r1',lb:'📄 R1Clean'},
-    {id:'meldung',lb:'📩 Meldung'}
+    {id:'dp',lb:'📅 Dienstplan'},
+    {id:'r1',lb:'🏢 Sub'}
   ];
-  if(isSpark_)voraTabs.splice(voraTabs.length-1,0,{id:'mb',lb:'🍺 Minibar'});
 
   var list=USER.role==='chef'?chefTabs:voraTabs;
   var tabsEl=ge('tabs');if(!tabsEl)return;
@@ -1273,7 +1271,8 @@ function switchTab(id){
   var cont=ge('content');if(cont)cont.innerHTML='';
   var pages={
     dash:pgDash,live:pgLive,ta:pgTa,sz:pgSz,lu:pgLu,team:pgTeam,
-    dp:pgDp,ma:pgMa,admin:pgAdmin,r1:pgR1
+    dp:pgDp,ma:pgMa,admin:pgAdmin,r1:pgR1,
+    meldung:pgMeldung,mb:pgMb,trash:pgTrash,lohn:pgLohn,kalk:pgKalk,prod:pgProd
   };
   if(pages[id]){
     try{pages[id]();}
