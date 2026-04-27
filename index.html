@@ -3038,15 +3038,14 @@ function saveSz(){
 // LEISTUNGSBERSICHT
 // ============================================================
 function pgLu(){
-  var c=ge('content');
+  var c=ge('content');if(!c)return;
   var hotel=(USER.role==='chef'&&USER.chefHotel&&USER.chefHotel!=='__alle__')?USER.chefHotel:USER.hotel;
-  var cfg=getCfg(hotel);
-  var now=new Date(),thisM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  var isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc';
+  var now=new Date();
+  var thisM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
 
   var html='<div class="card" style="padding:10px 12px">';
-  html+='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">';
-  html+='<span style="font-size:0.8rem;font-weight:600;color:var(--gold)">📊 Leistungsübersicht</span>';
+  html+='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">';
+  html+='<span style="font-size:0.82rem;font-weight:700;color:var(--gold)">📊 Leistungsübersicht</span>';
   if(USER.role==='chef'){
     html+='<select class="inp" id="lu-hotel-sel" style="max-width:220px">';
     Object.keys(HOTELS).forEach(function(h){
@@ -3055,165 +3054,328 @@ function pgLu(){
     html+='</select>';
   }
   html+='<input type="month" class="inp" id="lu-mon-sel" value="'+thisM+'" style="width:130px;margin-left:auto">';
+  html+='<button class="btn sm" id="btn-lu-print">🖶 Drucken A4</button>';
   html+='</div></div>';
-
-  html+='<div id="lu-body-wrap"></div>';
+  html+='<div id="lu-body"></div>';
   c.innerHTML=html;
 
   if(ge('lu-hotel-sel'))ge('lu-hotel-sel').onchange=function(){
-    hotel=this.value;
-    USER.chefHotel=this.value;
+    hotel=this.value;USER.chefHotel=this.value;
     var tb=ge('tb-info');if(tb)tb.textContent=this.value;
-    buildLu(gv('lu-mon-sel')||thisM);
+    luDraw(hotel,gv('lu-mon-sel')||thisM);
   };
+  ge('lu-mon-sel').onchange=function(){luDraw(hotel,this.value);};
+  ge('btn-lu-print').onclick=function(){luPrint(hotel,gv('lu-mon-sel')||thisM);};
 
-  function buildLu(mon){
-    var wrap=ge('lu-body-wrap');if(!wrap)return;
-    var szH=DATA.sz[hotel]||{};
-    var r1H=DATA.r1[hotel]||{};
-    var luH=(DATA.lu[hotel]&&DATA.lu[hotel][mon])||{rows:{}};
-    var luRows=luH.rows||{};
+  luDraw(hotel,thisM);
+}
 
-    // Alle Tage mit Daten sammeln
-    var allDays={};
-    Object.keys(luRows).forEach(function(dk){allDays[dk]=true;});
+function luDraw(hotel,monat){
+  var wrap=ge('lu-body');if(!wrap)return;
+  var szH=DATA.sz[hotel]||{};
+  var luH=(DATA.lu[hotel]&&DATA.lu[hotel][monat])||{rows:{}};
+  var luRows=luH.rows||{};
+  var monParts=(monat||'').split('-');
+  var yr=parseInt(monParts[0])||new Date().getFullYear();
+  var mo=parseInt(monParts[1])||1;
+
+  // Get TL name from last TA
+  var taH=DATA.ta[hotel]||{};
+  var tlName='';
+  var taKeys=Object.keys(taH).sort().reverse();
+  if(taKeys.length)tlName=taH[taKeys[0]].tl||taH[taKeys[0]].createdBy||'';
+
+  // Check data
+  var hasData=Object.keys(luRows).length>0;
+  if(!hasData){
+    // Try to build from sz
     Object.keys(szH).forEach(function(mk){
-      var mData=szH[mk];
-      if(mData&&mData[mon]&&mData[mon].tage){
-        Object.keys(mData[mon].tage).forEach(function(dk){allDays[dk]=true;});
-      }
+      if(szH[mk][monat])hasData=true;
     });
-
-    // MA trennen: eigene vs SUB
-    var ownMAs=[],subMAs=[];
-    Object.keys(szH).forEach(function(mk){
-      var mData=szH[mk];
-      var realName=mData.name||mk.replace(/_/g,' ');
-      var isSub=/\s[A-Z0-9]{1,4}$/.test(realName);
-      if(!isSub){
-        // Check R1_FIRMS
-        var firms=[];try{firms=JSON.parse(localStorage.getItem('aj_r1_firms')||'[]');}catch(e){}
-        if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
-        isSub=firms.some(function(f){return f.aktiv!==false&&f.kuerzel&&realName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;});
-      }
-      if(isSub)subMAs.push({mk:mk,name:realName,data:mData});
-      else ownMAs.push({mk:mk,name:realName,data:mData});
-    });
-
-    var days=Object.keys(allDays).sort(function(a,b){
-      return parseInt(a.replace('d',''))-parseInt(b.replace('d',''));
-    });
-
-    if(!days.length){
-      wrap.innerHTML='<div class="card"><div class="empty">Keine Daten für '+mon+'.<br><small>Tagesabrechnung ausfüllen und speichern.</small></div></div>';
-      return;
-    }
-
-    var out='';
-
-    // === EIGENE MITARBEITER ===
-    out+='<div class="card" style="padding:10px 12px;margin-bottom:10px">';
-    out+='<div style="font-size:0.72rem;font-weight:700;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:5px">👤 Eigene Mitarbeiter — '+mon+'</div>';
-    if(!ownMAs.length){
-      out+='<div style="color:var(--muted);font-size:0.7rem;padding:8px">Keine eigenen MA</div>';
-    } else {
-      out+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.72rem">';
-      out+='<tr style="background:var(--navy3)"><th style="padding:5px 6px;color:var(--gold);text-align:left">MA</th>';
-      days.forEach(function(dk){out+='<th style="padding:5px 4px;color:var(--muted);text-align:center">'+dk.replace('d','')+'</th>';});
-      out+='<th style="padding:5px 6px;color:var(--gold);text-align:center">Σ Zi</th><th style="padding:5px 6px;color:#34d399;text-align:center">Σ Std</th></tr>';
-      var totZi=0,totIst=0;
-      ownMAs.forEach(function(ma,i){
-        var mMon=ma.data[mon]||{tage:{}};
-        var maZi=0,maIst=0;
-        out+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'"><td style="padding:4px 6px;font-weight:600;color:var(--cream)">'+ma.name+'</td>';
-        days.forEach(function(dk){
-          var t=mMon.tage&&mMon.tage[dk];
-          var zi=t?parseInt(t.zi||0):0;
-          var ist=t?parseFloat(t.ist||0):0;
-          maZi+=zi;maIst+=ist;
-          out+='<td style="text-align:center;padding:3px 4px;'+(zi>0?'color:var(--gold);font-weight:600':'color:var(--muted)')+'">'+( zi>0?zi:'-')+'</td>';
-        });
-        totZi+=maZi;totIst+=maIst;
-        out+='<td style="text-align:center;padding:4px 6px;font-weight:700;color:var(--gold)">'+maZi+'</td>';
-        out+='<td style="text-align:center;padding:4px 6px;font-weight:700;color:#34d399">'+maIst.toFixed(1)+'</td></tr>';
-      });
-      out+='<tr style="background:var(--navy3);border-top:2px solid var(--gold)"><td style="padding:5px 6px;font-weight:700;color:var(--gold)">GESAMT</td>';
-      days.forEach(function(dk){
-        var dZi=luRows[dk]?parseInt(luRows[dk].zi||0):0;
-        out+='<td style="text-align:center;padding:3px 4px;font-weight:700;color:var(--gold)">'+(dZi>0?dZi:'-')+'</td>';
-      });
-      out+='<td style="text-align:center;font-weight:700;color:var(--gold)">'+totZi+'</td>';
-      out+='<td style="text-align:center;font-weight:700;color:#34d399">'+totIst.toFixed(1)+'</td></tr>';
-      out+='</table></div>';
-    }
-    out+='</div>';
-
-    // === SUBUNTERNEHMER ===
-    var r1Mon=r1H[mon]||{};
-    var subFromR1={};
-    Object.keys(r1Mon).forEach(function(dk){
-      var arr=r1Mon[dk];
-      if(!Array.isArray(arr))return;
-      arr.forEach(function(e){
-        if(!subFromR1[e.name])subFromR1[e.name]={zi:0,gr:0,ist:0,days:{}};
-        subFromR1[e.name].zi+=parseInt(e.zi||0);
-        subFromR1[e.name].gr+=parseInt(e.gr||0);
-        subFromR1[e.name].ist+=parseFloat(e.ist||0);
-        subFromR1[e.name].days[dk]=e;
-      });
-    });
-    // Also from SZ subMAs
-    subMAs.forEach(function(ma){
-      var mMon=ma.data[mon]||{tage:{}};
-      if(!subFromR1[ma.name])subFromR1[ma.name]={zi:0,gr:0,ist:0,days:{}};
-      Object.keys(mMon.tage||{}).forEach(function(dk){
-        var t=mMon.tage[dk];
-        if(!subFromR1[ma.name].days[dk]){
-          subFromR1[ma.name].zi+=parseInt(t.zi||0);
-          subFromR1[ma.name].ist+=parseFloat(t.ist||0);
-          subFromR1[ma.name].days[dk]=t;
-        }
-      });
-    });
-
-    var subNames=Object.keys(subFromR1);
-    out+='<div class="card" style="padding:10px 12px">';
-    out+='<div style="font-size:0.72rem;font-weight:700;color:var(--gold);margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:5px">🏢 Subunternehmer — '+mon+'</div>';
-    if(!subNames.length){
-      out+='<div style="color:var(--muted);font-size:0.7rem;padding:8px">Kein SUB<br><small>Name mit Kürzel eingeben, z.B. "Ali R1" oder "Nast SO"</small></div>';
-    } else {
-      out+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.72rem">';
-      out+='<tr style="background:var(--navy3)"><th style="padding:5px 6px;color:var(--gold);text-align:left">Name</th>';
-      days.forEach(function(dk){out+='<th style="padding:5px 4px;color:var(--muted);text-align:center">'+dk.replace('d','')+'</th>';});
-      out+='<th style="padding:5px 6px;color:var(--gold);text-align:center">Σ Zi</th><th style="padding:5px 6px;color:#34d399;text-align:center">Σ Std</th></tr>';
-      var subTotZi=0,subTotIst=0;
-      subNames.forEach(function(nm,i){
-        var s=subFromR1[nm];
-        out+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'"><td style="padding:4px 6px;font-weight:600;color:var(--cream)">'+nm+'</td>';
-        days.forEach(function(dk){
-          var e=s.days[dk];
-          var zi=e?parseInt(e.zi||0):0;
-          out+='<td style="text-align:center;padding:3px 4px;'+(zi>0?'color:var(--gold);font-weight:600':'color:var(--muted)')+'">'+( zi>0?zi:'-')+'</td>';
-        });
-        subTotZi+=s.zi;subTotIst+=s.ist;
-        out+='<td style="text-align:center;padding:4px 6px;font-weight:700;color:var(--gold)">'+s.zi+'</td>';
-        out+='<td style="text-align:center;padding:4px 6px;font-weight:700;color:#34d399">'+s.ist.toFixed(1)+'</td></tr>';
-      });
-      out+='<tr style="background:var(--navy3);border-top:2px solid var(--gold)"><td style="padding:5px 6px;font-weight:700;color:var(--gold)">GESAMT SUB</td>';
-      days.forEach(function(){out+='<td></td>';});
-      out+='<td style="text-align:center;font-weight:700;color:var(--gold)">'+subTotZi+'</td>';
-      out+='<td style="text-align:center;font-weight:700;color:#34d399">'+subTotIst.toFixed(1)+'</td></tr>';
-      out+='</table></div>';
-    }
-    out+='</div>';
-
-    wrap.innerHTML=out;
+  }
+  if(!hasData){
+    wrap.innerHTML='<div class="card"><div class="empty">Keine Daten für '+monat+'.<br><small>Tagesabrechnung ausfüllen → automatisch übertragen.</small></div></div>';
+    return;
   }
 
-  buildLu(thisM);
+  var monNames=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  var isRS=hotelTyp(hotel)==='rs';
 
-  var sel=ge('lu-mon-sel');
-  if(sel)sel.onchange=function(){buildLu(this.value);};
+  // Cols: DZ, Apt, Ses, Chk per day from luRows
+  // Sum per MA from szH
+
+  var html='<div class="card" style="padding:14px">';
+
+  // Header like the template
+  html+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--gold)">';
+  html+='<div style="font-family:Georgia,serif;font-size:1.8rem;font-weight:900;color:var(--gold);line-height:1">A&amp;J</div>';
+  html+='<div>';
+  html+='<div style="font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)">Cleaning Services GmbH</div>';
+  html+='<div style="font-size:0.9rem;font-weight:700;color:var(--cream);margin-top:2px">Leistungsübersicht Objekt: <span style="color:var(--gold)">'+hotel+'</span></div>';
+  html+='</div></div>';
+
+  // Monat + TL fields
+  html+='<div style="display:flex;gap:20px;margin-bottom:12px;font-size:0.72rem">';
+  html+='<div style="flex:1"><span style="color:var(--muted);font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase">Monat</span>';
+  html+='<div style="color:var(--cream);font-weight:600;margin-top:2px">'+monNames[mo]+' '+yr+'</div></div>';
+  html+='<div style="flex:1"><span style="color:var(--muted);font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase">Teamleader</span>';
+  html+='<div style="color:var(--cream);font-weight:600;margin-top:2px">'+(tlName||'—')+'</div></div>';
+  html+='</div>';
+
+  // Table
+  html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.72rem;min-width:380px">';
+
+  // Header row
+  html+='<thead>';
+  html+='<tr>';
+  html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem;min-width:42px">Tag</th>';
+  if(isRS){
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">DZ /<br>3Bett</th>';
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Apt. /<br>Suite</th>';
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Sessel /<br>Sofa</th>';
+  } else {
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Zimmer</th>';
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Grundr.</th>';
+    html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Sonder</th>';
+  }
+  html+='<th style="background:var(--navy3);color:var(--gold);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Check /<br>PA</th>';
+  html+='<th style="background:var(--navy3);color:var(--gold2);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Ist-Std</th>';
+  html+='<th style="background:var(--navy3);color:var(--gold2);border:1px solid var(--border2);padding:6px 4px;text-align:center;font-size:0.54rem">Σ Zi</th>';
+  html+='</tr></thead><tbody>';
+
+  var totZi=0,totGr=0,totSes=0,totChk=0,totIst=0;
+  var mid={zi:0,gr:0,ses:0,chk:0,ist:0};
+
+  for(var day=1;day<=31;day++){
+    var dt=new Date(yr,mo-1,day);
+    var invalid=dt.getMonth()!==mo-1;
+    var dow=['So','Mo','Di','Mi','Do','Fr','Sa'][invalid?0:dt.getDay()];
+    var isWE=!invalid&&(dt.getDay()===0||dt.getDay()===6);
+    var dk='d'+String(day).padStart(2,'0');
+    var r=luRows[dk]||{};
+    var zi=parseInt(r.zi)||0;
+    var gr=parseInt(r.gr)||0;
+    var ses=parseInt(r.ses)||0;
+    var chk=parseInt(r.chk)||0;
+    var ist=parseFloat(r.ist)||0;
+
+    if(!invalid){
+      totZi+=zi;totGr+=gr;totSes+=ses;totChk+=chk;totIst+=ist;
+    }
+
+    var rowBg=invalid?'opacity:0.2':isWE?'background:rgba(201,168,76,0.06)':day%2===0?'background:rgba(0,0,0,0.15)':'';
+    html+='<tr style="'+rowBg+'">';
+    html+='<td style="border:1px solid var(--border);padding:4px 5px;text-align:center;font-weight:600;color:'+(invalid?'var(--muted)':isWE?'var(--gold)':'var(--cream)')+'">'+day+'<span style="display:block;font-size:0.5rem;color:var(--muted);font-weight:400">'+(invalid?'':dow)+'</span></td>';
+
+    if(invalid){
+      html+='<td style="border:1px solid var(--border)"></td><td style="border:1px solid var(--border)"></td><td style="border:1px solid var(--border)"></td><td style="border:1px solid var(--border)"></td><td style="border:1px solid var(--border)"></td><td style="border:1px solid var(--border)"></td>';
+    } else {
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:'+(zi?'700':'400')+';color:'+(zi?'var(--gold2)':'var(--muted)')+'">'+(zi||'-')+'</td>';
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:'+(gr?'700':'400')+';color:'+(gr?'var(--cream)':'var(--muted)')+'">'+(gr||'-')+'</td>';
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;color:var(--muted)">'+(ses||'-')+'</td>';
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;color:var(--muted)">'+(chk||'-')+'</td>';
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:'+(ist?'700':'400')+';color:'+(ist?'var(--green)':'var(--muted)')+'">'+(ist?ist.toFixed(2):'-')+'</td>';
+      html+='<td style="border:1px solid var(--border);padding:4px;text-align:center;font-weight:700;color:var(--gold)">'+(zi?zi:'-')+'</td>';
+    }
+    html+='</tr>';
+
+    // Zwischensumme nach Tag 15
+    if(day===15){
+      mid={zi:totZi,gr:totGr,ses:totSes,chk:totChk,ist:totIst};
+      html+='<tr style="background:rgba(201,168,76,0.12);border-top:2px solid var(--gold);border-bottom:2px solid var(--gold)">';
+      html+='<td style="border:1px solid var(--border2);padding:5px 6px;text-align:center;font-weight:700;font-size:0.62rem;color:var(--gold)">∑ 1–15</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--gold2)">'+mid.zi+'</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+mid.gr+'</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+mid.ses+'</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+mid.chk+'</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--green)">'+mid.ist.toFixed(2)+'</td>';
+      html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--gold)">'+mid.zi+'</td>';
+      html+='</tr>';
+    }
+  }
+
+  // Summe
+  html+='<tr style="background:var(--navy3);border-top:2px solid var(--gold)">';
+  html+='<td style="border:1px solid var(--border2);padding:6px;text-align:center;font-weight:700;color:var(--gold);font-size:0.64rem">Summe</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;font-size:0.82rem;color:var(--gold2)">'+totZi+'</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+totGr+'</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+totSes+'</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;color:var(--cream)">'+totChk+'</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;font-size:0.82rem;color:var(--green)">'+totIst.toFixed(2)+'</td>';
+  html+='<td style="border:1px solid var(--border2);padding:5px 4px;text-align:center;font-weight:700;font-size:0.88rem;color:var(--gold)">'+totZi+'</td>';
+  html+='</tr>';
+
+  html+='</tbody></table></div>';
+
+  // Unterschrift-Bereich
+  html+='<div style="display:flex;gap:30px;margin-top:20px;padding-top:12px;border-top:1px solid var(--border)">';
+  html+='<div style="flex:1"><div style="font-size:0.54rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Teamleader</div>';
+  html+='<div style="border-bottom:1px solid var(--border2);height:32px"></div></div>';
+  html+='<div style="flex:1"><div style="font-size:0.54rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Datum</div>';
+  html+='<div style="border-bottom:1px solid var(--border2);height:32px"></div></div>';
+  html+='<div style="flex:1"><div style="font-size:0.54rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Unterschrift Chef</div>';
+  html+='<div style="border-bottom:1px solid var(--border2);height:32px"></div></div>';
+  html+='</div>';
+
+  html+='</div>';
+  wrap.innerHTML=html;
+}
+
+function luPrint(hotel,monat){
+  var szH=DATA.sz[hotel]||{};
+  var luH=(DATA.lu[hotel]&&DATA.lu[hotel][monat])||{rows:{}};
+  var luRows=luH.rows||{};
+  var monParts=(monat||'').split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
+  var monNames=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  var isRS=hotelTyp(hotel)==='rs';
+
+  var taH=DATA.ta[hotel]||{};
+  var tlName='';
+  var taKeys=Object.keys(taH).sort().reverse();
+  if(taKeys.length)tlName=taH[taKeys[0]].tl||taH[taKeys[0]].createdBy||'';
+
+  var css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:10px;color:#000;padding:8mm}';
+  css+='.header{display:flex;align-items:center;gap:14px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #c8a84b}';
+  css+='.logo{font-family:Georgia,serif;font-size:28px;font-weight:900;color:#c8a84b;line-height:1}';
+  css+='.title{font-size:12px;font-weight:700;color:#000}';
+  css+='.sub{font-size:8px;color:#666;letter-spacing:0.15em;text-transform:uppercase}';
+  css+='.meta{display:flex;gap:30px;margin-bottom:8px;font-size:9px}';
+  css+='.meta-item{flex:1}';
+  css+='.meta-label{color:#888;font-size:8px;text-transform:uppercase;letter-spacing:0.1em}';
+  css+='.meta-val{font-weight:700;font-size:10px;margin-top:1px}';
+  css+='table{width:100%;border-collapse:collapse;margin-bottom:10px}';
+  css+='th{background:#1a2e6b;color:#c8a84b;padding:4px 3px;text-align:center;font-size:8px;border:1px solid #999;line-height:1.3}';
+  css+='td{border:1px solid #ccc;padding:3px 2px;text-align:center;font-size:9px}';
+  css+='tr:nth-child(even)td{background:#f8f8f8}';
+  css+='.we td{background:#fffaed!important}';
+  css+='.mid td{background:#e8f0d0!important;font-weight:bold;border-top:2px solid #1a2e6b;border-bottom:2px solid #1a2e6b}';
+  css+='.sum td{background:#1a2e6b!important;color:#c8a84b;font-weight:bold}';
+  css+='.day-num{font-weight:600;font-size:9px}';
+  css+='.dow{display:block;font-size:7px;color:#999;font-weight:400}';
+  css+='.sig{display:flex;gap:20px;margin-top:16px;padding-top:8px;border-top:1px solid #ccc}';
+  css+='.sig-box{flex:1}';
+  css+='.sig-label{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px}';
+  css+='.sig-line{border-bottom:1px solid #000}';
+  css+='@page{size:A4 portrait;margin:0}';
+
+  var col1=isRS?'DZ / 3Bett':'Zimmer';
+  var col2=isRS?'Apt. / Suite':'Grundr.';
+  var col3=isRS?'Sessel / Sofa':'Sonder';
+
+  var rows='';
+  var totZi=0,totGr=0,totSes=0,totChk=0,totIst=0;
+  var mid={zi:0,gr:0,ses:0,chk:0,ist:0};
+
+  for(var day=1;day<=31;day++){
+    var dt=new Date(yr,mo-1,day);
+    var invalid=dt.getMonth()!==mo-1;
+    if(invalid){
+      rows+='<tr style="opacity:0.15"><td><span class="day-num">'+day+'</span></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+      continue;
+    }
+    var dow=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    var isWE=dt.getDay()===0||dt.getDay()===6;
+    var dk='d'+String(day).padStart(2,'0');
+    var r=luRows[dk]||{};
+    var zi=parseInt(r.zi)||0,gr=parseInt(r.gr)||0,ses=parseInt(r.ses)||0,chk=parseInt(r.chk)||0,ist=parseFloat(r.ist)||0;
+    totZi+=zi;totGr+=gr;totSes+=ses;totChk+=chk;totIst+=ist;
+    rows+='<tr class="'+(isWE?'we':'')+'">';
+    rows+='<td><span class="day-num">'+day+'</span><span class="dow">'+dow+'</span></td>';
+    rows+='<td style="font-weight:'+(zi?700:400)+';color:'+(zi?'#1a2e6b':'#999')+'">'+(zi||'-')+'</td>';
+    rows+='<td>'+(gr||'-')+'</td>';
+    rows+='<td>'+(ses||'-')+'</td>';
+    rows+='<td>'+(chk||'-')+'</td>';
+    rows+='<td style="font-weight:'+(ist?700:400)+';color:'+(ist?'#2a6b2a':'#999')+'">'+(ist?ist.toFixed(2):'-')+'</td>';
+    rows+='<td style="font-weight:700;color:#1a2e6b">'+(zi||'-')+'</td>';
+    rows+='</tr>';
+
+    if(day===15){
+      mid={zi:totZi,gr:totGr,ses:totSes,chk:totChk,ist:totIst};
+      rows+='<tr class="mid"><td>∑ 1–15</td><td>'+mid.zi+'</td><td>'+mid.gr+'</td><td>'+mid.ses+'</td><td>'+mid.chk+'</td><td>'+mid.ist.toFixed(2)+'</td><td>'+mid.zi+'</td></tr>';
+    }
+  }
+  rows+='<tr class="sum"><td>Summe</td><td>'+totZi+'</td><td>'+totGr+'</td><td>'+totSes+'</td><td>'+totChk+'</td><td>'+totIst.toFixed(2)+'</td><td>'+totZi+'</td></tr>';
+
+  var html='<style>'+css+'<\/style>';
+  html+='<div class="header"><div class="logo">A&amp;J<\/div><div><div class="sub">Cleaning Services GmbH<\/div><div class="title">Leistungsübersicht Objekt: '+hotel+'<\/div><\/div><\/div>';
+  html+='<div class="meta"><div class="meta-item"><div class="meta-label">Monat<\/div><div class="meta-val">'+monNames[mo]+' '+yr+'<\/div><\/div><div class="meta-item"><div class="meta-label">Teamleader<\/div><div class="meta-val">'+(tlName||'_______________')+'<\/div><\/div><\/div>';
+  html+='<table><thead><tr>';
+  html+='<th style="min-width:36px">Tag<\/th>';
+  html+='<th>'+col1+'<\/th><th>'+col2+'<\/th><th>'+col3+'<\/th>';
+  html+='<th>Check / PA<\/th><th>Ist-Std<\/th><th>Σ Zi<\/th>';
+  html+='<\/tr><\/thead><tbody>'+rows+'<\/tbody><\/table>';
+  html+='<div class="sig"><div class="sig-box"><div class="sig-label">Teamleader<\/div><div class="sig-line"><\/div><\/div><div class="sig-box"><div class="sig-label">Datum<\/div><div class="sig-line"><\/div><\/div><div class="sig-box"><div class="sig-label">Unterschrift Chef<\/div><div class="sig-line"><\/div><\/div><\/div>';
+
+  prtBase(html);
+}
+
+function luPrint(hotel,monat){
+  var szH=DATA.sz[hotel]||{};
+  var monParts=(monat||'').split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
+  var monNames=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  var ownMAs=[],subMAs=[];
+  Object.keys(szH).forEach(function(mk){
+    var n=szH[mk].name||mk.replace(/_/g,' ');
+    if(/\s[A-Z0-9]{1,4}$/.test(n))subMAs.push({name:n,d:szH[mk]});
+    else ownMAs.push({name:n,d:szH[mk]});
+  });
+  var allMAs=ownMAs.concat(subMAs);
+  if(!allMAs.length){toast('Keine Daten für '+monat,'err');return;}
+
+  var css='body{font-family:Arial,sans-serif;font-size:10px;color:#000;margin:0;padding:8mm}';
+  css+='h2{font-size:12px;margin-bottom:4px;color:#1a2e6b}';
+  css+='.meta{font-size:9px;color:#555;margin-bottom:8px}';
+  css+='table{width:100%;border-collapse:collapse;margin-bottom:12px}';
+  css+='th{background:#1a2e6b;color:#c8a84b;padding:3px;text-align:center;font-size:8px;border:1px solid #ccc}';
+  css+='td{border:1px solid #ddd;padding:3px;text-align:center;font-size:9px}';
+  css+='tr:nth-child(even)td{background:#f5f5f5}';
+  css+='.we{background:#fff8e0!important}';
+  css+='.mid{background:#e8f0ff!important;font-weight:bold;border-top:2px solid #1a2e6b!important;border-bottom:2px solid #1a2e6b!important}';
+  css+='.ges{background:#1a2e6b!important;color:#c8a84b;font-weight:bold}';
+  css+='@page{size:A4 landscape;margin:8mm}';
+
+  var head='<tr><th>Tag</th>';
+  allMAs.forEach(function(ma){head+='<th>'+ma.name+'</th>';});
+  head+='<th>Σ Tag</th></tr>';
+
+  var rows='';
+  var grandZi=0,grandIst=0;
+  var mid15Zi=0,mid15Ist=0;
+  var maGrandZi={},maGrandIst={};
+  allMAs.forEach(function(ma){maGrandZi[ma.name]=0;maGrandIst[ma.name]=0;});
+
+  for(var day=1;day<=31;day++){
+    var dt=new Date(yr,mo-1,day);
+    if(dt.getMonth()!==mo-1)continue;
+    var dow=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    var isWE=dt.getDay()===0||dt.getDay()===6;
+    var dk='d'+String(day).padStart(2,'0');
+    var dayZi=0,dayIst=0;
+    var cells='';
+    allMAs.forEach(function(ma){
+      var mMon=ma.d[monat]||{tage:{}};
+      var t=mMon.tage&&(mMon.tage[dk]||mMon.tage[String(day)]);
+      var zi=t?parseInt(t.zi||0):0;
+      var ist=t?parseFloat(t.ist||0):0;
+      dayZi+=zi;dayIst+=ist;
+      maGrandZi[ma.name]+=zi;maGrandIst[ma.name]+=ist;
+      cells+='<td style="'+(isWE?'background:#fff8e0':'')+'">'+(zi?zi+'Zi / '+ist.toFixed(1)+'h':'-')+'</td>';
+    });
+    grandZi+=dayZi;grandIst+=dayIst;
+    rows+='<tr class="'+(isWE?'we':'')+'"><td style="font-weight:600">'+day+' '+dow+'</td>'+cells+'<td style="font-weight:bold;color:'+(dayZi?'#1a2e6b':'#999')+'">'+(dayZi?dayZi+'Zi / '+dayIst.toFixed(1)+'h':'-')+'</td></tr>';
+
+    if(day===15){
+      mid15Zi=grandZi;mid15Ist=grandIst;
+      rows+='<tr class="mid"><td>∑ 1–15</td>';
+      allMAs.forEach(function(ma){rows+='<td>'+maGrandZi[ma.name]+'Zi / '+maGrandIst[ma.name].toFixed(1)+'h</td>';});
+      rows+='<td>'+mid15Zi+'Zi / '+mid15Ist.toFixed(1)+'h</td></tr>';
+    }
+  }
+  rows+='<tr class="ges"><td>GESAMT</td>';
+  allMAs.forEach(function(ma){rows+='<td>'+maGrandZi[ma.name]+'Zi / '+maGrandIst[ma.name].toFixed(1)+'h</td>';});
+  rows+='<td>'+grandZi+'Zi / '+grandIst.toFixed(1)+'h</td></tr>';
+
+  prtBase('<style>'+css+'<\/style><h2>Leistungsübersicht — '+monNames[mo]+' '+yr+'<\/h2><div class="meta">Hotel: '+hotel+'<\/div><table>'+head+rows+'<\/table>');
 }
 
 function luReload(){
