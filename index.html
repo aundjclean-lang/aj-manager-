@@ -442,18 +442,23 @@ function fbGet(path,cb){
   var url=fbPath(path);
   var xhr=new XMLHttpRequest();
   try{xhr.open('GET',url,true);}catch(e){if(cb)cb(null);return;}
-  xhr.timeout=12000;
-  xhr.ontimeout=function(){FB_FAIL_COUNT++;if(FB_FAIL_COUNT>=10)FB_DISABLED=true;if(cb)cb(null);};
+  xhr.timeout=15000;
+  xhr.ontimeout=function(){
+    FB_FAIL_COUNT++;
+    var d=ge('fb-live-dot');if(d)d.style.background='#e05555';
+    // Nur temporär deaktivieren — nie dauerhaft
+    if(cb)cb(null);
+  };
   xhr.onerror=function(){
     FB_FAIL_COUNT++;
     var d=ge('fb-live-dot');if(d)d.style.background='#e05555';
     if(FB_FAIL_COUNT>=5&&!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('Firebase offline','info',3000);}
-    if(FB_FAIL_COUNT>=10)FB_DISABLED=true;
+    // NICHT dauerhaft deaktivieren
     if(cb)cb(null);
   };
   xhr.onload=function(){
     if(xhr.status===200){
-      FB_FAIL_COUNT=0;FB_CONFIRMED=true;
+      FB_FAIL_COUNT=0;FB_CONFIRMED=true;FB_TOAST_SHOWN=false;
       var d=ge('fb-live-dot');if(d)d.style.background='#4caf7d';
       var data=null;
       try{if(xhr.responseText&&xhr.responseText!=='null')data=JSON.parse(xhr.responseText);}catch(e){}
@@ -461,8 +466,12 @@ function fbGet(path,cb){
     } else if(xhr.status===401||xhr.status===403){
       if(!FB_TOAST_SHOWN){FB_TOAST_SHOWN=true;toast('Firebase Regeln: .read/.write auf true setzen!','err',6000);}
       var d2=ge('fb-live-dot');if(d2)d2.style.background='#e05555';
-      FB_DISABLED=true;if(cb)cb(null);
-    } else {FB_FAIL_COUNT++;if(cb)cb(null);}
+      // Regeln-Fehler → temporär pausieren aber NICHT dauerhaft deaktivieren
+      if(cb)cb(null);
+    } else {
+      FB_FAIL_COUNT++;
+      if(cb)cb(null);
+    }
   };
   try{xhr.send();}catch(e){if(cb)cb(null);}
 }
@@ -538,6 +547,7 @@ function fbPollNow(){
           else if(currentTab==='sz')pgSz();
           else if(currentTab==='lu')pgLu();
           else if(currentTab==='ta')pgTa();
+          else if(currentTab==='live')pgLive();
         }catch(e){console.warn('[fbPoll] merge:',e.message);}
       });
       fbGet('global/krankmeldung',function(km){
