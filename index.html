@@ -33,6 +33,8 @@ button,a,[role=button]{-webkit-user-select:none;user-select:none;touch-action:ma
 –border:#1F2937;
 –border2:rgba(37,99,235,0.3);
 –r:8px;
+–safe-top:env(safe-area-inset-top);
+–header-height:64px;
 }
 
 html,body{
@@ -41,7 +43,9 @@ color:var(–text);
 font-family:-apple-system,BlinkMacSystemFont,“Segoe UI”,Arial,sans-serif;
 min-height:100vh;
 -webkit-font-smoothing:antialiased;
-padding-top:env(safe-area-inset-top);
+margin:0;
+padding-top:var(–safe-top);
+overflow-x:hidden;
 }
 
 /* ALL INPUTS - FORCE LIGHT TEXT */
@@ -123,14 +127,14 @@ transition:border-color .2s;
 .topbar{
 background:var(–bg2);
 border-bottom:1px solid var(–border);
-padding:10px 16px;
-padding-top:max(10px,calc(env(safe-area-inset-top)+6px));
+padding:0 16px;
+height:var(–header-height);
 display:flex;
 align-items:center;
 gap:10px;
 position:sticky;
-top:0;
-z-index:100;
+top:var(–safe-top);
+z-index:1000;
 backdrop-filter:blur(20px);
 -webkit-backdrop-filter:blur(20px);
 }
@@ -143,17 +147,31 @@ backdrop-filter:blur(20px);
 .out-btn:active{background:var(–bg3)}
 
 /* TABS */
-.tabs{background:var(–bg2);border-bottom:1px solid var(–border);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs{
+background:var(–bg);
+border-bottom:1px solid var(–border);
+display:flex;
+overflow-x:auto;
+-webkit-overflow-scrolling:touch;
+scrollbar-width:none;
+position:sticky;
+top:calc(var(–safe-top) + var(–header-height));
+z-index:999;
+padding:0 4px;
+white-space:nowrap;
+}
 .tabs::-webkit-scrollbar{display:none}
 .tab{padding:11px 14px;font-size:0.56rem;letter-spacing:0.1em;text-transform:uppercase;color:var(–muted);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0}
 .tab.active{color:var(–acc2);border-bottom-color:var(–acc)}
 
 /* CONTENT */
 .content{
-padding:16px;
+padding-top:24px;
+padding-left:14px;
+padding-right:14px;
 padding-bottom:max(24px,calc(env(safe-area-inset-bottom)+16px));
 }
-@media(min-width:600px){.content{max-width:960px;margin:0 auto;padding:20px}}
+@media(min-width:600px){.content{max-width:960px;margin:0 auto;padding:24px 20px}}
 
 /* CARDS */
 .card{background:var(–bg2);border:1px solid var(–border);border-radius:var(–r);padding:14px;margin-bottom:10px}
