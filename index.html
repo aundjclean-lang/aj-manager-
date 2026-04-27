@@ -862,6 +862,7 @@ function buildTabs(){
   var isSpark_=USER&&USER.hotel&&hotelTyp(USER.hotel)==='spark';
   var chefTabs=[
     {id:'dash',lb:'◆ Dashboard'},
+    {id:'live',lb:'👁 Live-Ansicht'},
     {id:'ta',lb:'📋 Tagesabr.'},
     {id:'team',lb:'👥 Team'},
     {id:'sz',lb:'⏱ Stundenzettel'},
@@ -915,7 +916,7 @@ function switchTab(id){
   }catch(e){}
   var cont=ge('content');if(cont)cont.innerHTML='';
   var pages={
-    dash:pgDash,ta:pgTa,sz:pgSz,lu:pgLu,team:pgTeam,
+    dash:pgDash,live:pgLive,ta:pgTa,sz:pgSz,lu:pgLu,team:pgTeam,
     dp:pgDp,ma:pgMa,kalk:pgKalk,prod:pgProd,admin:pgAdmin,
     r1:pgR1,mb:pgMb,lohn:pgLohn,meldung:pgMeldung
   };
@@ -931,8 +932,221 @@ function switchTab(id){
 
 
 // ============================================================
-// DASHBOARD
+// LIVE-ANSICHT (Chef sieht alles 1:1 wie Teamleiter)
 // ============================================================
+function pgLive(){
+  var c=ge('content');
+  var now=new Date();
+  var today=now.getDate()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
+  var mon=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var chefHotel=USER.chefHotel||'';
+
+  var hotels=Object.keys(HOTELS);
+  if(chefHotel&&chefHotel!=='__alle__')hotels=[chefHotel];
+
+  var html='<div class="card" style="padding:10px 12px">';
+  html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+  html+='<span style="font-size:0.85rem;font-weight:700;color:var(--gold)">👁 Live-Ansicht</span>';
+  html+='<span style="font-size:0.6rem;color:var(--muted)">Alle Daten der Teamleiter — 1:1 Ansicht</span>';
+  html+='<div style="margin-left:auto">';
+  html+='<select class="inp" id="live-hotel" style="min-width:160px">';
+  html+='<option value="">Alle Hotels</option>';
+  hotels.forEach(function(h){
+    html+='<option value="'+h+'"'+(chefHotel===h?' selected':'')+'>'+HOTELS[h].nr+' · '+h+'</option>';
+  });
+  html+='</select></div></div></div>';
+
+  hotels.forEach(function(hotel){
+    var cfg=getCfg(hotel);
+    var taH=DATA.ta[hotel]||{};
+    var szH=DATA.sz[hotel]||{};
+    var luH=DATA.lu[hotel]||{};
+    var dpH=DATA.dp[hotel]||{};
+    var hk=safeKey(hotel);
+
+    html+='<div style="margin-bottom:20px">';
+    html+='<div style="background:var(--navy3);border-radius:6px 6px 0 0;padding:10px 14px;display:flex;align-items:center;gap:10px">';
+    html+='<span style="width:10px;height:10px;border-radius:50%;background:#4caf7d;display:inline-block"></span>';
+    html+='<span style="font-weight:700;color:var(--gold);font-size:0.9rem">'+HOTELS[hotel].nr+' · '+hotel+'</span>';
+    html+='</div>';
+
+    // ── TAGESABRECHNUNGEN ──
+    var taDates=Object.keys(taH).sort().reverse().slice(0,7);
+    html+='<div style="border:1px solid rgba(212,168,67,0.15);border-top:none;padding:10px 14px;margin-bottom:4px">';
+    html+='<div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:8px">📋 Tagesabrechnungen</div>';
+    if(!taDates.length){
+      html+='<div style="color:var(--muted);font-size:0.7rem">Keine Daten</div>';
+    } else {
+      taDates.forEach(function(datum){
+        var ta=taH[datum];if(!ta)return;
+        var status=ta.status||'pending';
+        var sCol=status==='genehmigt'?'#4caf7d':status==='abgelehnt'?'#e05555':'#d4a843';
+        var ziSum=0;
+        if(ta.rows)ta.rows.forEach(function(r){ziSum+=parseInt(r.zimmer||r.zi||0);});
+        var dk=safeKey(datum);
+
+        html+='<div style="border:1px solid rgba(255,255,255,0.07);border-radius:4px;margin-bottom:6px">';
+        // Header klickbar
+        html+='<div data-live-toggle="live_'+hk+'_'+dk+'" style="display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer">';
+        html+='<span style="font-size:0.72rem;color:var(--cream);font-weight:600">'+(ta.datum||datum)+'</span>';
+        html+='<span style="font-size:0.6rem;color:var(--muted)">von: '+(ta.tl||ta.createdBy||'?')+'</span>';
+        html+='<span style="font-size:0.6rem;color:#5b9bd5">'+ziSum+' Zi</span>';
+        html+='<span style="font-size:0.58rem;color:'+sCol+';margin-left:auto">'+(status==='genehmigt'?'✅':status==='abgelehnt'?'❌':'⏳')+'</span>';
+        html+='<span style="color:var(--muted);font-size:0.7rem">▼</span>';
+        html+='</div>';
+        // Detail
+        html+='<div id="live_'+hk+'_'+dk+'" style="display:none;padding:0 10px 10px">';
+        if(ta.rows&&ta.rows.length){
+          html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.67rem">';
+          html+='<tr style="background:var(--navy3)"><th style="padding:4px 5px;text-align:left;color:var(--gold)">MA</th>';
+          html+='<th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th>';
+          html+='<th style="padding:3px;color:var(--gold)">Chk</th><th style="padding:3px;color:var(--gold)">Pub</th>';
+          html+='<th style="padding:3px;color:var(--gold)">Wä</th><th style="padding:3px;color:var(--gold)">Son</th>';
+          html+='<th style="padding:3px;color:#81c784">Std</th></tr>';
+          ta.rows.forEach(function(r,ri){
+            html+='<tr style="'+(ri%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:3px 5px;font-weight:600;color:var(--cream)">'+(r.name||'?')+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center;color:#5b9bd5">'+(r.zimmer||r.zi||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.grundrein||r.gr||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.check||r.chk||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.publik||r.pub||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.waesche||r.wae||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center">'+(r.sonder||r.son||0)+'</td>';
+            html+='<td style="padding:2px 3px;text-align:center;color:#81c784">'+(r.istStd||r.ist||0)+'</td></tr>';
+          });
+          html+='</table></div>';
+        }
+        html+='<div style="display:flex;gap:6px;margin-top:6px">';
+        if(status==='pending'){
+          html+='<button class="btn sm" data-ta-ok2="'+hotel+'|'+datum+'" style="color:#4caf7d;border-color:rgba(76,175,125,0.3);font-size:0.6rem">✅ Genehmigen</button>';
+          html+='<button class="btn sm danger" data-ta-ab2="'+hotel+'|'+datum+'" style="font-size:0.6rem">❌ Ablehnen</button>';
+        }
+        html+='<button class="btn sm danger" data-del-ta="'+hotel+'|'+datum+'" style="font-size:0.6rem;margin-left:auto">🗑</button>';
+        html+='</div>';
+        html+='</div></div>';
+      });
+    }
+    html+='</div>';
+
+    // ── STUNDENZETTEL ──
+    html+='<div style="border:1px solid rgba(212,168,67,0.15);border-top:none;padding:10px 14px;margin-bottom:4px">';
+    html+='<div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:8px">⏱ Stundenzettel — '+mon+'</div>';
+    var szMas=Object.keys(szH);
+    if(!szMas.length){
+      html+='<div style="color:var(--muted);font-size:0.7rem">Keine Daten</div>';
+    } else {
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.68rem">';
+      html+='<tr style="background:var(--navy3)"><th style="padding:4px 6px;text-align:left;color:var(--gold)">Mitarbeiter</th><th style="padding:4px;color:var(--gold)">Zimmer</th><th style="padding:4px;color:var(--gold)">Std</th><th style="padding:4px;color:var(--gold)">Tage</th></tr>';
+      szMas.forEach(function(maKey,i){
+        var mData=szH[maKey];if(!mData||!mData[mon])return;
+        var md=mData[mon];
+        var tage=Object.keys(md.tage||{}).length;
+        var realName=mData.name||maKey.replace(/_/g,' ');
+        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:3px 6px;font-weight:600;color:var(--cream)">'+realName+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center;color:var(--gold)">'+parseInt(md.ziGes||0)+'</td>';
+        html+='<td style="padding:3px 4px;text-align:center;color:#81c784">'+parseFloat(md.istGes||0).toFixed(1)+'h</td>';
+        html+='<td style="padding:3px 4px;text-align:center;color:var(--muted)">'+tage+'</td></tr>';
+      });
+      html+='</table></div>';
+    }
+    html+='</div>';
+
+    // ── LEISTUNGSÜBERSICHT ──
+    var luMon=luH[mon]||{};
+    var luRows=luMon.rows||{};
+    var luDays=Object.keys(luRows).sort();
+    if(luDays.length){
+      html+='<div style="border:1px solid rgba(212,168,67,0.15);border-top:none;padding:10px 14px;margin-bottom:4px">';
+      html+='<div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:8px">📊 Leistung — '+mon+'</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.67rem">';
+      html+='<tr style="background:var(--navy3)"><th style="padding:3px 5px;color:var(--gold)">Tag</th><th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th><th style="padding:3px;color:var(--gold)">Chk</th><th style="padding:3px;color:#81c784">Std</th></tr>';
+      luDays.forEach(function(dk,i){
+        var dr=luRows[dk];if(!dr)return;
+        var dayNum=dk.startsWith('d')?dk.slice(1):dk;
+        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:2px 5px;color:var(--muted)">'+dayNum+'</td>';
+        html+='<td style="padding:2px 3px;text-align:center;color:#5b9bd5">'+(dr.zi||0)+'</td>';
+        html+='<td style="padding:2px 3px;text-align:center">'+(dr.gr||0)+'</td>';
+        html+='<td style="padding:2px 3px;text-align:center">'+(dr.chk||0)+'</td>';
+        html+='<td style="padding:2px 3px;text-align:center;color:#81c784">'+parseFloat(dr.ist||0).toFixed(1)+'</td></tr>';
+      });
+      html+='</table></div></div>';
+    }
+
+    // ── DIENSTPLAN ──
+    var dpMon=dpH[mon]||{};
+    var dpMas=Object.keys(dpMon);
+    if(dpMas.length){
+      html+='<div style="border:1px solid rgba(212,168,67,0.15);border-top:none;padding:10px 14px;margin-bottom:4px">';
+      html+='<div style="font-size:0.7rem;font-weight:700;color:var(--gold);margin-bottom:6px">▪ Dienstplan — '+mon+'</div>';
+      html+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+      dpMas.forEach(function(ma){
+        var tage=Object.keys(dpMon[ma]||{}).length;
+        html+='<span style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--cream)">'+ma.replace(/_/g,' ')+' ('+tage+'T)</span>';
+      });
+      html+='</div></div>';
+    }
+
+    html+='</div>'; // hotel block
+  });
+
+  c.innerHTML=html;
+
+  // Hotel-Filter
+  var liveSel=ge('live-hotel');
+  if(liveSel)liveSel.onchange=function(){
+    USER.chefHotel=this.value||'__alle__';
+    pgLive();
+  };
+
+  // Toggle + Aktionen
+  c.onclick=function(e){
+    var t=e.target;
+    while(t&&t!==c){
+      // Toggle
+      var lt=t.getAttribute&&t.getAttribute('data-live-toggle');
+      if(lt){var el=ge(lt);if(el){el.style.display=el.style.display==='none'?'block':'none';}return;}
+      // Genehmigen
+      var taOk=t.getAttribute&&t.getAttribute('data-ta-ok2');
+      if(taOk){
+        var p=taOk.split('|');
+        if(DATA.ta[p[0]]&&DATA.ta[p[0]][p[1]]){
+          DATA.ta[p[0]][p[1]].status='genehmigt';
+          fbPut('hotels/'+safeKey(p[0])+'/tagesabrechnung/'+safeKey(p[1]),DATA.ta[p[0]][p[1]],null,null);
+          fbPut('chef/inbox/tagesabrechnung/'+safeKey(p[1])+'_'+safeKey(p[0]),DATA.ta[p[0]][p[1]],null,null);
+          try{saveData();}catch(ex){}
+          toast('✅ Genehmigt!','ok',2000);pgLive();
+        }
+        return;
+      }
+      // Ablehnen
+      var taAb=t.getAttribute&&t.getAttribute('data-ta-ab2');
+      if(taAb){
+        var p2=taAb.split('|');
+        if(DATA.ta[p2[0]]&&DATA.ta[p2[0]][p2[1]]){
+          DATA.ta[p2[0]][p2[1]].status='abgelehnt';
+          fbPut('hotels/'+safeKey(p2[0])+'/tagesabrechnung/'+safeKey(p2[1]),DATA.ta[p2[0]][p2[1]],null,null);
+          try{saveData();}catch(ex){}
+          toast('Abgelehnt','info',2000);pgLive();
+        }
+        return;
+      }
+      // Löschen
+      var delTa=t.getAttribute&&t.getAttribute('data-del-ta');
+      if(delTa){
+        if(!confirm('Löschen?'))return;
+        var p3=delTa.split('|');
+        if(DATA.ta[p3[0]])delete DATA.ta[p3[0]][p3[1]];
+        fbWrite('hotels/'+safeKey(p3[0])+'/tagesabrechnung/'+safeKey(p3[1]),null,null,null);
+        fbWrite('chef/inbox/tagesabrechnung/'+safeKey(p3[1])+'_'+safeKey(p3[0]),null,null,null);
+        try{saveData();}catch(ex){}
+        toast('Gelöscht','ok',2000);pgLive();
+        return;
+      }
+      t=t.parentNode;
+    }
+  };
+}
+
+
 function pgDash(){
   var c=ge('content');
   var now=new Date();
@@ -1842,241 +2056,260 @@ function taCalcGes(){
   var el=ge('tages_ist');if(el)el.textContent=s>0?s.toFixed(2)+' h':'-';
 }
 
-function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
-  var maName=getTaName(ri);if(!maName)return;
-  var datumStr=gv('ta-datum')||'';
-  var day=datumStr.indexOf('.')>=0?parseInt(datumStr.split('.')[0]):null;
-  if(!day||day<1||day>31)return;
+// Neue Funktion: Transfer aus row-Objekt (nach taCalc berechnet)
+function taAutoTransferRow(row,cfg){
+  if(!row||!row.name||!row.name.trim())return;
   var hotel=USER.hotel;
-  var monat='';
-  if(datumStr.indexOf('.')>=0){var p=datumStr.split('.');monat=(p[2]||new Date().getFullYear())+'-'+String(p[1]||1).padStart(2,'0');}
-  if(!monat)monat=new Date().toISOString().slice(0,7);
-  var ses=parseFloat(gv('ta_ses_'+ri))||0;
-  var mini=parseFloat(gv('ta_mini_'+ri))||0;
-  var wae=parseFloat(gv('ta_wae_'+ri))||0;
-  var auf=parseFloat(gv('ta_auf_'+ri))||0;
+  if(!hotel)return;
 
-  // Keys fr Firebase bereinigen (keine Sonderzeichen!)
-  var maKey=fbKey(maName); // Leerzeichen → _
-  var dayKey='d'+String(day).padStart(2,'0'); // Zahl → String z.B. "d26"
+  var datumStr=gv('ta-datum')||'';
+  if(!datumStr)return;
 
-  // -- 1. STUNDENZETTEL transfer --
+  // Datum parsen: 26.04.2026 oder 2026-04-26
+  var day,monat;
+  if(datumStr.indexOf('.')>=0){
+    var dp=datumStr.split('.');
+    day=parseInt(dp[0]);
+    monat=(dp[2]||new Date().getFullYear())+'-'+String(dp[1]||1).padStart(2,'0');
+  } else {
+    day=parseInt(datumStr.slice(8,10));
+    monat=datumStr.slice(0,7);
+  }
+  if(!day||day<1||day>31||!monat)return;
+
+  var maName=row.name.trim();
+  var maKey=safeKey(maName);
+  var dayKey='d'+String(day).padStart(2,'0');
+  var zi=Number(row.zi)||0,gr=Number(row.gr)||0;
+  var chk=Number(row.chk)||0,pub=Number(row.pub)||0;
+  var son=Number(row.son)||0,ist=Number(row.ist)||0;
+  var ses=Number(row.ses)||0,mini=Number(row.mini)||0;
+  var wae=Number(row.wae)||0,auf=Number(row.auf)||0;
+
+  console.log('[SZ]',maName,'zi='+zi,'ist='+ist,'tag='+dayKey,'monat='+monat);
+
+  // 1. STUNDENZETTEL
   if(!DATA.sz[hotel])DATA.sz[hotel]={};
   if(!DATA.sz[hotel][maKey])DATA.sz[hotel][maKey]={name:maName};
   if(!DATA.sz[hotel][maKey][monat])DATA.sz[hotel][maKey][monat]={tage:{},istGes:0,ziGes:0,grGes:0};
   var von='09:00';
   var bis=ist>0?m2t((t2m(von)||540)+Math.round(ist*60)+30):'';
   DATA.sz[hotel][maKey][monat].tage[dayKey]={
-    zi:zi||0,gr:gr||0,ses:ses||0,chk:chk||0,
-    pub:pub||0,son:son||0,mini:mini||0,wae:wae||0,
-    von:von,bis:bis,ist:ist>0?parseFloat(ist.toFixed(2)):0,pause:0.5
+    zi:zi,gr:gr,ses:ses,chk:chk,pub:pub,son:son,mini:mini,wae:wae,auf:auf,
+    von:von,bis:bis,ist:ist>0?Math.round(ist*100)/100:0,pause:0.5
   };
-  // Monatssummen
+  // Monatssummen neu berechnen
   var totIst=0,totZi=0,totGr=0;
-  Object.keys(DATA.sz[hotel][maKey][monat].tage).forEach(function(d){
-    var t=DATA.sz[hotel][maKey][monat].tage[d];
-    totIst+=parseFloat(t.ist)||0;
-    totZi+=parseInt(t.zi)||0;
-    totGr+=parseInt(t.gr)||0;
+  Object.keys(DATA.sz[hotel][maKey][monat].tage).forEach(function(dk){
+    var t=DATA.sz[hotel][maKey][monat].tage[dk];
+    totIst+=Number(t.ist)||0;totZi+=Number(t.zi)||0;totGr+=Number(t.gr)||0;
   });
-  DATA.sz[hotel][maKey][monat].istGes=parseFloat(totIst.toFixed(2));
+  DATA.sz[hotel][maKey][monat].istGes=Math.round(totIst*100)/100;
   DATA.sz[hotel][maKey][monat].ziGes=totZi;
   DATA.sz[hotel][maKey][monat].grGes=totGr;
+}
 
-  // -- 2. LEISTUNGSBERSICHT transfer --
+function updateLeistungsuebersicht(hotel,monat,dayKey){
+  // Tagessumme aus ALLEN MA im SZ berechnen
   if(!DATA.lu[hotel])DATA.lu[hotel]={};
   if(!DATA.lu[hotel][monat])DATA.lu[hotel][monat]={rows:{}};
   var totDay={zi:0,gr:0,ses:0,chk:0,pub:0,wae:0,son:0,auf:0,mini:0,ist:0};
-  for(var r=0;r<TA_ROWS;r++){
-    totDay.zi+=parseFloat(gv('ta_zi_'+r))||0;
-    totDay.gr+=parseFloat(gv('ta_gr_'+r))||0;
-    totDay.ses+=parseFloat(gv('ta_ses_'+r))||0;
-    totDay.chk+=parseFloat(gv('ta_chk_'+r))||0;
-    totDay.pub+=parseFloat(gv('ta_pub_'+r))||0;
-    totDay.wae+=parseFloat(gv('ta_wae_'+r))||0;
-    totDay.son+=parseFloat(gv('ta_son_'+r))||0;
-    totDay.auf+=parseFloat(gv('ta_auf_'+r))||0;
-    totDay.mini+=parseFloat(gv('ta_mini_'+r))||0;
-  }
-  var totDayIst=0;
-  for(var r2=0;r2<TA_ROWS;r2++){totDayIst+=parseFloat(gv('ta_ist_'+r2))||0;}
-  totDay.ist=parseFloat(totDayIst.toFixed(2));
+  Object.keys(DATA.sz[hotel]||{}).forEach(function(mk){
+    var mData=DATA.sz[hotel][mk];
+    if(!mData||typeof mData!=='object')return;
+    var mMon=mData[monat];
+    if(!mMon||!mMon.tage||!mMon.tage[dayKey])return;
+    var td=mMon.tage[dayKey];
+    totDay.zi+=Number(td.zi)||0;
+    totDay.gr+=Number(td.gr)||0;
+    totDay.ses+=Number(td.ses)||0;
+    totDay.chk+=Number(td.chk)||0;
+    totDay.pub+=Number(td.pub)||0;
+    totDay.wae+=Number(td.wae)||0;
+    totDay.son+=Number(td.son)||0;
+    totDay.auf+=Number(td.auf)||0;
+    totDay.mini+=Number(td.mini)||0;
+    totDay.ist+=Number(td.ist)||0;
+  });
+  totDay.ist=Math.round(totDay.ist*100)/100;
   DATA.lu[hotel][monat].rows[dayKey]=totDay;
-
-  // R1 Transfer
-  var isR1=false;
-  R1_FIRMS.forEach(function(f){if(f.aktiv!==false&&maName.indexOf(f.kuerzel)>=0)isR1=true;});
-  if(isR1){
-    if(!DATA.r1[hotel])DATA.r1[hotel]={};
-    if(!DATA.r1[hotel][monat])DATA.r1[hotel][monat]={};
-    if(!DATA.r1[hotel][monat][day])DATA.r1[hotel][monat][day]=[];
-    var r1e=DATA.r1[hotel][monat][day],r1i=-1;
-    for(var _i=0;_i<r1e.length;_i++){if(r1e[_i].name===maName){r1i=_i;break;}}
-    var entry={name:maName,zi:zi||0,gr:gr||0,chk:chk||0,son:son||0,pub:pub||0,ist:ist>0?parseFloat(ist.toFixed(2)):0};
-    if(r1i>=0)r1e[r1i]=entry;else r1e.push(entry);
-  }
-  // saveData() wird von saveTa() aufgerufen - nicht hier!
+  console.log('[LU] Tag',dayKey,'gesamt Zi='+totDay.zi,'Std='+totDay.ist);
 }
 
-function taDateChanged(){for(var ri=0;ri<TA_ROWS;ri++)taCalc(ri);}
+function updateSubunternehmer(row,hotel,monat,dayKey){
+  var maName=row.name.trim();
+  // R1 Firms aus localStorage holen
+  var firms=[];
+  try{firms=JSON.parse(localStorage.getItem('aj_r1_firms')||'[]');}catch(e){}
+  if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
+  var isR1=firms.some(function(f){
+    return f.aktiv!==false&&f.kuerzel&&
+      maName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;
+  });
+  if(!isR1)return;
+  if(!DATA.r1[hotel])DATA.r1[hotel]={};
+  if(!DATA.r1[hotel][monat])DATA.r1[hotel][monat]={};
+  if(!DATA.r1[hotel][monat][dayKey])DATA.r1[hotel][monat][dayKey]=[];
+  var list=DATA.r1[hotel][monat][dayKey];
+  var idx=-1;
+  for(var i=0;i<list.length;i++){if(list[i].name===maName){idx=i;break;}}
+  var entry={
+    name:maName,
+    zi:Number(row.zi)||0,gr:Number(row.gr)||0,
+    chk:Number(row.chk)||0,son:Number(row.son)||0,
+    pub:Number(row.pub)||0,ist:Number(row.ist)||0
+  };
+  if(idx>=0)list[idx]=entry;else list.push(entry);
+  console.log('[SUB] erkannt:',maName);
+}
 
+function saveToFirebase(hotel,rows,payload,datumKey,inboxKey,ts){
+  var hk=safeKey(hotel);
+  // 1. Tagesabrechnung
+  fbPut('hotels/'+hk+'/tagesabrechnung/'+datumKey, payload,
+    function(){console.log('[FB] TA OK');},
+    function(e){console.warn('[FB] TA err:',e);}
+  );
+  // 2. Chef Inbox
+  fbPut('chef/inbox/tagesabrechnung/'+inboxKey, payload,
+    function(){console.log('[FB] Inbox OK');},
+    function(e){console.warn('[FB] Inbox err:',e);}
+  );
+  // 3. Stundenzettel
+  if(DATA.sz[hotel]&&Object.keys(DATA.sz[hotel]).length){
+    fbPut('hotels/'+hk+'/sz', fbClean(DATA.sz[hotel]),
+      function(){console.log('[FB] SZ OK');},
+      function(e){console.warn('[FB] SZ err:',e);}
+    );
+  }
+  // 4. Leistungsübersicht
+  if(DATA.lu[hotel]&&Object.keys(DATA.lu[hotel]).length){
+    fbPut('hotels/'+hk+'/lu', fbClean(DATA.lu[hotel]),
+      function(){console.log('[FB] LU OK');},
+      function(e){console.warn('[FB] LU err:',e);}
+    );
+  }
+  // 5. Subunternehmer
+  if(DATA.r1[hotel]&&Object.keys(DATA.r1[hotel]).length){
+    fbPut('hotels/'+hk+'/r1', fbClean(DATA.r1[hotel]),
+      function(){console.log('[FB] R1 OK');},
+      function(e){console.warn('[FB] R1 err:',e);}
+    );
+  }
+  // 6. Notification
+  fbPut('notifications/ta_'+ts,{
+    typ:'tagesabrechnung',hotel:String(hotel),hotelKey:hk,
+    datum:payload.datum,inboxKey:inboxKey,tl:payload.createdBy,
+    count:rows.length,ts:ts,gelesen:false
+  },null,null);
+  console.log('[FB] Alle Pfade geschrieben fuer',hotel);
+}
+
+// ZENTRALE FUNKTION - wird vom Speichern-Button aufgerufen
 function saveTa(){
   var hotel=USER.hotel,datum=gv('ta-datum')||'';
   if(!datum){toast('Datum eingeben!','err');return;}
-  if(!DATA.ta[hotel])DATA.ta[hotel]={};
+  if(!hotel){toast('Hotel fehlt!','err');return;}
 
-  // Erst alle Zeilen neu berechnen
-  for(var ri2=0;ri2<TA_ROWS;ri2++){if(getTaName(ri2))taCalc(ri2);}
+  // 1. Alle Felder neu berechnen
+  for(var ri=0;ri<TA_ROWS;ri++){if(getTaName(ri))taCalc(ri);}
 
-  // Zeilen sammeln - alle Werte als Zahlen, keine leeren Strings
+  // 2. Zeilen sammeln (nach taCalc - ist-Stunden sind jetzt korrekt)
   var rows=[];
-  for(var ri=0;ri<TA_ROWS;ri++){
-    var nm=getTaName(ri);if(!nm)continue;
-    var row={
-      name:String(nm),
-      zi:parseFloat(gv('ta_zi_'+ri))||0,
-      gr:parseFloat(gv('ta_gr_'+ri))||0,
-      ses:parseFloat(gv('ta_ses_'+ri))||0,
-      chk:parseFloat(gv('ta_chk_'+ri))||0,
-      pub:parseFloat(gv('ta_pub_'+ri))||0,
-      wae:parseFloat(gv('ta_wae_'+ri))||0,
-      son:parseFloat(gv('ta_son_'+ri))||0,
-      auf:parseFloat(gv('ta_auf_'+ri))||0,
-      mini:parseFloat(gv('ta_mini_'+ri))||0,
-      ist:parseFloat(gv('ta_ist_'+ri))||0
-    };
-    rows.push(row);
+  for(var ri2=0;ri2<TA_ROWS;ri2++){
+    var nm=getTaName(ri2);if(!nm)continue;
+    rows.push({
+      name:nm,
+      zi:parseFloat(gv('ta_zi_'+ri2))||0,
+      gr:parseFloat(gv('ta_gr_'+ri2))||0,
+      ses:parseFloat(gv('ta_ses_'+ri2))||0,
+      chk:parseFloat(gv('ta_chk_'+ri2))||0,
+      pub:parseFloat(gv('ta_pub_'+ri2))||0,
+      wae:parseFloat(gv('ta_wae_'+ri2))||0,
+      son:parseFloat(gv('ta_son_'+ri2))||0,
+      auf:parseFloat(gv('ta_auf_'+ri2))||0,
+      mini:parseFloat(gv('ta_mini_'+ri2))||0,
+      ist:parseFloat(gv('ta_ist_'+ri2))||0
+    });
   }
+  if(!rows.length){toast('Keine Mitarbeiter eingegeben!','err');return;}
 
-  // In DATA.ta speichern
+  // 3. In DATA.ta speichern
+  if(!DATA.ta[hotel])DATA.ta[hotel]={};
   DATA.ta[hotel][datum]={datum:datum,hotel:hotel,tl:USER.name,rows:rows,savedAt:Date.now()};
 
-  // -- AUTOMATISCHER TRANSFER in SZ + LU + R1 --
+  // 4. Datum parsen für Stundenzettel/Leistung
+  var monat='',dayKey='';
+  if(datum.indexOf('.')>=0){
+    var dp=datum.split('.');
+    monat=(dp[2]||new Date().getFullYear())+'-'+String(dp[1]||1).padStart(2,'0');
+    dayKey='d'+String(dp[0]||'01').padStart(2,'0');
+  } else {
+    monat=datum.slice(0,7);
+    dayKey='d'+datum.slice(8,10);
+  }
+
+  // 5. updateStundenzettel - jeden MA verarbeiten
   var cfg=getCfg(hotel);
-  var transferCount=0;
-  for(var ri3=0;ri3<TA_ROWS;ri3++){
-    if(!getTaName(ri3))continue;
-    var zi=parseFloat(gv('ta_zi_'+ri3))||0;
-    var gr=parseFloat(gv('ta_gr_'+ri3))||0;
-    var chk=parseFloat(gv('ta_chk_'+ri3))||0;
-    var pub=parseFloat(gv('ta_pub_'+ri3))||0;
-    var son=parseFloat(gv('ta_son_'+ri3))||0;
-    var ist=parseFloat(gv('ta_ist_'+ri3))||0;
-    taAutoTransfer(ri3,zi,gr,chk,pub,son,ist,cfg);
-    transferCount++;
-  }
+  rows.forEach(function(row){
+    taAutoTransferRow(row,cfg);
+  });
 
-  saveData();
+  // 6. updateLeistungsuebersicht - Tagessumme berechnen
+  updateLeistungsuebersicht(hotel,monat,dayKey);
 
-  // -- FIREBASE REALTIME DATABASE SCHREIBEN --
-  try{
-    var hk=safeKey(hotel);
-    var ts=Date.now();
+  // 7. updateSubunternehmer - SUB-Firmen prüfen
+  rows.forEach(function(row){
+    updateSubunternehmer(row,hotel,monat,dayKey);
+  });
 
-    // Datum: 26.04.2026 -> ISO 2026-04-26 -> Key 2026_04_26
-    var datumIso=datum;
-    if(datum.indexOf('.')>=0){
-      var dp=datum.split('.');
-      datumIso=(dp[2]||'2026')+'-'+String(dp[1]||'01').padStart(2,'0')+'-'+String(dp[0]||'01').padStart(2,'0');
-    }
-    var datumKey=safeKey(datumIso);
-    var inboxKey=datumKey+'_'+hk;
+  // 8. Lokal speichern
+  try{saveData();}catch(e){console.warn('saveData:',e.message);}
 
-    // Sauberes Payload
-    var payload={
-      datum:datumIso,
-      hotel:String(hotel),
-      hotelKey:hk,
-      createdBy:String(USER.name||''),
-      createdAt:new Date().toISOString(),
-      status:'pending',
-      rows:rows.filter(function(r){return r.name!=='';}).map(function(r){
-        return {
-          name:String(r.name||''),
-          zimmer:safeNum(r.zi),
-          grundrein:safeNum(r.gr),
-          check:safeNum(r.chk),
-          publik:safeNum(r.pub),
-          waesche:safeNum(r.wae),
-          sonder:safeNum(r.son),
-          aufbett:safeNum(r.auf),
-          sessel:safeNum(r.ses),
-          mini:safeNum(r.mini),
-          istStd:safeNum(r.ist)
-        };
-      })
-    };
+  // 9. Firebase Payload bauen
+  var hk=safeKey(hotel);
+  var datumIso=monat+'-'+dayKey.slice(1).padStart(2,'0');
+  var datumKey=safeKey(datumIso);
+  var inboxKey=datumKey+'_'+hk;
+  var payload={
+    datum:datumIso,hotel:String(hotel),hotelKey:hk,
+    createdBy:String(USER.name||''),
+    createdAt:new Date().toISOString(),
+    status:'pending',
+    rows:rows.map(function(r){return{
+      name:String(r.name),zimmer:r.zi,grundrein:r.gr,
+      check:r.chk,publik:r.pub,waesche:r.wae,
+      sonder:r.son,aufbett:r.auf,sessel:r.ses,
+      mini:r.mini,istStd:r.ist
+    };})
+  };
 
-    console.log('[saveTa] hk:',hk,'datumKey:',datumKey);
-    console.log('[saveTa] payload:',JSON.stringify(payload).slice(0,300));
+  // 10. saveToFirebase - alles senden
+  saveToFirebase(hotel,rows,payload,datumKey,inboxKey,Date.now());
 
-    // 1. Tagesabrechnung - Hotel-Pfad
-    fbPut('hotels/'+hk+'/tagesabrechnung/'+datumKey, payload,
-      function(){console.log('[saveTa] TA OK');},
-      function(e){console.warn('[saveTa] TA error:',e);}
-    );
+  // 11. Erfolgsmeldung
+  var hasR1=DATA.r1[hotel]&&Object.keys(DATA.r1[hotel]).length>0;
+  toast('✅ Gespeichert! SZ ✓  LU ✓'+(hasR1?' SUB ✓':''),'ok',3000);
 
-    // 2. Chef-Inbox
-    fbPut('chef/inbox/tagesabrechnung/'+inboxKey, payload,
-      function(){toast('✅ An Chef gesendet!','ok',3000);},
-      function(e){console.warn('[saveTa] inbox error:',e);}
-    );
-
-    // 3. Stundenzettel automatisch mit Firebase synchronisieren
-    if(DATA.sz&&DATA.sz[hotel]&&Object.keys(DATA.sz[hotel]).length){
-      fbPut('hotels/'+hk+'/sz', fbClean(DATA.sz[hotel]),
-        function(){console.log('[saveTa] SZ OK');},
-        function(e){console.warn('[saveTa] SZ error:',e);}
-      );
-    }
-
-    // 4. Leistungsübersicht automatisch mit Firebase synchronisieren
-    if(DATA.lu&&DATA.lu[hotel]&&Object.keys(DATA.lu[hotel]).length){
-      fbPut('hotels/'+hk+'/lu', fbClean(DATA.lu[hotel]),
-        function(){console.log('[saveTa] LU OK');},
-        function(e){console.warn('[saveTa] LU error:',e);}
-      );
-    }
-
-    // 5. Subunternehmer (R1) automatisch synchronisieren
-    if(DATA.r1&&DATA.r1[hotel]&&Object.keys(DATA.r1[hotel]).length){
-      fbPut('hotels/'+hk+'/r1', fbClean(DATA.r1[hotel]),
-        function(){console.log('[saveTa] R1 OK');},
-        function(e){console.warn('[saveTa] R1 error:',e);}
-      );
-    }
-
-    // 6. Notification für Chef
-    fbPut('notifications/ta_'+ts, {
-      typ:'tagesabrechnung',
-      hotel:String(hotel),
-      hotelKey:hk,
-      datum:datumIso,
-      inboxKey:inboxKey,
-      tl:String(USER.name||''),
-      count:Number(transferCount)||0,
-      ts:ts,
-      gelesen:false
-    }, null, null);
-
-  }catch(e){
-    console.error('[saveTa] Firebase error:',e.message);
-  }
-
-  // Erfolgsmeldung mit Info was gespeichert wurde
-  var subCount=0;
-  if(DATA.r1&&DATA.r1[hotel]){
-    try{var r1m=Object.keys(DATA.r1[hotel]);if(r1m.length)subCount=1;}catch(e){}
-  }
-  var msg='✅ Gespeichert! SZ ✓ LU ✓'+(subCount?' Sub ✓':'');
-  toast(msg,'ok',3000);
-
-  // Tab automatisch aktualisieren falls offen
+  // 12. Tab aktualisieren falls offen
   setTimeout(function(){
-    if(currentTab==='sz')pgSz();
-    else if(currentTab==='lu')pgLu();
-    else if(currentTab==='r1')try{pgR1();}catch(e){}
-  },500);
+    try{
+      if(currentTab==='sz')pgSz();
+      else if(currentTab==='lu')pgLu();
+      else if(currentTab==='r1')pgR1();
+    }catch(e){}
+  },600);
+}
+
+// Legacy alias
+function taAutoTransfer(ri,zi,gr,chk,pub,son,ist,cfg){
+  taAutoTransferRow({
+    name:getTaName(ri),zi:zi,gr:gr,chk:chk,pub:pub,son:son,ist:ist,
+    ses:parseFloat(gv('ta_ses_'+ri))||0,
+    mini:parseFloat(gv('ta_mini_'+ri))||0,
+    wae:parseFloat(gv('ta_wae_'+ri))||0,
+    auf:parseFloat(gv('ta_auf_'+ri))||0
+  },cfg);
 }
 
 
@@ -2088,7 +2321,15 @@ function pgSz(){
   var now=new Date(),thisM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   var isRS=hotel.indexOf('Bruhl')>=0;
   var szH=DATA.sz[hotel]||{};
-  var maNames=Object.keys(szH).filter(function(mn){return szH[mn][thisM];});
+  // MA-Namen aus SZ holen - safeKey-Keys zurück zu echten Namen
+  var maNames=[];
+  var szKeyToName={};
+  Object.keys(szH).forEach(function(key){
+    // Echter Name ist in szH[key].name gespeichert
+    var realName=szH[key].name||key.replace(/_/g,' ');
+    szKeyToName[key]=realName;
+    if(szH[key][thisM]&&maNames.indexOf(realName)<0)maNames.push(realName);
+  });
   (DATA.ma[hotel]||[]).forEach(function(m){if(m.name&&maNames.indexOf(m.name)<0)maNames.push(m.name);});
 
   // Personalnummer des ausgewhlten MA anzeigen
@@ -2227,8 +2468,18 @@ function szBuildRows(monat,cfg,maName){
   var tbody=ge('sz-body');if(!tbody)return;
   var hotel=USER.hotel,isRS=hotel.indexOf('Bruhl')>=0;
   var savedTage={};
-  if(DATA.sz[hotel]&&DATA.sz[hotel][maName]&&DATA.sz[hotel][maName][monat])
-    savedTage=DATA.sz[hotel][maName][monat].tage||{};
+  var szH=DATA.sz[hotel]||{};
+  // Versuche direkt mit Name, dann mit safeKey
+  var maKey=safeKey(maName);
+  var szMaData=szH[maName]||szH[maKey]||null;
+  if(szMaData&&szMaData[monat])
+    savedTage=szMaData[monat].tage||{};
+  // Auch dayKey Format d27 → 27 übersetzen
+  var tageByDay={};
+  Object.keys(savedTage).forEach(function(k){
+    var dayNum=k.startsWith('d')?parseInt(k.slice(1)):parseInt(k);
+    if(dayNum>=1&&dayNum<=31)tageByDay[dayNum]=savedTage[k];
+  });
 
   // NRW public holidays for given year/month
   var monParts=monat.split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
@@ -2236,7 +2487,7 @@ function szBuildRows(monat,cfg,maName){
 
   var rows='';
   for(var day=1;day<=31;day++){
-    var sv=savedTage[day]||{};
+    var sv=tageByDay[day]||{};
     // Check if valid day
     var dt=new Date(yr,mo-1,day);
     if(dt.getMonth()!==mo-1){
@@ -2439,9 +2690,19 @@ function luReload(){
 function luBuildRows(saved,cfg,cols,isChef){
   var tbody=ge('lu-body');if(!tbody)return;
   var hotel=USER.hotel,isRS=hotelTyp(hotel)==='rs',isMC=hotelTyp(hotel)==='mc',isSp=hotelTyp(hotel)==='spark';
+
+  // Normalisiere rows: d27 → 27
+  var normRows={};
+  if(saved&&saved.rows){
+    Object.keys(saved.rows).forEach(function(k){
+      var dayNum=k&&k.toString().startsWith('d')?parseInt(k.slice(1)):parseInt(k);
+      if(dayNum>=1&&dayNum<=31)normRows[dayNum]=saved.rows[k];
+    });
+  }
+
   var rows='';
   for(var day=1;day<=31;day++){
-    var sv=(saved.rows&&saved.rows[day])||{};
+    var sv=normRows[day]||{};
     if(day===16&&!isMC){
       rows+='<tr class="mid-row"><td style="padding:5px 4px;font-weight:700;font-size:0.66rem;color:var(--muted)">Zwischensumme</td>';
       cols.forEach(function(col){rows+='<td class="ges-v" id="lu_mid_'+col+'">-</td>';});
@@ -2809,21 +3070,41 @@ function pgMa(){
 function addMa(){
   var name=gv('ma-nm').trim();if(!name){toast('Name eingeben!','err');return;}
   var hotel=USER.hotel;if(!DATA.ma[hotel])DATA.ma[hotel]=[];
+  // Duplikat prüfen
+  if(DATA.ma[hotel].some(function(m){return m.name===name;})){toast('Name existiert bereits!','err');return;}
   DATA.ma[hotel].push({name:name,pnr:gv('ma-pnr').trim(),rolle:gv('ma-rolle').trim(),satz:gv('ma-satz').trim()});
-  saveData();toast('✓ Gespeichert!','ok');pgMa();
+  saveData();
+  fbPut('hotels/'+safeKey(hotel)+'/ma',fbClean(DATA.ma[hotel]),null,null);
+  toast('✓ Mitarbeiter hinzugefügt!','ok',2000);
+  pgMa();
 }
 
 function editMa(idx){
   var hotel=USER.hotel,m=DATA.ma[hotel][idx];if(!m)return;
   var newName=prompt('Name:',m.name);if(newName===null)return;
+  if(!newName.trim()){toast('Name darf nicht leer sein!','err');return;}
   var newPnr=prompt('Personalnummer:',m.pnr||'');
   var newRolle=prompt('Rolle:',m.rolle||'');
   var newSatz=prompt('Stundensatz (€):',m.satz||'');
-  DATA.ma[hotel][idx]={name:newName.trim(),pnr:newPnr.trim(),rolle:newRolle.trim(),satz:newSatz.trim()};
-  saveData();toast('✓ Geändert!','ok');pgMa();
+  DATA.ma[hotel][idx]={name:newName.trim(),pnr:(newPnr||'').trim(),rolle:(newRolle||'').trim(),satz:(newSatz||'').trim()};
+  saveData();
+  fbPut('hotels/'+safeKey(hotel)+'/ma',fbClean(DATA.ma[hotel]),null,null);
+  toast('✓ Geändert!','ok',2000);
+  pgMa();
 }
 
-function delMa(idx){if(!confirm('Mitarbeiter löschen?'))return;DATA.ma[USER.hotel].splice(idx,1);saveData();pgMa();}
+function delMa(idx){
+  if(!confirm('Mitarbeiter löschen?'))return;
+  var hotel=USER.hotel;
+  DATA.ma[hotel].splice(idx,1);
+  saveData();
+  // Auch in Firebase speichern
+  fbPut('hotels/'+safeKey(hotel)+'/ma',fbClean(DATA.ma[hotel]||[]),
+    function(){toast('✓ Mitarbeiter gelöscht','ok',2000);},
+    function(){toast('✓ Lokal gelöscht','ok',2000);}
+  );
+  pgMa();
+}
 
 // -- Krankmeldung PDF --
 function kmPdf(km){
@@ -4265,81 +4546,117 @@ var hotel=USER.hotel;
 var mon=gv(‘r1-mon’)||new Date().toISOString().slice(0,7);
 var firmFilter=gv(‘r1-firm’)||’’;
 var cont=ge(‘r1-content’);if(!cont)return;
-if(!DATA.r1[hotel]||!DATA.r1[hotel][mon]){
-cont.innerHTML=’<div class="card"><div class="empty">Keine Daten für ‘+mon+’</div></div>’;
+
+// R1 Namen sammeln aus DATA.r1 und DATA.sz
+var r1Names=[];
+var monData=(DATA.r1[hotel]&&DATA.r1[hotel][mon])||{};
+Object.keys(monData).forEach(function(dayKey){
+var arr=monData[dayKey];
+if(!Array.isArray(arr))return;
+arr.forEach(function(e){if(e.name&&r1Names.indexOf(e.name)<0)r1Names.push(e.name);});
+});
+// Auch aus SZ holen (Firmen-Kürzel)
+if(!r1Names.length){
+var firms=[];
+try{firms=JSON.parse(localStorage.getItem(‘aj_r1_firms’)||’[]’);}catch(e){}
+if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
+Object.keys(DATA.sz[hotel]||{}).forEach(function(maKey){
+var mData=DATA.sz[hotel][maKey];
+var realName=mData&&mData.name?mData.name:maKey.replace(/_/g,’ ’);
+var isR1=firms.some(function(f){return f.aktiv!==false&&f.kuerzel&&realName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;});
+if(isR1&&r1Names.indexOf(realName)<0)r1Names.push(realName);
+});
+}
+// Filter
+if(firmFilter)r1Names=r1Names.filter(function(n){return n===firmFilter;});
+
+if(!r1Names.length){
+cont.innerHTML=’<div class="card"><div class="empty">Keine Subunternehmer-Daten für ‘+mon+’.<br><small>Mitarbeiternamen mit Firmenkürzel (z.B. “Ali R1”) in Tagesabrechnung eintragen.</small></div></div>’;
 return;
 }
-r1BuildLu(hotel,mon,firmFilter,cont);
 
-// Event-Delegation fr r1CalcDayEl (data-r1calc=“1”)
+r1BuildLu(hotel,mon,r1Names,cont);
+
 cont.oninput=function(e){
 var el=e.target;
-if(el&&el.getAttribute(‘data-r1calc’)===‘1’){
-r1CalcDayEl(el);
-}
+if(el&&el.getAttribute(‘data-r1calc’)===‘1’){try{r1CalcDayEl(el);}catch(ex){}}
 };
 }
 
-function r1BuildLu(hotel,mon,r1Names){
-var wrap=document.getElementById(‘r1-tables’);
+function r1BuildLu(hotel,mon,r1Names,cont){
+// cont kann r1-content sein oder null
+var wrap=cont||ge(‘r1-content’)||ge(‘r1-tables’);
+if(!wrap)return;
 var cfg=getCfg(hotel);
 var isRS=hotel.indexOf(‘Bruhl’)>=0;
 var html=’’;
+
+// Sicherstellen r1Names ist Array
+if(!Array.isArray(r1Names))r1Names=r1Names?[r1Names]:[];
+
 r1Names.forEach(function(mn){
 var monData=(DATA.r1[hotel]&&DATA.r1[hotel][mon])||{};
 var tage={};
-Object.keys(monData).forEach(function(d){monData[d].forEach(function(e){if(e.name===mn) tage[parseInt(d)]=e;});});
-var mk=mn.replace(/ /g,’*’).replace(/[^a-zA-Z0-9*]/g,’’);
-html+=’<div class="card r1-block" style="padding:10px;margin-bottom:14px">’;
-html+=’<div style="border-bottom:1px solid var(--border2);padding-bottom:8px;margin-bottom:8px">’;
-html+=’<div style="font-size:0.52rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted)">R1Clean – Leistungsübersicht · ‘+hotel+’</div>’;
-html+=’<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">’;
-html+=’<div style="font-size:0.85rem;font-weight:700;color:var(--gold)">’+mn+’</div>’;
-html+=’<div style="font-size:0.62rem;color:var(--muted)">’+mon+’</div></div></div>’;
-html+=’<div style="overflow-x:auto"><table class="lu-tbl"><thead><tr><th style="min-width:28px">Tag</th>’;
+// dayKey kann d27 oder 27 sein
+Object.keys(monData).forEach(function(dk){
+var dayNum=dk.startsWith?dk.startsWith(‘d’)?parseInt(dk.slice(1)):parseInt(dk):parseInt(dk);
+var arr=monData[dk];
+if(!Array.isArray(arr))return;
+arr.forEach(function(e){if(e.name===mn)tage[dayNum]=e;});
+});
+
+```
+var mk=safeKey(mn);
+html+='<div class="card r1-block" style="padding:10px;margin-bottom:14px">';
+html+='<div style="border-bottom:1px solid var(--border2);padding-bottom:6px;margin-bottom:6px">';
+html+='<div style="font-size:0.52rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Subunternehmer · '+hotel+'</div>';
+html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">';
+html+='<div style="font-size:0.85rem;font-weight:700;color:var(--gold)">'+mn+'</div>';
+html+='<div style="font-size:0.62rem;color:var(--muted)">'+mon+'</div></div></div>';
+html+='<div style="overflow-x:auto"><table class="lu-tbl"><thead><tr><th style="min-width:28px">Tag</th>';
 if(isRS){
-html+=’<th style="min-width:60px;background:rgba(0,80,160,0.2);color:#90caf9">DZ</th>’;
-html+=’<th style="min-width:60px">Apartment</th>’;
-html+=’<th style="min-width:55px">Sessel</th>’;
-html+=’<th style="min-width:50px">Check</th>’;
+  html+='<th>DZ</th><th>Apartment</th><th>Sessel</th><th>Check</th>';
 } else {
-html+=’<th style="min-width:65px;background:rgba(0,80,160,0.2);color:#90caf9">Zimmer</th>’;
-html+=’<th style="min-width:65px">Grundrein.</th>’;
-html+=’<th style="min-width:50px">Check</th>’;
-html+=’<th style="min-width:60px">Sonderstd</th>’;
+  html+='<th>Zimmer</th><th>Grundrein.</th><th>Check</th><th>Sonder</th>';
 }
-html+=’<th style="min-width:55px;background:rgba(20,80,40,0.3);color:#81c784">Ist-Std</th>’;
-html+=’</tr></thead><tbody>’;
+html+='<th style="color:#81c784">Ist-Std</th></tr></thead><tbody>';
 var totZi=0,totGr=0,totChk=0,totSon=0,totIst=0;
 var midZi=0,midGr=0,midChk=0,midSon=0,midIst=0;
 for(var day=1;day<=31;day++){
-var t=tage[day]||null;
-if(day===16){
-html+=’<tr class="mid-row"><td style="padding:4px;font-weight:700;font-size:0.62rem;color:var(--muted)">Zw.summe</td>’;
-html+=’<td class="lu-ges-v">’+midZi+’</td><td class="lu-ges-v">’+midGr+’</td>’;
-html+=’<td class="lu-ges-v">’+midChk+’</td><td class="lu-ges-v">’+midSon+’</td>’;
-html+=’<td class="lu-ges-v" style="color:#81c784">’+(midIst>0?midIst.toFixed(2):’-’)+’</td></tr>’;
+  var t=tage[day]||null;
+  if(day===16){
+    html+='<tr style="background:rgba(212,168,67,0.08)"><td style="font-size:0.6rem;color:var(--muted);font-weight:700">Zw.</td>';
+    html+='<td class="lu-ges-v">'+midZi+'</td><td class="lu-ges-v">'+midGr+'</td>';
+    html+='<td class="lu-ges-v">'+midChk+'</td><td class="lu-ges-v">'+midSon+'</td>';
+    html+='<td class="lu-ges-v" style="color:#81c784">'+(midIst>0?midIst.toFixed(2):'-')+'</td></tr>';
+  }
+  var attrs='data-mk="'+mk+'" data-day="'+day+'" data-ma="'+mn+'" data-r1calc="1"';
+  html+='<tr><td class="lu-nr">'+day+'</td>';
+  html+='<td><input class="lu-inp zi" type="number" id="r1_'+mk+'_zi_'+day+'" '+attrs+' value="'+(t?t.zi||'':'')+'" placeholder=""></td>';
+  html+='<td><input class="lu-inp" type="number" id="r1_'+mk+'_gr_'+day+'" '+attrs+' value="'+(t?t.gr||'':'')+'" placeholder=""></td>';
+  html+='<td><input class="lu-inp" type="number" id="r1_'+mk+'_chk_'+day+'" '+attrs+' value="'+(t?t.chk||'':'')+'" placeholder=""></td>';
+  html+='<td><input class="lu-inp" type="number" id="r1_'+mk+'_son_'+day+'" '+attrs+' value="'+(t?t.son||'':'')+'" placeholder=""></td>';
+  var iv=t?(parseFloat(t.ist)||0):0;
+  html+='<td><input class="lu-inp ai" id="r1_'+mk+'_ist_'+day+'" readonly value="'+(iv>0?iv.toFixed(2):'')+'" placeholder="-"></td></tr>';
+  if(t){
+    totZi+=parseInt(t.zi)||0;totGr+=parseInt(t.gr)||0;totChk+=parseInt(t.chk)||0;totSon+=parseInt(t.son)||0;totIst+=parseFloat(t.ist)||0;
+    if(day<=15){midZi+=parseInt(t.zi)||0;midGr+=parseInt(t.gr)||0;midChk+=parseInt(t.chk)||0;midSon+=parseInt(t.son)||0;midIst+=parseFloat(t.ist)||0;}
+  }
 }
-var attrs=‘data-mk=”’+mk+’” data-day=”’+day+’” data-ma=”’+mn+’” data-r1calc=“1”’;
-html+=’<tr><td class="lu-nr">’+day+’</td>’;
-html+=’<td><input class=“lu-inp zi” type=“number” id=“r1_’+mk+’*zi*’+day+’” ‘+attrs+’ value=”’+(t?t.zi||’’:’’)+’” placeholder=””></td>’;
-html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*gr*’+day+’” ‘+attrs+’ value=”’+(t?t.gr||’’:’’)+’” placeholder=””></td>’;
-html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*chk*’+day+’” ‘+attrs+’ value=”’+(t?t.chk||’’:’’)+’” placeholder=””></td>’;
-html+=’<td><input class=“lu-inp” type=“number” id=“r1_’+mk+’*son*’+day+’” ‘+attrs+’ value=”’+(t?t.son||’’:’’)+’” placeholder=””></td>’;
-var iv=t?(parseFloat(t.ist)||0):0;
-html+=’<td><input class="lu-inp ai" id="r1_'+mk+'_ist_'+day+'" readonly value="'+(iv>0?iv.toFixed(2):'')+'" placeholder="-"></td></tr>’;
-if(t){totZi+=parseInt(t.zi)||0;totGr+=parseInt(t.gr)||0;totChk+=parseInt(t.chk)||0;totSon+=parseInt(t.son)||0;totIst+=parseFloat(t.ist)||0;if(day<=15){midZi+=parseInt(t.zi)||0;midGr+=parseInt(t.gr)||0;midChk+=parseInt(t.chk)||0;midSon+=parseInt(t.son)||0;midIst+=parseFloat(t.ist)||0;}}
-}
-html+=’<tr class="sum-row"><td style="padding:5px 4px;font-weight:700;color:var(--cream)">Summe:</td>’;
-html+=’<td class="lu-ges-v">’+totZi+’</td><td class="lu-ges-v">’+totGr+’</td><td class="lu-ges-v">’+totChk+’</td><td class="lu-ges-v">’+totSon+’</td>’;
-html+=’<td class="lu-ges-v" style="color:#81c784">’+(totIst>0?totIst.toFixed(2):’-’)+’</td></tr>’;
-html+=’</tbody></table></div></div>’;
+html+='<tr class="sum-row"><td style="font-weight:700;color:var(--cream)">Summe</td>';
+html+='<td class="lu-ges-v">'+totZi+'</td><td class="lu-ges-v">'+totGr+'</td><td class="lu-ges-v">'+totChk+'</td><td class="lu-ges-v">'+totSon+'</td>';
+html+='<td class="lu-ges-v" style="color:#81c784">'+(totIst>0?totIst.toFixed(2):'-')+'</td></tr>';
+html+='</tbody></table></div></div>';
+```
+
 });
 wrap.innerHTML=html;
 }
 
 function r1BuildSz(hotel,mon,r1Names){
-var wrap=document.getElementById(‘r1-tables’);
+var wrap=ge(‘r1-content’)||ge(‘r1-tables’);
+if(!wrap)return;
+if(!Array.isArray(r1Names))r1Names=r1Names?[r1Names]:[];
 var html=’’;
 r1Names.forEach(function(mn){
 var savedTage={};
@@ -4416,6 +4733,53 @@ for(var i=0;i<blocks.length;i++) html+=blocks[i].outerHTML;
 printDiv.innerHTML=html;
 window.print();
 setTimeout(function(){printDiv.innerHTML=’’;},1500);
+}
+
+function r1BuildTables(hotel,mon,ma,view){
+var cont=ge(‘content’);
+if(!cont)return;
+
+// R1 Namen aus DATA.r1 holen
+var r1Names=[];
+var monData=(DATA.r1[hotel]&&DATA.r1[hotel][mon])||{};
+Object.keys(monData).forEach(function(dayKey){
+var dayArr=monData[dayKey];
+if(!Array.isArray(dayArr))return;
+dayArr.forEach(function(e){
+if(e.name&&r1Names.indexOf(e.name)<0)r1Names.push(e.name);
+});
+});
+
+// Filter nach MA wenn ausgewählt
+if(ma&&ma!==’’&&ma!==‘alle’){
+r1Names=r1Names.filter(function(n){return n===ma;});
+}
+
+// Falls keine R1-Daten direkt aus DATA.r1, auch aus SZ suchen (MA mit SUB-Kürzel)
+if(!r1Names.length){
+var firms=[];
+try{firms=JSON.parse(localStorage.getItem(‘aj_r1_firms’)||’[]’);}catch(e){}
+if(!firms.length)try{firms=R1_FIRMS||[];}catch(e){}
+Object.keys(DATA.sz[hotel]||{}).forEach(function(maKey){
+var realName=(DATA.sz[hotel][maKey]&&DATA.sz[hotel][maKey].name)||maKey.replace(/_/g,’ ’);
+var isR1=firms.some(function(f){
+return f.aktiv!==false&&f.kuerzel&&realName.toLowerCase().indexOf(f.kuerzel.toLowerCase())>=0;
+});
+if(isR1&&r1Names.indexOf(realName)<0)r1Names.push(realName);
+});
+}
+
+if(!r1Names.length){
+var wrap=ge(‘r1-tables’);
+if(wrap)wrap.innerHTML=’<div class="empty">Keine Subunternehmer-Daten für ‘+mon+’</div>’;
+return;
+}
+
+if(view===‘sz’){
+r1BuildSz(hotel,mon,r1Names);
+} else {
+r1BuildLu(hotel,mon,r1Names,cont);
+}
 }
 
 function r1Reload(){
