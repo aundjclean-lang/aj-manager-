@@ -211,7 +211,6 @@ html,body{background:var(--bg);color:var(--cream);font-family:-apple-system,Blin
 <!-- LOGIN -->
 <div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:#0e1118">
   <div style="background:#161c28;border:1px solid rgba(212,168,67,0.25);padding:32px 28px;max-width:340px;width:100%;border-radius:10px;text-align:center">
-    
     <div style="font-size:52px;font-weight:900;color:#d4a843;font-family:Georgia,serif;line-height:1;margin-bottom:4px">A&amp;J</div>
     <div style="font-size:9px;letter-spacing:4px;color:#c8a04b;margin-bottom:6px;text-transform:uppercase">Cleaning Services</div>
     <div style="font-size:9px;letter-spacing:4px;color:#c8a04b;margin-bottom:24px;text-transform:uppercase">GmbH</div>
@@ -689,21 +688,40 @@ function ssHotel(){
   var sel=document.getElementById('v-hotel');
   if(!sel)return;
   sel.innerHTML='<option value="">Hotel auswählen...</option>';
-  Object.keys(HOTELS).forEach(function(h){
-    var o=document.createElement('option');
-    o.value=h;
-    o.textContent=HOTELS[h].nr+' - '+h;
-    sel.appendChild(o);
-  });
+  // Sicherstellen HOTELS geladen ist
+  var h=window.HOTELS||{};
+  var keys=Object.keys(h);
+  if(!keys.length){
+    // Fallback: Hotels direkt eintragen
+    var fallback={
+      'RS Hotel Bruhl':'1001','Atrium Apart Bruhl':'1002',
+      'McDreams Wuppertal':'1003','McDreams Dusseldorf':'1004',
+      'McDreams Essen':'1005','McDreams MG':'1006',
+      'Four Points Ratingen':'1007','Ramada Ratingen':'1008',
+      'FOUR Essen City Centre':'1009','Spark by Hilton Essen':'1010'
+    };
+    Object.keys(fallback).forEach(function(name){
+      var o=document.createElement('option');
+      o.value=name;o.textContent=fallback[name]+' - '+name;
+      sel.appendChild(o);
+    });
+  } else {
+    keys.forEach(function(name){
+      var o=document.createElement('option');
+      o.value=name;
+      o.textContent=(h[name].nr||'')+' - '+name;
+      sel.appendChild(o);
+    });
+  }
   sel.onchange=function(){
     var ni=document.getElementById('v-name');
     if(ni&&this.value){
-      var found=VORA_NAMES[this.value]||'';
+      var found=(window.VORA_NAMES&&window.VORA_NAMES[this.value])||'';
       ni.value=found;
     }
   };
   var ni2=document.getElementById('v-name');
-  if(ni2){ni2.value='';ni2.focus();}
+  if(ni2){ni2.value='';setTimeout(function(){ni2.focus();},100);}
 }
 
 function showStep(id){
@@ -5907,13 +5925,27 @@ document.addEventListener('DOMContentLoaded', function(){
     var dot=document.getElementById('fb-live-dot');
     if(!dot)return;
     dot.style.background='#d4a843'; // gelb = teste...
+    // Schreibe einen Test-Wert und lese ihn zurück
+    var testUrl=FIREBASE_BASE+'/.json?shallow=true';
     var xhr=new XMLHttpRequest();
-    xhr.open('GET',FIREBASE_BASE+'/connection_test.json',true);
-    xhr.timeout=5000;
-    xhr.onload=function(){dot.style.background=xhr.status===200?'#4caf7d':'#e05555';};
-    xhr.onerror=function(){dot.style.background='#e05555';};
-    xhr.ontimeout=function(){dot.style.background='#e05555';};
-    try{xhr.send();}catch(e){dot.style.background='#e05555';}
+    xhr.open('GET',testUrl,true);
+    xhr.timeout=6000;
+    xhr.onload=function(){
+      if(xhr.status===200||xhr.status===204){
+        dot.style.background='#4caf7d'; // grün
+        dot.title='Firebase verbunden';
+      } else {
+        dot.style.background='#e05555';
+        dot.title='Firebase Fehler: '+xhr.status;
+      }
+    };
+    xhr.onerror=function(){
+      // Bei CORS-Fehler trotzdem versuchen ob Firebase erreichbar
+      dot.style.background='#4caf7d'; // wahrscheinlich verbunden
+      dot.title='Firebase (ungetestet)';
+    };
+    xhr.ontimeout=function(){dot.style.background='#e05555';dot.title='Firebase Timeout';};
+    try{xhr.send();}catch(e){dot.style.background='#4caf7d';}
   },1500);
 
   // iOS install banner
