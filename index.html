@@ -524,10 +524,61 @@ function fbPollNow(){
           if(window._seenInbox[key])return;
           window._seenInbox[key]=true;
           var ta=inbox[key];if(!ta)return;
-          toast('Neue TA: '+(ta.hotel||'')+' · '+(ta.datum||''),'info',5000);
+          // TA in DATA speichern
+          if(ta.hotel&&ta.datum){
+            if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};
+            DATA.ta[ta.hotel][ta.datum]=ta;
+          }
+          // SZ+LU+SUB beim Chef direkt berechnen aus TA-Rows
+          if(ta.rows&&ta.hotel&&ta.datum){
+            var _h=ta.hotel;
+            var _d=ta.datum;
+            var _m='',_dk='';
+            if(_d.indexOf('.')>=0){
+              var _p=_d.split('.');
+              _m=(_p[2]||'2026')+'-'+String(_p[1]||1).padStart(2,'0');
+              _dk='d'+String(_p[0]||'01').padStart(2,'0');
+            } else if(_d.length>=10){
+              _m=_d.slice(0,7);
+              _dk='d'+_d.slice(8,10);
+            }
+            if(_m&&_dk){
+              var _cfg=getCfg(_h);
+              ta.rows.forEach(function(row){
+                var r2={
+                  name:row.name||'',
+                  zi:Number(row.zimmer||row.zi||0),
+                  gr:Number(row.grundrein||row.gr||0),
+                  chk:Number(row.check||row.chk||0),
+                  pub:Number(row.publik||row.pub||0),
+                  son:Number(row.sonder||row.son||0),
+                  wae:Number(row.waesche||row.wae||0),
+                  auf:Number(row.aufbett||row.auf||0),
+                  ses:Number(row.sessel||row.ses||0),
+                  mini:Number(row.mini||0),
+                  ist:Number(row.istStd||row.ist||0)
+                };
+                if(!r2.name)return;
+                // Stunden berechnen falls fehlen
+                if(!r2.ist&&(r2.zi||r2.gr)){
+                  var _t=hotelTyp(_h);
+                  if(_t==='rs')r2.ist=r2.zi/(_cfg.ziH||2.5)+r2.gr/(_cfg.aptH||2.0);
+                  else r2.ist=r2.zi/(_cfg.ziH||2.5)+r2.gr/(_cfg.ziH||2.5);
+                  r2.ist=Math.round(r2.ist*100)/100;
+                }
+                try{taAutoTransferRow(r2,_cfg,_h,_m,_dk);}catch(e){console.warn('chef SZ:',e.message);}
+                try{updateSubunternehmer(r2,_h,_m,_dk);}catch(e){}
+              });
+              try{updateLeistungsuebersicht(_h,_m,_dk);}catch(e){console.warn('chef LU:',e.message);}
+            }
+          }
+          toast('📋 Neu: '+(ta.hotel||'')+' · '+(ta.datum||'')+' von '+(ta.tl||ta.createdBy||'?'),'info',5000);
           if(typeof ajNotify==='function')try{ajNotify('Neue Tagesabrechnung!',(ta.hotel||'')+' · '+(ta.datum||''));}catch(e){}
-          if(ta.hotel&&ta.datum){if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};DATA.ta[ta.hotel][ta.datum]=ta;}
+          try{saveData();}catch(e){}
           if(currentTab==='dash')setTimeout(pgDash,300);
+          else if(currentTab==='live')setTimeout(pgLive,300);
+          else if(currentTab==='sz')setTimeout(pgSz,300);
+          else if(currentTab==='lu')setTimeout(pgLu,300);
         });
       });
       fbGet('hotels',function(val){
@@ -2331,18 +2382,27 @@ function saveTa(){
   // 10. saveToFirebase - alles senden
   saveToFirebase(hotel,rows,payload,datumKey,inboxKey,Date.now());
 
-  // 11. Erfolgsmeldung
-  var hasR1=DATA.r1[hotel]&&Object.keys(DATA.r1[hotel]).length>0;
-  toast('✅ Gespeichert! SZ ✓  LU ✓'+(hasR1?' SUB ✓':''),'ok',3000);
+  // 11. Erfolgsmeldung mit Details
+  var szCount=rows.filter(function(r){return r.ist>0;}).length;
+  var luZi=DATA.lu[hotel]&&DATA.lu[hotel][monat]&&DATA.lu[hotel][monat].rows&&DATA.lu[hotel][monat].rows[dayKey]?DATA.lu[hotel][monat].rows[dayKey].zi:0;
+  var hasR1=DATA.r1[hotel]&&DATA.r1[hotel][monat]&&DATA.r1[hotel][monat][dayKey]&&DATA.r1[hotel][monat][dayKey].length>0;
+  var msg='✅ Gespeichert!\n';
+  msg+='SZ: '+szCount+' MA ✓\n';
+  msg+='LU: '+luZi+' Zi ✓\n';
+  if(hasR1)msg+='SUB: ✓\n';
+  msg+='→ Chef benachrichtigt';
+  toast(msg,'ok',4000);
+  console.log('[saveTa] FERTIG:',msg);
 
-  // 12. Tab aktualisieren falls offen
+  // 12. Alle Tabs sofort aktualisieren
   setTimeout(function(){
     try{
       if(currentTab==='sz')pgSz();
       else if(currentTab==='lu')pgLu();
       else if(currentTab==='r1')pgR1();
-    }catch(e){}
-  },600);
+      else if(currentTab==='ta')pgTa();
+    }catch(e){console.warn('tab refresh:',e.message);}
+  },500);
 }
 
 // Legacy alias
