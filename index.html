@@ -110,8 +110,8 @@ flex-shrink:0;
 .ta-tbl tr.ges-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
 .sz-tbl tbody tr.filled td{background:rgba(20,50,25,0.18)}
 .lu-tbl tr.sum-row td,.lu-tbl tr.mid-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.ti,.sz-inp,.lu-inp{width:100%;background:transparent;border:none;outline:none;font-size:0.78rem;padding:5px 3px;text-align:center;color:var(–cream)}
-.ti.nm{text-align:left;padding-left:7px}
+.ti,.sz-inp,.lu-inp{width:100%;background:transparent;border:none;outline:none;font-size:0.78rem;color:var(–cream);padding:5px 3px;text-align:center;color:var(–cream)}
+.ti.nm{text-align:left;padding-left:7px;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important;}
 .ti.zi,.sz-inp.zi,.lu-inp.zi{color:var(–gold2);font-weight:700;background:rgba(0,80,160,0.12)}
 .ti.ai,.sz-inp.ai,.lu-inp.ai{color:#81c784;font-weight:700;cursor:default;background:rgba(20,80,40,0.15)}
 .sz-inp.at{color:#90caf9;font-weight:700;cursor:default;background:rgba(20,60,120,0.2)}
@@ -206,6 +206,11 @@ margin:10mm;
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-track{background:var(–navy3)}
 ::-webkit-scrollbar-thumb{background:rgba(30,58,82,0.8);border-radius:2px}
+
+/* Force light text on all inputs - iOS fix */
+input,select,textarea{color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;}
+input::placeholder,textarea::placeholder{color:#5a6472!important;-webkit-text-fill-color:#5a6472!important;}
+input[type=text],input[type=password],input[type=number],input[type=month],input[type=date]{color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;}
 </style>
 
 </head>
