@@ -204,14 +204,14 @@ padding-bottom:max(14px,calc(env(safe-area-inset-bottom)+14px));
 .ta-tbl th,.sz-tbl thead th,.lu-tbl th{background:var(–navy3);color:var(–gold);font-size:0.54rem;letter-spacing:0.07em;text-transform:uppercase;font-weight:600;padding:6px 3px;text-align:center;border:1px solid var(–border);line-height:1.3}
 .sz-tbl thead th.ac{background:#071510;color:#81c784}
 .sz-tbl thead th.zc{background:#07101a;color:#90caf9}
-.ta-tbl td,.sz-tbl tbody td,.lu-tbl td{border:1px solid rgba(30,58,82,0.5);padding:0;vertical-align:middle}
-.ta-tbl tr:nth-child(even) td,.sz-tbl tbody tr:nth-child(even) td,.lu-tbl tr:nth-child(even) td{background:rgba(8,18,28,0.35)}
+.ta-tbl td,.sz-tbl tbody td,.lu-tbl td{border:1px solid rgba(30,58,82,0.5);padding:0;vertical-align:middle;background:#0b1422}
+.ta-tbl tr:nth-child(even) td,.sz-tbl tbody tr:nth-child(even) td,.lu-tbl tr:nth-child(even) td{background:#080f1c}
 .ta-tbl tr.ges-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
 .sz-tbl tbody tr.filled td{background:rgba(20,50,25,0.18)}
 .lu-tbl tr.sum-row td,.lu-tbl tr.mid-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.ti,.sz-inp,.lu-inp{width:100%;background:transparent;border:none;outline:none;font-size:0.78rem;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important;padding:5px 3px;text-align:center;opacity:1!important;-webkit-appearance:none}
-.ti.nm{text-align:left;padding-left:7px}
-.ti.zi,.sz-inp.zi,.lu-inp.zi{color:var(–gold2)!important;-webkit-text-fill-color:var(–gold2)!important;font-weight:700;background:rgba(0,80,160,0.12)}
+.ti,.sz-inp,.lu-inp{width:100%;background:#0d1525;border:none;outline:none;font-size:0.78rem;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important;padding:5px 3px;text-align:center;opacity:1!important;-webkit-appearance:none}
+.ti.nm{text-align:left;padding-left:7px;background:#0d1525!important;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important}
+.ti.zi,.sz-inp.zi,.lu-inp.zi{color:var(–gold2)!important;-webkit-text-fill-color:var(–gold2)!important;font-weight:700;background:#0a1830!important}
 .ti.ai,.sz-inp.ai,.lu-inp.ai{color:#81c784!important;-webkit-text-fill-color:#81c784!important;font-weight:700;cursor:default;background:rgba(20,80,40,0.15)}
 .sz-inp.at{color:#90caf9!important;-webkit-text-fill-color:#90caf9!important;font-weight:700;cursor:default;background:rgba(20,60,120,0.2)}
 .sz-inp.pa{color:rgba(200,168,75,0.5)!important;cursor:default}
@@ -665,6 +665,21 @@ function fbPollNow(){
           },300);
         }
       });
+      // Read TL online status
+      fbGet('hotels',function(val_online_check){
+        if(val_online_check&&typeof val_online_check==='object'){
+          Object.keys(val_online_check).forEach(function(hk){
+            var hd=val_online_check[hk];
+            if(hd&&hd.online&&typeof hd.online==='object'){
+              Object.keys(HOTELS).forEach(function(hn){
+                if(safeKey(hn)!==hk)return;
+                if(!DATA.online)DATA.online={};
+                DATA.online[hn]=hd.online;
+              });
+            }
+          });
+        }
+      });
       fbGet('hotels',function(val){
         console.log('[CHEF POLL] Hotels erhalten:', val?Object.keys(val):'NULL');
         if(!val||typeof val!=='object')return;
@@ -916,7 +931,15 @@ function doVoraLogin(){
     return;
   }
   if(errEl)errEl.style.display='none';
-  USER={role:'vora',hotel:hotel,name:name};
+  var _now=new Date();
+  var _loginTime=_now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr';
+  var _loginDate=_now.toLocaleDateString('de-DE');
+  USER={role:'vora',hotel:hotel,name:name,loginTime:_loginTime,loginDate:_loginDate,loginTs:_now.getTime()};
+  try{
+    fbPut('hotels/'+safeKey(hotel)+'/online/'+safeKey(name),
+      {name:name,hotel:hotel,loginTime:_loginTime,loginDate:_loginDate,loginTs:_now.getTime()},
+      null,null);
+  }catch(ex){}
   startApp();
 }
 
@@ -1325,6 +1348,17 @@ function pgLive(){
       html+=' · <span style="color:'+(st==='genehmigt'?'#4caf7d':st==='abgelehnt'?'#e05555':'#d4a843')+'">'+(st==='genehmigt'?'Genehmigt':st==='abgelehnt'?'Abgelehnt':'Ausstehend')+'</span>';
     } else {
       html+='⏳ Noch keine Eingabe heute';
+      // Show TL online status with login time
+      var _onlineH=DATA.online&&DATA.online[hotel]||{};
+      var _onlineTLs=Object.keys(_onlineH);
+      if(_onlineTLs.length>0){
+        _onlineTLs.forEach(function(tlKey){
+          var _tl=_onlineH[tlKey];
+          if(_tl&&_tl.name){
+            html+='<div style="font-size:0.58rem;color:#4caf7d;margin-top:2px">🟢 '+_tl.name+' eingeloggt '+_tl.loginTime+'</div>';
+          }
+        });
+      }
     }
     html+='</div></div>';
   });
@@ -2671,6 +2705,8 @@ function saveTa(){
   var payload={
     datum:datumIso,hotel:String(hotel),hotelKey:hk,
     createdBy:String(USER.name||''),
+    tlLoginTime:String(USER.loginTime||''),
+    tlLoginDate:String(USER.loginDate||''),
     createdAt:new Date().toISOString(),
     status:'pending',
     rows:rows.map(function(r){return{
