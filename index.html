@@ -683,29 +683,16 @@ function fbPollNow(){
           },300);
         }
       });
-      // Read TL online status
-      fbGet('hotels',function(val_online_check){
-        if(val_online_check&&typeof val_online_check==='object'){
-          Object.keys(val_online_check).forEach(function(hk){
-            var hd=val_online_check[hk];
-            if(hd&&hd.online&&typeof hd.online==='object'){
-              Object.keys(HOTELS).forEach(function(hn){
-                if(safeKey(hn)!==hk)return;
-                if(!DATA.online)DATA.online={};
-                DATA.online[hn]=hd.online;
-              });
-            }
-          });
-        }
-      });
       fbGet('hotels',function(val){
-        console.log('[CHEF POLL] Hotels erhalten:', val?Object.keys(val):'NULL');
         if(!val||typeof val!=='object')return;
         try{
           Object.keys(val).forEach(function(hk){
             var hd=val[hk];if(!hd||typeof hd!=='object')return;
             Object.keys(HOTELS).forEach(function(hn){
               if(safeKey(hn)!==hk)return;
+              // Online-Status
+              if(hd.online){if(!DATA.online)DATA.online={};DATA.online[hn]=hd.online;}
+              // Daten
               ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
                 if(hd[k]&&typeof hd[k]==='object'){if(!DATA[k])DATA[k]={};DATA[k][hn]=hd[k];}
               });
@@ -1190,8 +1177,19 @@ document.addEventListener('click', function(e){
       
       if(type==='ta'){
         if(DATA.ta[hotel])delete DATA.ta[hotel][key2];
-        fbWrite('hotels/'+hk+'/tagesabrechnung/'+safeKey(key2),null,null,null);
-        fbWrite('chef/inbox/tagesabrechnung/'+safeKey(key2)+'_'+hk,null,null,null);
+        var _taFbPath='hotels/'+hk+'/tagesabrechnung/'+safeKey(key2);
+        var _inboxFbPath='chef/inbox/tagesabrechnung/'+safeKey(key2)+'_'+hk;
+        fbWrite(_taFbPath,null,null,null);
+        fbWrite(_inboxFbPath,null,null,null);
+        // Also delete SZ/LU entries for this date
+        if(DATA.sz[hotel]){
+          Object.keys(DATA.sz[hotel]).forEach(function(mk){
+            if(DATA.sz[hotel][mk]&&DATA.sz[hotel][mk][key2.slice(0,7)]&&
+               DATA.sz[hotel][mk][key2.slice(0,7)].tage){
+              // Don't delete SZ - just the day entry
+            }
+          });
+        }
       } else if(type==='sz'){
         // key2=maKey, key3=monat
         if(DATA.sz[hotel]&&DATA.sz[hotel][key2])delete DATA.sz[hotel][key2][key3];
@@ -1311,267 +1309,186 @@ function switchTab(id){
 var _liveInterval=null;
 function pgLive(){
   var c=ge('content');if(!c)return;
-  if(!USER)return;
   var now=new Date();
-  var mon=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  var chefHotel=USER.chefHotel||'';
-  var hotels=Object.keys(HOTELS);
-  if(chefHotel&&chefHotel!=='__alle__')hotels=[chefHotel];
+  var thisM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var today=now.getDate();
+  var todayKey='d'+String(today).padStart(2,'0');
+
+  // Force Firebase poll
+  try{fbPollNow();}catch(e){}
 
   var html='';
 
-  // === ONLINE STATUS PANEL ===
-  html+='<div class="card" style="padding:10px 14px;margin-bottom:8px">';
-  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
-  html+='<span style="width:10px;height:10px;border-radius:50%;background:#4caf7d;display:inline-block"></span>';
-  html+='<span style="font-size:0.85rem;font-weight:700;color:#4caf7d">LIVE</span>';
-  html+='<span style="font-size:0.58rem;color:var(--muted)">'+now.toLocaleTimeString('de-DE')+'</span>';
-  html+='<button onclick="pgLive()" style="margin-left:auto;background:rgba(76,175,125,0.15);border:1px solid rgba(76,175,125,0.3);color:#4caf7d;padding:4px 10px;border-radius:4px;font-size:0.6rem;cursor:pointer">↺</button>';
-  html+='</div>';
-
-  // Teamleiter Status — wer hat heute schon gespeichert?
-  html+='<div style="font-size:0.62rem;font-weight:700;color:var(--gold);margin-bottom:6px;letter-spacing:0.08em">👥 TEAMLEITER STATUS HEUTE</div>';
-  html+='<div style="display:flex;flex-wrap:wrap;gap:6px">';
-  var today=now.getDate()+'.'+String(now.getMonth()+1).padStart(2,'0')+'.'+now.getFullYear();
-  var todayISO=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
-
-  // Alle VORA_NAMES (Teamleiter aus Admin)
-  var voraList=[];
-  try{
-    var stored=localStorage?localStorage.getItem('aj_vora'):null;
-    if(stored)voraList=JSON.parse(stored);
-  }catch(e){}
-
-  hotels.forEach(function(hotel){
-    var taH=DATA.ta[hotel]||{};
-    // Prüfe ob heute eine TA für dieses Hotel existiert
-    var taToday=taH[today]||taH[todayISO]||null;
-    // Suche nach dem heutigen Key
-    if(!taToday){
-      Object.keys(taH).forEach(function(k){
-        if(k===today||k===todayISO||k.indexOf(today)>=0||k.indexOf(todayISO)>=0)taToday=taH[k];
-      });
-    }
-    var status=taToday?'aktiv':'wartend';
-    var col=taToday?'#4caf7d':'#5a6a7a';
-    var tl=taToday?(taToday.tl||taToday.createdBy||'?'):'--';
-    var ziH=0;if(taToday&&taToday.rows)taToday.rows.forEach(function(r){ziH+=parseInt(r.zimmer||r.zi||0);});
-
-    html+='<div style="background:rgba('+(taToday?'76,175,125':'90,106,122')+',0.1);border:1px solid rgba('+(taToday?'76,175,125':'90,106,122')+',0.3);border-radius:6px;padding:6px 10px;min-width:140px">';
-    html+='<div style="font-size:0.65rem;color:'+col+';font-weight:700">'+(HOTELS[hotel].nr)+' · '+hotel.slice(0,15)+'</div>';
-    html+='<div style="font-size:0.58rem;color:var(--muted);margin-top:2px">';
-    if(taToday){
-      html+='✅ '+tl+' · '+ziH+' Zi';
-      var st=taToday.status||'pending';
-      html+=' · <span style="color:'+(st==='genehmigt'?'#4caf7d':st==='abgelehnt'?'#e05555':'#d4a843')+'">'+(st==='genehmigt'?'Genehmigt':st==='abgelehnt'?'Abgelehnt':'Ausstehend')+'</span>';
-    } else {
-      html+='⏳ Noch keine Eingabe heute';
-      // Show TL online status with login time
-      var _onlineH=DATA.online&&DATA.online[hotel]||{};
-      var _onlineTLs=Object.keys(_onlineH);
-      if(_onlineTLs.length>0){
-        _onlineTLs.forEach(function(tlKey){
-          var _tl=_onlineH[tlKey];
-          if(_tl&&_tl.name){
-            html+='<div style="font-size:0.58rem;color:#4caf7d;margin-top:2px">🟢 '+_tl.name+' eingeloggt '+_tl.loginTime+'</div>';
-          }
-        });
-      }
-    }
-    html+='</div></div>';
-  });
+  // ── HEADER ──
+  html+='<div class="card" style="padding:10px 14px;margin-bottom:10px">';
+  html+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">';
+  html+='<span style="font-family:Georgia,serif;font-size:0.9rem;color:var(--gold)">Live-Kontrolle</span>';
+  html+='<span style="font-size:0.6rem;color:var(--muted)">'+now.toLocaleString('de-DE')+'</span>';
+  html+='<button class="btn sm" onclick="switchTab(\'live\')" style="margin-left:auto">🔄 Aktualisieren</button>';
   html+='</div></div>';
 
-  // Hotel Filter
-  html+='<div class="card" style="padding:8px 14px;margin-bottom:8px">';
-  html+='<select id="live-hotel-sel" style="background:var(--bg3);border:1px solid var(--border);color:var(--cream);padding:6px 10px;border-radius:4px;font-size:0.72rem;width:100%">';
-  html+='<option value="">Alle Hotels</option>';
-  Object.keys(HOTELS).forEach(function(h){html+='<option value="'+h+'"'+(chefHotel===h?' selected':'')+'>'+HOTELS[h].nr+' · '+h+'</option>';});
-  html+='</select></div>';
-  hotels.forEach(function(hotel){
+  // ── ALLE HOTELS DURCHGEHEN ──
+  Object.keys(HOTELS).forEach(function(hotel){
     var hk=safeKey(hotel);
     var taH=DATA.ta[hotel]||{};
     var szH=DATA.sz[hotel]||{};
     var luH=DATA.lu[hotel]||{};
-    var dpH=DATA.dp[hotel]||{};
     var r1H=DATA.r1[hotel]||{};
+    var onlineH=DATA.online&&DATA.online[hotel]||{};
 
-    // Heute TA
-    var now2=new Date();
-    var today=now2.getDate()+'.'+String(now2.getMonth()+1).padStart(2,'0')+'.'+now2.getFullYear();
-    var taToday=taH[today];
-    var ziHeute=0;
-    if(taToday&&taToday.rows)taToday.rows.forEach(function(r){ziHeute+=parseInt(r.zimmer||r.zi||0);});
-    var hasData=Object.keys(taH).length||Object.keys(szH).length;
+    // Nur Hotels mit Daten anzeigen
+    var hasTa=Object.keys(taH).length>0;
+    var hasSz=Object.keys(szH).length>0;
+    if(!hasTa&&!hasSz)return;
 
-    html+='<div style="border:1px solid rgba(212,168,67,'+(hasData?'0.3':'0.1')+');border-radius:8px;margin-bottom:12px;overflow:hidden">';
-
+    html+='<div class="card" style="padding:12px 14px;margin-bottom:12px">';
     // Hotel Header
-    html+='<div style="background:var(--navy3);padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="var d=document.getElementById(\'live_h_'+hk+'\');if(d){d.style.display=d.style.display===\'none\'?\'block\':\'none\';}">';
-    html+='<span style="width:8px;height:8px;border-radius:50%;background:'+(ziHeute>0?'#4caf7d':hasData?'#d4a843':'#3a4458')+';flex-shrink:0"></span>';
-    html+='<span style="font-weight:700;color:var(--gold);flex:1">'+HOTELS[hotel].nr+' · '+hotel+'</span>';
-    if(ziHeute>0)html+='<span style="background:rgba(76,175,125,0.15);color:#4caf7d;padding:2px 8px;border-radius:10px;font-size:0.6rem;font-weight:700">'+ziHeute+' Zi heute</span>';
-    html+='<span style="color:var(--muted);font-size:0.7rem">▼</span>';
-    html+='</div>';
-
-    html+='<div id="live_h_'+hk+'" style="display:block;padding:12px 14px">';
-
-    // ─── TAGESABRECHNUNGEN ───
-    var taDates=Object.keys(taH).sort().reverse().slice(0,10);
-    html+='<div style="margin-bottom:12px">';
-    html+='<div style="font-size:0.68rem;font-weight:700;color:var(--gold);margin-bottom:6px">📋 Tagesabrechnungen</div>';
-    if(!taDates.length){html+='<div style="color:var(--muted);font-size:0.68rem">Keine Daten</div>';}
-    else taDates.forEach(function(datum){
-      var ta=taH[datum];if(!ta)return;
-      var status=ta.status||'pending';
-      var sCol=status==='genehmigt'?'#4caf7d':status==='abgelehnt'?'#e05555':'#d4a843';
-      var ziS=0;if(ta.rows)ta.rows.forEach(function(r){ziS+=parseInt(r.zimmer||r.zi||0);});
-      var dk=safeKey(datum);
-      html+='<div style="border:1px solid rgba(255,255,255,0.07);border-radius:4px;margin-bottom:5px">';
-      html+='<div onclick="var d=document.getElementById(\'lta_'+hk+'_'+dk+'\');if(d)d.style.display=d.style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:7px 10px;cursor:pointer">';
-      html+='<span style="font-size:0.72rem;color:var(--cream);font-weight:600">'+(ta.datum||datum)+'</span>';
-      html+='<span style="font-size:0.6rem;color:var(--muted)">'+( ta.tl||ta.createdBy||'?')+'</span>';
-      html+='<span style="font-size:0.6rem;color:#5b9bd5">'+ziS+' Zi</span>';
-      html+='<span style="font-size:0.58rem;color:'+sCol+';margin-left:auto">'+(status==='genehmigt'?'✅':status==='abgelehnt'?'❌':'⏳')+'</span>';
-      html+='</div>';
-      html+='<div id="lta_'+hk+'_'+dk+'" style="display:none;padding:0 10px 8px">';
-      if(ta.rows&&ta.rows.length){
-        html+='<table style="width:100%;border-collapse:collapse;font-size:0.65rem">';
-        html+='<tr style="background:var(--navy3)"><th style="padding:3px 5px;text-align:left;color:var(--gold)">MA</th><th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th><th style="padding:3px;color:var(--gold)">Chk</th><th style="padding:3px;color:var(--gold)">Pub</th><th style="padding:3px;color:#81c784">Std</th></tr>';
-        ta.rows.forEach(function(r,ri){
-          html+='<tr style="'+(ri%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:2px 5px;font-weight:600;color:var(--cream)">'+(r.name||'?')+'</td>';
-          html+='<td style="text-align:center;color:#5b9bd5">'+(r.zimmer||r.zi||0)+'</td><td style="text-align:center">'+(r.grundrein||r.gr||0)+'</td>';
-          html+='<td style="text-align:center">'+(r.check||r.chk||0)+'</td><td style="text-align:center">'+(r.publik||r.pub||0)+'</td>';
-          html+='<td style="text-align:center;color:#81c784">'+(r.istStd||r.ist||0)+'</td></tr>';
-        });
-        html+='</table>';
-      }
-      html+='<div style="display:flex;gap:5px;margin-top:6px">';
-      if(status==='pending'){
-        html+='<button class="btn sm" data-ta-ok2="'+hotel+'|'+datum+'" style="color:#4caf7d;border-color:rgba(76,175,125,0.3);font-size:0.6rem">✅ Genehmigen</button>';
-        html+='<button class="btn sm danger" data-ta-ab2="'+hotel+'|'+datum+'" style="font-size:0.6rem">❌ Ablehnen</button>';
-      } else {
-        html+='<button class="btn sm" data-ta-reset="'+hotel+'|'+datum+'" style="font-size:0.58rem;color:var(--muted)">↺ Reset</button>';
-      }
-      html+='<button class="btn sm danger" data-global-del="ta|'+hotel+'|'+datum+'" style="font-size:0.6rem;margin-left:auto">🗑</button>';
-      html+='</div></div></div>';
+    html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:8px">';
+    html+='<span style="font-weight:700;color:var(--gold2);font-size:0.82rem">'+hotel+'</span>';
+    // Online TLs
+    Object.keys(onlineH).forEach(function(tlKey){
+      var tl=onlineH[tlKey];
+      if(tl&&tl.name)html+='<span style="font-size:0.58rem;color:var(--green);background:rgba(76,175,125,0.1);padding:2px 7px;border-radius:10px">🟢 '+tl.name+' '+tl.loginTime+'</span>';
     });
     html+='</div>';
 
-    // ─── STUNDENZETTEL ───
-    var szMas=Object.keys(szH);
-    html+='<div style="margin-bottom:12px">';
-    html+='<div style="font-size:0.68rem;font-weight:700;color:var(--gold);margin-bottom:6px">⏱ Stundenzettel — '+mon+'</div>';
-    if(!szMas.length){html+='<div style="color:var(--muted);font-size:0.68rem">Keine Daten</div>';}
-    else{
-      html+='<table style="width:100%;border-collapse:collapse;font-size:0.68rem">';
-      html+='<tr style="background:var(--navy3)"><th style="padding:4px 6px;text-align:left;color:var(--gold)">MA</th><th style="padding:4px;color:var(--gold)">Zi</th><th style="padding:4px;color:var(--gold)">Std</th><th style="padding:4px;color:var(--gold)">Tage</th></tr>';
-      szMas.forEach(function(mk,i){
-        var mData=szH[mk];if(!mData||!mData[mon])return;
-        var md=mData[mon];
-        var tage=Object.keys(md.tage||{}).length;
+    // ── TAGESABRECHNUNG ──
+    var taKeys=Object.keys(taH).sort().reverse();
+    if(taKeys.length>0){
+      html+='<div style="font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Tagesabrechnungen</div>';
+      taKeys.slice(0,5).forEach(function(datum){
+        var ta=taH[datum];
+        if(!ta)return;
+        var statusColor=ta.status==='approved'?'var(--green)':ta.status==='rejected'?'var(--red)':'var(--gold)';
+        var statusText=ta.status==='approved'?'Genehmigt':ta.status==='rejected'?'Abgelehnt':'Ausstehend';
+        html+='<div style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px">';
+        html+='<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+        html+='<span style="font-weight:600;font-size:0.76rem;color:var(--cream)">'+datum+'</span>';
+        html+='<span style="font-size:0.62rem;color:var(--muted)">'+( ta.createdBy||ta.tl||'?')+'</span>';
+        if(ta.tlLoginTime)html+='<span style="font-size:0.58rem;color:var(--muted)">⏱ '+ta.tlLoginTime+'</span>';
+        html+='<span style="margin-left:auto;font-size:0.6rem;font-weight:700;color:'+statusColor+'">'+statusText+'</span>';
+        html+='</div>';
+        // MA Liste
+        if(ta.rows&&ta.rows.length){
+          html+='<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+          ta.rows.forEach(function(row){
+            var isSub=/\s[A-Z0-9]{1,4}$/.test(row.name||'');
+            html+='<span style="font-size:0.62rem;background:var(--bg4);border:1px solid var(--border);padding:2px 7px;border-radius:4px;color:'+(isSub?'var(--gold2)':'var(--cream)')+'">'+
+              (isSub?'🏢 ':'👤 ')+(row.name||'?')+': '+(row.zimmer||row.zi||0)+'Zi</span>';
+          });
+          html+='</div>';
+        }
+        // Approve/Reject buttons
+        html+='<div style="display:flex;gap:6px;margin-top:6px">';
+        html+='<button class="btn sm" style="color:var(--green);border-color:rgba(76,175,125,0.3)" '+
+          'data-approve-ta="'+hotel+'|'+datum+'">✓ Genehmigen</button>';
+        html+='<button class="btn sm danger" '+
+          'data-reject-ta="'+hotel+'|'+datum+'">✗ Ablehnen</button>';
+        html+='<button class="btn sm danger" '+
+          'data-global-del="ta|'+hotel+'|'+datum+'" style="margin-left:auto">🗑</button>';
+        html+='</div>';
+        html+='</div>';
+      });
+    }
+
+    // ── STUNDENZETTEL ──
+    var maKeys=Object.keys(szH);
+    if(maKeys.length>0){
+      html+='<div style="font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px">Stundenzettel — '+thisM+'</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.72rem">';
+      html+='<tr style="background:var(--navy3)">';
+      html+='<th style="padding:5px 8px;text-align:left;color:var(--gold);font-weight:500;font-size:0.58rem">Mitarbeiter</th>';
+      html+='<th style="padding:5px 4px;text-align:center;color:var(--muted);font-size:0.58rem">Zimmer</th>';
+      html+='<th style="padding:5px 4px;text-align:center;color:var(--muted);font-size:0.58rem">Stunden</th>';
+      html+='<th style="padding:5px 4px;text-align:center;color:var(--muted);font-size:0.58rem">Heute</th>';
+      html+='</tr>';
+      maKeys.forEach(function(mk,i){
+        var mData=szH[mk];
         var realName=mData.name||mk.replace(/_/g,' ');
-        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:3px 6px;font-weight:600;color:var(--cream)">'+realName+'</td>';
-        html+='<td style="text-align:center;color:var(--gold)">'+parseInt(md.ziGes||0)+'</td>';
-        html+='<td style="text-align:center;color:#81c784">'+parseFloat(md.istGes||0).toFixed(1)+'h</td>';
-        html+='<td style="text-align:center;color:var(--muted)">'+tage+'</td></tr>';
+        var monData=mData[thisM]||{ziGes:0,istGes:0,tage:{}};
+        var todayData=monData.tage&&(monData.tage[todayKey]||monData.tage[String(today)])||null;
+        var isSub=/\s[A-Z0-9]{1,4}$/.test(realName);
+        html+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'">'+
+          '<td style="padding:5px 8px;font-weight:600;color:'+(isSub?'var(--gold2)':'var(--cream)')+'">'+
+            (isSub?'🏢 ':'👤 ')+realName+'</td>'+
+          '<td style="padding:5px 4px;text-align:center;color:var(--gold);font-weight:700">'+( monData.ziGes||'-')+'</td>'+
+          '<td style="padding:5px 4px;text-align:center;color:var(--green);font-weight:700">'+( monData.istGes?monData.istGes+'h':'-')+'</td>'+
+          '<td style="padding:5px 4px;text-align:center;color:var(--muted)">'+( todayData?todayData.zi+'Zi':'–')+'</td>'+
+          '</tr>';
       });
-      html+='</table>';
+      html+='</table></div>';
     }
-    html+='</div>';
 
-    // ─── LEISTUNGSÜBERSICHT ───
-    var luMon=luH[mon]||{};var luRows=luMon.rows||{};var luDays=Object.keys(luRows).sort();
-    if(luDays.length){
-      html+='<div style="margin-bottom:12px">';
-      html+='<div style="font-size:0.68rem;font-weight:700;color:var(--gold);margin-bottom:6px">📊 Leistung — '+mon+'</div>';
-      html+='<table style="width:100%;border-collapse:collapse;font-size:0.66rem">';
-      html+='<tr style="background:var(--navy3)"><th style="padding:3px 5px;color:var(--gold)">Tag</th><th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th><th style="padding:3px;color:#81c784">Std</th></tr>';
-      var luTotZi=0,luTotIst=0;
+    // ── LEISTUNGSÜBERSICHT ──
+    var luMon=luH[thisM];
+    if(luMon&&luMon.rows&&Object.keys(luMon.rows).length>0){
+      var luRows=luMon.rows;
+      var luDays=Object.keys(luRows).sort(function(a,b){return parseInt(a.replace('d',''))-parseInt(b.replace('d',''));});
+      html+='<div style="font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px">Leistungsübersicht — '+thisM+'</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:0.72rem">';
+      html+='<tr style="background:var(--navy3)">';
+      html+='<th style="padding:5px 8px;text-align:left;color:var(--gold);font-size:0.58rem">Tag</th>';
+      html+='<th style="padding:5px 4px;text-align:center;color:var(--muted);font-size:0.58rem">Zimmer</th>';
+      html+='<th style="padding:5px 4px;text-align:center;color:var(--muted);font-size:0.58rem">Stunden</th>';
+      html+='</tr>';
+      var totZi=0,totIst=0;
       luDays.forEach(function(dk,i){
-        var dr=luRows[dk];if(!dr)return;
-        var dn=dk.startsWith('d')?dk.slice(1):dk;
-        luTotZi+=parseInt(dr.zi||0);luTotIst+=parseFloat(dr.ist||0);
-        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:2px 5px;color:var(--muted)">'+dn+'</td>';
-        html+='<td style="text-align:center;color:#5b9bd5">'+(dr.zi||0)+'</td><td style="text-align:center">'+(dr.gr||0)+'</td>';
-        html+='<td style="text-align:center;color:#81c784">'+parseFloat(dr.ist||0).toFixed(1)+'</td></tr>';
+        var r=luRows[dk];
+        totZi+=parseInt(r.zi)||0; totIst+=parseFloat(r.ist)||0;
+        html+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'">'+
+          '<td style="padding:5px 8px;color:var(--cream)">'+dk.replace('d','')+'.</td>'+
+          '<td style="padding:5px 4px;text-align:center;color:var(--gold);font-weight:700">'+(r.zi||'-')+'</td>'+
+          '<td style="padding:5px 4px;text-align:center;color:var(--green)">'+( r.ist?r.ist+'h':'-')+'</td>'+
+          '</tr>';
       });
-      html+='<tr style="background:var(--navy3)"><td style="padding:3px 5px;font-weight:700;color:var(--gold)">Σ</td>';
-      html+='<td style="text-align:center;font-weight:700;color:var(--gold)">'+luTotZi+'</td><td></td>';
-      html+='<td style="text-align:center;font-weight:700;color:#81c784">'+luTotIst.toFixed(1)+'</td></tr>';
+      html+='<tr style="background:var(--navy3);border-top:2px solid var(--gold)">'+
+        '<td style="padding:5px 8px;font-weight:700;color:var(--gold)">Gesamt</td>'+
+        '<td style="padding:5px 4px;text-align:center;font-weight:700;color:var(--gold)">'+totZi+'</td>'+
+        '<td style="padding:5px 4px;text-align:center;font-weight:700;color:var(--green)">'+totIst.toFixed(1)+'h</td>'+
+        '</tr>';
       html+='</table></div>';
     }
 
-    // ─── SUBUNTERNEHMER ───
-    var r1Mon=r1H[mon]||{};var r1Days=Object.keys(r1Mon);
-    if(r1Days.length){
-      var r1Totals={};
-      r1Days.forEach(function(dk){var arr=r1Mon[dk];if(!Array.isArray(arr))return;arr.forEach(function(e){if(!r1Totals[e.name])r1Totals[e.name]={zi:0,gr:0,ist:0};r1Totals[e.name].zi+=parseInt(e.zi||0);r1Totals[e.name].gr+=parseInt(e.gr||0);r1Totals[e.name].ist+=parseFloat(e.ist||0);});});
-      html+='<div style="margin-bottom:8px">';
-      html+='<div style="font-size:0.68rem;font-weight:700;color:var(--gold);margin-bottom:6px">🏢 Subunternehmer — '+mon+'</div>';
-      html+='<table style="width:100%;border-collapse:collapse;font-size:0.68rem">';
-      html+='<tr style="background:var(--navy3)"><th style="padding:3px 6px;text-align:left;color:var(--gold)">Name</th><th style="padding:3px;color:var(--gold)">Zi</th><th style="padding:3px;color:var(--gold)">GR</th><th style="padding:3px;color:#81c784">Std</th></tr>';
-      Object.keys(r1Totals).forEach(function(n,i){var t=r1Totals[n];
-        html+='<tr style="'+(i%2?'background:rgba(255,255,255,0.02)':'')+'"><td style="padding:2px 6px;font-weight:600;color:var(--cream)">'+n+'</td>';
-        html+='<td style="text-align:center;color:var(--gold)">'+t.zi+'</td><td style="text-align:center">'+t.gr+'</td>';
-        html+='<td style="text-align:center;color:#81c784">'+(t.ist>0?t.ist.toFixed(1):'--')+'</td></tr>';
-      });
-      html+='</table></div>';
-    }
-
-    // ─── DIENSTPLAN ───
-    var dpMon=dpH[mon]||{};var dpMas=Object.keys(dpMon);
-    if(dpMas.length){
-      html+='<div>';
-      html+='<div style="font-size:0.68rem;font-weight:700;color:var(--gold);margin-bottom:6px">▪ Dienstplan — '+mon+'</div>';
-      html+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
-      dpMas.forEach(function(ma){var t=Object.keys(dpMon[ma]||{}).length;html+='<span style="background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--cream)">'+ma.replace(/_/g,' ')+'('+t+'T)</span>';});
-      html+='</div></div>';
-    }
-
-    html+='</div></div>'; // live_h + hotel block
+    html+='</div>'; // end hotel card
   });
+
+  if(!html.includes('Tagesabrechnungen')&&!html.includes('Stundenzettel')){
+    html+='<div class="card"><div class="empty">Noch keine Daten.<br><small>Teamleader speichert → erscheint hier sofort.</small></div></div>';
+  }
 
   c.innerHTML=html;
 
-  // CSS für Live-Puls
-  if(!document.getElementById('live-pulse-css')){
-    var st=document.createElement('style');
-    st.id='live-pulse-css';
-    st.textContent='@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}';
-    document.head.appendChild(st);
-  }
-
-  // Hotel Filter
-  var sel=ge('live-hotel-sel');
-  if(sel)sel.onchange=function(){USER.chefHotel=this.value||'__alle__';pgLive();};
-
-  // Click handler für Toggle + Aktionen
-  c.onclick=function(e){
-    var t=e.target;
-    while(t&&t!==c){
-      // Genehmigen
-      var taOk=t.getAttribute&&t.getAttribute('data-ta-ok2');
-      if(taOk){var p=taOk.split('|');if(DATA.ta[p[0]]&&DATA.ta[p[0]][p[1]]){DATA.ta[p[0]][p[1]].status='genehmigt';fbPut('hotels/'+safeKey(p[0])+'/tagesabrechnung/'+safeKey(p[1]),DATA.ta[p[0]][p[1]],null,null);fbPut('chef/inbox/tagesabrechnung/'+safeKey(p[1])+'_'+safeKey(p[0]),DATA.ta[p[0]][p[1]],null,null);try{saveData();}catch(ex){}toast('✅ Genehmigt!','ok',2000);pgLive();}return;}
-      // Ablehnen
-      var taAb=t.getAttribute&&t.getAttribute('data-ta-ab2');
-      if(taAb){var p2=taAb.split('|');if(DATA.ta[p2[0]]&&DATA.ta[p2[0]][p2[1]]){DATA.ta[p2[0]][p2[1]].status='abgelehnt';fbPut('hotels/'+safeKey(p2[0])+'/tagesabrechnung/'+safeKey(p2[1]),DATA.ta[p2[0]][p2[1]],null,null);try{saveData();}catch(ex){}toast('Abgelehnt','info',2000);pgLive();}return;}
-      // Reset
-      var taRst=t.getAttribute&&t.getAttribute('data-ta-reset');
-      if(taRst){var p5=taRst.split('|');if(DATA.ta[p5[0]]&&DATA.ta[p5[0]][p5[1]]){DATA.ta[p5[0]][p5[1]].status='pending';fbPut('hotels/'+safeKey(p5[0])+'/tagesabrechnung/'+safeKey(p5[1]),DATA.ta[p5[0]][p5[1]],null,null);try{saveData();}catch(ex){}toast('Zurückgesetzt','ok',2000);pgLive();}return;}
-      // Löschen
-      var delTa=t.getAttribute&&t.getAttribute('data-del-ta');
-      if(delTa){if(!confirm('Löschen?'))return;var p3=delTa.split('|');if(DATA.ta[p3[0]])delete DATA.ta[p3[0]][p3[1]];fbWrite('hotels/'+safeKey(p3[0])+'/tagesabrechnung/'+safeKey(p3[1]),null,null,null);fbWrite('chef/inbox/tagesabrechnung/'+safeKey(p3[1])+'_'+safeKey(p3[0]),null,null,null);try{saveData();}catch(ex){}toast('Gelöscht','ok',2000);pgLive();return;}
-      t=t.parentNode;
+  // Approve/Reject handlers
+  c.addEventListener('click',function(ev){
+    var t=ev.target;
+    var approve=t.getAttribute&&t.getAttribute('data-approve-ta');
+    var reject=t.getAttribute&&t.getAttribute('data-reject-ta');
+    if(approve){
+      var p=approve.split('|');
+      if(DATA.ta[p[0]]&&DATA.ta[p[0]][p[1]]){
+        DATA.ta[p[0]][p[1]].status='approved';
+        saveData();
+        var hk2=safeKey(p[0]);
+        var dk2=safeKey(p[1]);
+        fbPut('hotels/'+hk2+'/tagesabrechnung/'+dk2+'/status','approved',null,null);
+        fbPut('chef/inbox/tagesabrechnung/'+dk2+'_'+hk2+'/status','approved',null,null);
+        toast('✅ Genehmigt: '+p[1],'ok',3000);
+        setTimeout(function(){switchTab('live');},300);
+      }
+    } else if(reject){
+      var p2=reject.split('|');
+      if(DATA.ta[p2[0]]&&DATA.ta[p2[0]][p2[1]]){
+        DATA.ta[p2[0]][p2[1]].status='rejected';
+        saveData();
+        var hk3=safeKey(p2[0]);
+        var dk3=safeKey(p2[1]);
+        fbPut('hotels/'+hk3+'/tagesabrechnung/'+dk3+'/status','rejected',null,null);
+        fbPut('chef/inbox/tagesabrechnung/'+dk3+'_'+hk3+'/status','rejected',null,null);
+        toast('❌ Abgelehnt: '+p2[1],'err',3000);
+        setTimeout(function(){switchTab('live');},300);
+      }
     }
-  };
-
-  // Auto-refresh alle 6 Sekunden
-  if(_liveInterval)clearInterval(_liveInterval);
-  _liveInterval=setInterval(function(){
-    if(currentTab==='live')pgLive();
-    else{clearInterval(_liveInterval);_liveInterval=null;}
-  },6000);
+  });
 }
 
 function pgDash(){
@@ -2742,38 +2659,25 @@ function saveTa(){
   var szCount=rows.filter(function(r){return r.ist>0;}).length;
   var luZi=DATA.lu[hotel]&&DATA.lu[hotel][monat]&&DATA.lu[hotel][monat].rows&&DATA.lu[hotel][monat].rows[dayKey]?DATA.lu[hotel][monat].rows[dayKey].zi:0;
   var hasR1=DATA.r1[hotel]&&DATA.r1[hotel][monat]&&DATA.r1[hotel][monat][dayKey]&&DATA.r1[hotel][monat][dayKey].length>0;
-  toast('✅ Gespeichert! '+rows.length+' MA · '+luZi+' Zi · Firebase ✓','ok',4000);
-  // Zeige Ergebnis-Panel direkt auf TA-Seite
-  var resultDiv=ge('ta-result-panel');
-  if(resultDiv){
-    var rHtml='<div style="background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.3);border-radius:8px;padding:12px;margin-top:10px">';
-    rHtml+='<div style="font-size:0.72rem;font-weight:700;color:#00e676;margin-bottom:8px">✅ Automatisch verteilt:</div>';
-    rHtml+='<div style="font-size:0.68rem;color:#dff0ff;line-height:1.8">';
-    rows.forEach(function(r){
-      var isSub=/\s[A-Z0-9]{1,4}$/.test(r.name);
-      rHtml+=(isSub?'🏢':'👤')+' <b>'+r.name+'</b> → SZ: '+r.zi+' Zi / '+r.ist+' Std<br>';
-    });
-    rHtml+='<span style="color:#00c2ff">📊 LU: '+luZi+' Zi gesamt</span><br>';
-    rHtml+='<span style="color:#ffc145">🔥 Firebase: gesendet</span>';
-    rHtml+='</div></div>';
-    resultDiv.innerHTML=rHtml;
-  }
-  console.log('[SAVE] OK:',rows.map(function(r){return r.name+':'+r.zi+'zi/'+r.ist+'h';}));
+  var _msg='✅ Gespeichert! '+rows.length+' MA · '+luZi+' Zi';
+  if(hasR1)_msg+=' · SUB✓';
+  toast(_msg,'ok',4000);
+  console.log('[SAVE OK]',rows.map(function(r){return r.name+':'+r.zi+'zi/'+r.ist+'h';}));
 
   // 12. Tab aktualisieren
+  // Speichere letzte TA-Info für schnellen Tab-Wechsel
   DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now(),firstMa:rows.length>0?rows[0].name:''};
+
+  // Tab sofort aktualisieren
   setTimeout(function(){
     try{
-      if(currentTab==='sz'||currentTab==='lu'||currentTab==='r1'){
-        // Aktuellen Tab neu laden - Daten sind jetzt in DATA
-        switchTab(currentTab);
-      } else if(currentTab==='ta'){
-        pgTa();
-      } else if(currentTab==='dash'){
-        pgDash();
-      }
-    }catch(e){console.warn('tab refresh:',e.message);}
-  },200);
+      if(currentTab==='sz') pgSz();
+      else if(currentTab==='lu') pgLu();
+      else if(currentTab==='r1') pgR1();
+      else if(currentTab==='ta') pgTa();
+      else if(currentTab==='dash') pgDash();
+    }catch(e){}
+  },300);
 }
 
 // Legacy alias
@@ -2870,34 +2774,43 @@ function pgSz(){
 
   c.innerHTML=html;
 
-  // Attach events
+  // 1. Welcher MA soll angezeigt werden?
+  var _activeMa=maNames[0]||'';
+  // TL sieht sich selbst
+  if(USER.role==='vora'&&USER.name&&maNames.indexOf(USER.name)>=0){
+    _activeMa=USER.name;
+  }
+  // Nach TA-Save: ersten gespeicherten MA wählen
+  if(DATA._lastSaved&&DATA._lastSaved.hotel===hotel&&Date.now()-DATA._lastSaved.ts<300000){
+    var _saved=DATA._lastSaved.firstMa||'';
+    if(_saved&&maNames.indexOf(_saved)>=0) _activeMa=_saved;
+    else if(_saved){
+      // Suche per safeKey
+      for(var _si=0;_si<maNames.length;_si++){
+        if(safeKey(maNames[_si])===safeKey(_saved)){_activeMa=maNames[_si];break;}
+      }
+    }
+  }
+  // MA-Selector setzen
+  var _szSel=ge('sz-ma-sel');
+  if(_szSel){
+    for(var _oi=0;_oi<_szSel.options.length;_oi++){
+      if(_szSel.options[_oi].value===_activeMa){_szSel.selectedIndex=_oi;break;}
+    }
+  }
+
+  // 2. Events
   ge('sz-mon').onchange=function(){szReload();};
-  ge('sz-ma-sel').onchange=function(){
+  if(_szSel)_szSel.onchange=function(){
     szReloadMa();
-    // PNR des neuen MA anzeigen
-    var mn=ge('sz-ma-sel').value;
+    var mn=this.value;
     var rec=(DATA.ma[hotel]||[]).filter(function(m){return m.name===mn;})[0];
     var pnrEl=ge('sz-pnr-edit');
     if(pnrEl)pnrEl.value=rec&&rec.pnr?rec.pnr:'-';
   };
-  // Nach TA-Save: ersten MA mit Daten automatisch auswählen und anzeigen
-  if(DATA._lastSaved&&DATA._lastSaved.hotel===hotel&&Date.now()-DATA._lastSaved.ts<120000){
-    var _firstMa=DATA._lastSaved.firstMa||'';
-    var _sel=ge('sz-ma-sel');
-    if(_sel&&_firstMa){
-      // Suche exakt oder per safeKey
-      var _found=false;
-      for(var _i=0;_i<_sel.options.length;_i++){
-        if(_sel.options[_i].value===_firstMa||safeKey(_sel.options[_i].value)===safeKey(_firstMa)){
-          _sel.selectedIndex=_i;_found=true;break;
-        }
-      }
-      if(!_found&&_sel.options.length>0)_sel.selectedIndex=0;
-    }
-    setTimeout(function(){if(typeof szReload==='function')szReload();},100);
-  } else {
-    szReload();
-  }
+
+  // 3. Daten laden mit dem richtigen MA
+  szBuildRows(thisM,cfg,_activeMa);
 
   // Personalnummer speichern
   var btnPnr=ge('btn-sz-pnr-save');
@@ -3040,7 +2953,7 @@ function szBuildRows(monat,cfg,maName){
       if(chk)chk.oninput=function(){szCalcRow(d);};
       if(ses)ses.oninput=function(){szCalcRow(d);};
     })(day2);
-    if(savedTage[day2]&&savedTage[day2].ist)szCalcRow(day2);
+    if(tageByDay[day2]&&tageByDay[day2].ist)szCalcRow(day2);
   }
   szCalcGes();
 }
