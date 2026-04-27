@@ -209,7 +209,7 @@ padding-bottom:max(14px,calc(env(safe-area-inset-bottom)+14px));
 .ta-tbl tr.ges-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
 .sz-tbl tbody tr.filled td{background:rgba(20,50,25,0.18)}
 .lu-tbl tr.sum-row td,.lu-tbl tr.mid-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.ti,.sz-inp,.lu-inp{width:100%;background:#0d1525;border:none;outline:none;font-size:0.78rem;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important;padding:5px 3px;text-align:center;opacity:1!important;-webkit-appearance:none}
+.ti,.sz-inp,.lu-inp{width:100%;background:#0d1525!important;border:none;outline:none;font-size:0.78rem;color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;padding:5px 3px;text-align:center;opacity:1!important;-webkit-appearance:none;-webkit-user-select:text}
 .ti.nm{text-align:left;padding-left:7px;background:#0d1525!important;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important}
 .ti.zi,.sz-inp.zi,.lu-inp.zi{color:var(–gold2)!important;-webkit-text-fill-color:var(–gold2)!important;font-weight:700;background:#0a1830!important}
 .ti.ai,.sz-inp.ai,.lu-inp.ai{color:#81c784!important;-webkit-text-fill-color:#81c784!important;font-weight:700;cursor:default;background:rgba(20,80,40,0.15)}
@@ -267,6 +267,24 @@ html,body{background:#fff!important;margin:0!important;padding:0!important;paddi
 ::-webkit-scrollbar{width:3px;height:3px}
 ::-webkit-scrollbar-track{background:var(–navy3)}
 ::-webkit-scrollbar-thumb{background:rgba(30,58,82,0.8);border-radius:2px}
+
+/* iOS input color fix - targeted */
+[id^=“ta_nm_”],[id^=“ta_zi_”],[id^=“ta_gr_”],[id^=“ta_ses_”],[id^=“ta_chk_”],
+[id^=“ta_pub_”],[id^=“ta_son_”],[id^=“ta_auf_”],[id^=“ta_wae_”],[id^=“ta_mini_”],[id^=“ta_ist_”]{
+color:#e8e0d0!important;
+-webkit-text-fill-color:#e8e0d0!important;
+background:#0d1525!important;
+opacity:1!important;
+}
+[id^=“ta_nm_”]{color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important}
+[id^=“ta_zi_”]{color:#e8c068!important;-webkit-text-fill-color:#e8c068!important;font-weight:700}
+[id^=“ta_ist_”]{color:#81c784!important;-webkit-text-fill-color:#81c784!important}
+[id^=“sz_”],[id^=“lu_”],[id^=“r1_”]{
+color:#e8e0d0!important;
+-webkit-text-fill-color:#e8e0d0!important;
+background:#0d1525!important;
+opacity:1!important;
+}
 </style>
 
 </head>
@@ -2388,35 +2406,35 @@ function buildTaRows(cfg,saved){
   var rows='';
   for(var ri=0;ri<TA_ROWS;ri++){
     var sv=(saved&&saved.rows&&saved.rows[ri])||{};
-    rows+='<tr id="tar'+ri+'"><td style="min-width:130px"><input class="ti nm" type="text" id="ta_nm_'+ri+'" placeholder="" value="'+(sv.name||'')+'"></td>';
+    rows+='<tr id="tar'+ri+'"><td style="min-width:130px"><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important;text-align:left" class="ti nm" type="text" id="ta_nm_'+ri+'" placeholder="" value="'+(sv.name||'')+'"></td>';
     rows+='<td><input class="ti zi" type="number" min="0" style="color:#ffd980!important;-webkit-text-fill-color:#ffd980!important" id="ta_zi_'+ri+'" value="'+(sv.zi||'')+'"></td>';
     if(isRS){
-      rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_ses_'+ri+'" value="'+(sv.ses||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_ses_'+ri+'" value="'+(sv.ses||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
     } else if(isMC){
-      rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
     } else if(isSp){
-      rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_mini_'+ri+'" value="'+(sv.mini||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_mini_'+ri+'" value="'+(sv.mini||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
     } else {
-      rows+='<td><input class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_wae_'+ri+'" value="'+(sv.wae||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
-      rows+='<td><input class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_gr_'+ri+'" value="'+(sv.gr||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_chk_'+ri+'" value="'+(sv.chk||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_pub_'+ri+'" value="'+(sv.pub||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_wae_'+ri+'" value="'+(sv.wae||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_son_'+ri+'" value="'+(sv.son||'')+'"></td>';
+      rows+='<td><input style="color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;background:#0d1525!important" class="ti" type="number" min="0" id="ta_auf_'+ri+'" value="'+(sv.auf||'')+'"></td>';
     }
-    rows+='<td><input class="ti ai" id="ta_ist_'+ri+'" readonly value="'+(sv.ist||'')+'"></td></tr>';
+    rows+='<td><input style="color:#81c784!important;-webkit-text-fill-color:#81c784!important;background:#0d1525!important;cursor:default" class="ti ai" id="ta_ist_'+ri+'" readonly value="'+(sv.ist||'')+'"></td></tr>';
   }
   // Gesamt row
   var gcols=isRS?['zi','gr','ses','chk','pub','son','auf']:isMC?['zi','gr','chk','pub']:isSp?['zi','gr','mini','chk','pub','son','auf']:['zi','gr','chk','pub','wae','son','auf'];
