@@ -2236,23 +2236,35 @@ function saveTa(){
   // 1. Alle Felder neu berechnen
   for(var ri=0;ri<TA_ROWS;ri++){if(getTaName(ri))taCalc(ri);}
 
-  // 2. Zeilen sammeln (nach taCalc - ist-Stunden sind jetzt korrekt)
+  // 2. Zeilen sammeln - ist direkt berechnen (nicht aus DOM lesen)
+  var cfg0=getCfg(hotel);
+  var _typ=hotelTyp(hotel),_isRS=_typ==='rs',_isSp=_typ==='spark',_isMC=_typ==='mc';
   var rows=[];
   for(var ri2=0;ri2<TA_ROWS;ri2++){
     var nm=getTaName(ri2);if(!nm)continue;
-    rows.push({
-      name:nm,
-      zi:parseFloat(gv('ta_zi_'+ri2))||0,
-      gr:parseFloat(gv('ta_gr_'+ri2))||0,
-      ses:parseFloat(gv('ta_ses_'+ri2))||0,
-      chk:parseFloat(gv('ta_chk_'+ri2))||0,
-      pub:parseFloat(gv('ta_pub_'+ri2))||0,
-      wae:parseFloat(gv('ta_wae_'+ri2))||0,
-      son:parseFloat(gv('ta_son_'+ri2))||0,
-      auf:parseFloat(gv('ta_auf_'+ri2))||0,
-      mini:parseFloat(gv('ta_mini_'+ri2))||0,
-      ist:parseFloat(gv('ta_ist_'+ri2))||0
-    });
+    // Alle Werte aus DOM lesen
+    var _zi=parseFloat(gv('ta_zi_'+ri2))||0;
+    var _gr=parseFloat(gv('ta_gr_'+ri2))||0;
+    var _ses=parseFloat(gv('ta_ses_'+ri2))||0;
+    var _chk=parseFloat(gv('ta_chk_'+ri2))||0;
+    var _pub=parseFloat(gv('ta_pub_'+ri2))||0;
+    var _wae=parseFloat(gv('ta_wae_'+ri2))||0;
+    var _son=parseFloat(gv('ta_son_'+ri2))||0;
+    var _auf=parseFloat(gv('ta_auf_'+ri2))||0;
+    var _mini=parseFloat(gv('ta_mini_'+ri2))||0;
+    // ist aus DOM oder direkt berechnen
+    var _ist=parseFloat(gv('ta_ist_'+ri2))||0;
+    if(!_ist&&(_zi||_gr)){
+      // Fallback: direkt berechnen ohne DOM
+      if(_isRS) _ist=_zi/(cfg0.ziH||2.5)+_gr/(cfg0.aptH||2.0)+_ses*(cfg0.sesH||1.0)+_chk*(cfg0.ckMin||4)/60+_pub+_son+(cfg0.pub||0);
+      else if(_isSp) _ist=_zi/(cfg0.ziH||3)+_gr/(cfg0.ziH||3)+_mini*(cfg0.miniMin||3)/60+_chk*(cfg0.ckMin||4)/60+_pub+_son+(cfg0.pub||0);
+      else if(_isMC) _ist=_zi/(cfg0.ziH||3.5)+_gr/(cfg0.ziH||3.5)+_chk*(cfg0.ckMin||4)/60+_pub+(cfg0.pub||0);
+      else _ist=_zi/(cfg0.ziH||2.5)+_gr/(cfg0.grH||cfg0.ziH||2.5)+_chk*(cfg0.ckMin||4)/60+_pub+_son+(cfg0.pub||0);
+      _ist=Math.round(_ist*100)/100;
+    }
+    // Name normalisieren: trim + collapse spaces
+    var _nm=nm.trim().replace(/\s+/g,' ');
+    rows.push({name:_nm,zi:_zi,gr:_gr,ses:_ses,chk:_chk,pub:_pub,wae:_wae,son:_son,auf:_auf,mini:_mini,ist:_ist});
   }
   if(!rows.length){toast('Keine Mitarbeiter eingegeben!','err');return;}
 
@@ -2274,7 +2286,7 @@ function saveTa(){
   // 5. updateStundenzettel - jeden MA verarbeiten
   var cfg=getCfg(hotel);
   rows.forEach(function(row){
-    taAutoTransferRow(row,cfg,hotel,monat,dayKey);
+    taAutoTransferRow(row,cfg0,hotel,monat,dayKey);
   });
 
   // 6. updateLeistungsuebersicht - Tagessumme berechnen
