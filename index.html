@@ -2598,7 +2598,7 @@ function saveTa(){
   toast('✅ Gespeichert! SZ:'+szCount+' MA · LU:'+luZi+' Zi'+(hasR1?' · SUB✓':''),'ok',4000);
 
   // 12. Tab sofort aktualisieren
-  DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now()};
+  DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now(),firstMa:rows.length>0?rows[0].name:''};
   setTimeout(function(){
     try{
       if(currentTab==='sz'){
@@ -2722,6 +2722,24 @@ function pgSz(){
     var pnrEl=ge('sz-pnr-edit');
     if(pnrEl)pnrEl.value=rec&&rec.pnr?rec.pnr:'-';
   };
+  // Nach TA-Save: ersten MA mit Daten automatisch auswählen und anzeigen
+  if(DATA._lastSaved&&DATA._lastSaved.hotel===hotel&&Date.now()-DATA._lastSaved.ts<120000){
+    var _firstMa=DATA._lastSaved.firstMa||'';
+    var _sel=ge('sz-ma-sel');
+    if(_sel&&_firstMa){
+      // Suche exakt oder per safeKey
+      var _found=false;
+      for(var _i=0;_i<_sel.options.length;_i++){
+        if(_sel.options[_i].value===_firstMa||safeKey(_sel.options[_i].value)===safeKey(_firstMa)){
+          _sel.selectedIndex=_i;_found=true;break;
+        }
+      }
+      if(!_found&&_sel.options.length>0)_sel.selectedIndex=0;
+    }
+    setTimeout(function(){if(typeof szReload==='function')szReload();},100);
+  } else {
+    szReload();
+  }
 
   // Personalnummer speichern
   var btnPnr=ge('btn-sz-pnr-save');
@@ -6020,6 +6038,7 @@ function printAsPdf(){
   // Personalnummer aus MA-Daten holen
   var maRec2=(DATA.ma[hotel]||[]).filter(function(m){return m.name===maName;})[0];
   var pnrPrint=maRec2&&maRec2.pnr?maRec2.pnr:'';
+  var monP2=mon.split('-'),yr=parseInt(monP2[0]),mo=parseInt(monP2[1]);
   var monNm=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var datStr=monNm[mo]+' '+yr;
   var tage=[],totIst=0,totZi=0,totGr=0;
