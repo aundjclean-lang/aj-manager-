@@ -2562,36 +2562,17 @@ function saveTa(){
   var hasR1=DATA.r1[hotel]&&DATA.r1[hotel][monat]&&DATA.r1[hotel][monat][dayKey]&&DATA.r1[hotel][monat][dayKey].length>0;
   toast('✅ Gespeichert! SZ:'+szCount+' MA · LU:'+luZi+' Zi'+(hasR1?' · SUB✓':''),'ok',4000);
 
-  // 12. Tab sofort aktualisieren - egal auf welchem Tab
+  // 12. Tab sofort aktualisieren
+  DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now()};
   setTimeout(function(){
     try{
-      // Immer pgSz/pgLu/pgR1 neu laden damit neue Daten sofort sichtbar
       if(currentTab==='sz')pgSz();
       else if(currentTab==='lu')pgLu();
       else if(currentTab==='r1')pgR1();
       else if(currentTab==='ta')pgTa();
       else if(currentTab==='dash')pgDash();
     }catch(e){}
-    DATA._lastSaved={hotel:hotel,monat:monat,dayKey:dayKey,ts:Date.now()};
   },400);
-}
-
-// Wenn TL auf SZ/LU/R1 Tab wechselt nach dem Speichern → sofort richtige Daten zeigen
-var _origSwitchTab=switchTab;
-function switchTab(id){
-  _origSwitchTab(id);
-  // Nach TA-Save: wenn auf SZ/LU/R1 gewechselt → kurz warten und Daten neu laden
-  if(DATA._lastSaved&&Date.now()-DATA._lastSaved.ts<30000){
-    if(id==='sz'||id==='lu'||id==='r1'){
-      setTimeout(function(){
-        try{
-          if(id==='sz')pgSz();
-          else if(id==='lu')pgLu();
-          else if(id==='r1')pgR1();
-        }catch(e){}
-      },200);
-    }
-  }
 }
 
 // Legacy alias
