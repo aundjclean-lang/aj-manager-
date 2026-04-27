@@ -216,17 +216,20 @@ input::placeholder,textarea::placeholder{color:var(--muted)!important;-webkit-te
         </select>
       </div>
       <div style="margin-bottom:14px"><label class="lbl">Name</label><input class="inp" id="v-name" placeholder="Dein Name" autocomplete="off"></div>
-      <div style="margin-bottom:14px"><label class="lbl">Passwort</label><input class="inp" id="v-pw" type="password" placeholder="Passwort"></div>
-      <div id="v-err" style="display:none;font-size:0.68rem;color:var(--red);margin-bottom:10px"></div>
-      <a href="javascript:void(0)" class="role-btn gold" onclick="doTlLogin()"><span>🔐</span><span class="role-name">Einloggen</span></a>
-      <a href="javascript:void(0)" class="role-btn" style="margin-top:6px" onclick="showMain()"><span>←</span><span class="role-name" style="color:var(--muted)">Zurück</span></a>
-    </div>
-    <div id="login-chef-form" style="display:none">
-      <div style="margin-bottom:14px"><label class="lbl">Passwort</label><input class="inp" id="c-pw" type="password" placeholder="Chef-Passwort"></div>
-      <div id="c-err" style="display:none;font-size:0.68rem;color:var(--red);margin-bottom:10px"></div>
-      <a href="javascript:void(0)" class="role-btn gold" onclick="doChefLogin()"><span>🔐</span><span class="role-name">Als Chef einloggen</span></a>
-      <a href="javascript:void(0)" class="role-btn" style="margin-top:6px" onclick="showMain()"><span>←</span><span class="role-name" style="color:var(--muted)">Zurück</span></a>
-    </div>
+
+```
+  <div id="v-err" style="display:none;font-size:0.68rem;color:var(--red);margin-bottom:10px"></div>
+  <a href="javascript:void(0)" class="role-btn gold" onclick="doTlLogin()"><span>🔐</span><span class="role-name">Einloggen</span></a>
+  <a href="javascript:void(0)" class="role-btn" style="margin-top:6px" onclick="showMain()"><span>←</span><span class="role-name" style="color:var(--muted)">Zurück</span></a>
+</div>
+<div id="login-chef-form" style="display:none">
+
+  <div id="c-err" style="display:none;font-size:0.68rem;color:var(--red);margin-bottom:10px"></div>
+  <a href="javascript:void(0)" class="role-btn gold" onclick="doChefLogin()"><span>🔐</span><span class="role-name">Als Chef einloggen</span></a>
+  <a href="javascript:void(0)" class="role-btn" style="margin-top:6px" onclick="showMain()"><span>←</span><span class="role-name" style="color:var(--muted)">Zurück</span></a>
+</div>
+```
+
   </div>
 </div>
 
@@ -384,9 +387,6 @@ function doTlLogin(){
   if(!hotel){err.textContent='Hotel auswählen!';err.style.display='block';return;}
   if(!name){err.textContent='Name eingeben!';err.style.display='block';return;}
   // Check password if set
-  var tls=[];try{tls=JSON.parse(localStorage.getItem('aj_tls')||'[]');}catch(e){}
-  var rec=tls.filter(function(t){return t.name===name&&t.hotel===hotel;})[0];
-  if(rec&&rec.pw&&pw!==rec.pw){err.textContent='Falsches Passwort!';err.style.display='block';return;}
   err.style.display='none';
   var n=new Date();
   var loginTime=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+' Uhr';
@@ -397,10 +397,7 @@ function doTlLogin(){
 }
 function doChefLogin(){
   var pw=(gv('c-pw')||'').trim();
-  var stored=localStorage.getItem('aj_chef_pw')||'chef123';
-  var err=ge('c-err');
-  if(pw!==stored){err.textContent='Falsches Passwort!';err.style.display='block';return;}
-  err.style.display='none';
+  var err=ge('c-err');err.style.display='none';
   USER={role:'chef',hotel:Object.keys(HOTELS)[0],name:'Akram'};
   startApp();
 }
@@ -438,8 +435,9 @@ function buildTabs(){
     {id:'ta',label:'Tagesabr.'},
     {id:'sz',label:'Stundenzettel'},
     {id:'lu',label:'Leistung'},
-    {id:'r1',label:'Subunternehmer'},
+    {id:'r1',label:'Sub'},
     {id:'dp',label:'Dienstplan'},
+    {id:'team',label:'Team'},
     {id:'admin',label:'Admin'},
   ];
   var list=USER.role==='chef'?chef:tl;
@@ -460,7 +458,7 @@ function switchTab(id){
   for(var i=0;i<allTabs.length;i++)allTabs[i].className='tab';
   var at=ge('tab-'+id);if(at)at.className='tab on';
   var c=ge('content');if(c)c.innerHTML='<div class="card"><div class="empty" style="padding:20px">Lädt...</div></div>';
-  var pages={ta:pgTa,sz:pgSz,lu:pgLu,dp:pgDp,dash:pgDash,live:pgLive,r1:pgR1,admin:pgAdmin};
+  var pages={ta:pgTa,sz:pgSz,lu:pgLu,dp:pgDp,dash:pgDash,live:pgLive,r1:pgR1,admin:pgAdmin,team:pgTeam};
   try{if(pages[id])pages[id]();}
   catch(e){
     var c2=ge('content');
@@ -1493,6 +1491,264 @@ function szPrintAll(monat){
 
 function saveChefPw(){var v=ge('a-cpw');if(v)localStorage.setItem('aj_chef_pw',v.value);toast('Gespeichert','ok');}
 function changeChefHotel(sel){USER.chefHotel=sel.value;var t=ge('tb-hotel');if(t)t.textContent=sel.value;}
+
+// ============================================================
+// NRW FEIERTAGE
+// ============================================================
+function getNRWHolidays(yr){
+  var h={};
+  var easter=getEaster(yr);
+  var E=function(d){var e=new Date(easter);e.setDate(e.getDate()+d);return e.toISOString().slice(0,10);};
+  [E(-2),E(0),E(1),E(39),E(49),E(50),E(60)].forEach(function(d){h[d]=1;});
+  h[yr+'-01-01']=1;h[yr+'-05-01']=1;h[yr+'-10-03']=1;
+  h[yr+'-11-01']=1;h[yr+'-12-25']=1;h[yr+'-12-26']=1;
+  return h;
+}
+function getEaster(yr){
+  var a=yr%19,b=Math.floor(yr/100),c=yr%100,d=Math.floor(b/4),e=b%4;
+  var f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30;
+  var i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7;
+  var m=Math.floor((a+11*h+22*l)/451);
+  var mo=Math.floor((h+l-7*m+114)/31),dy=(h+l-7*m+114)%31+1;
+  return new Date(yr,mo-1,dy);
+}
+
+// ============================================================
+// WHATSAPP
+// ============================================================
+function waShare(text){
+  var url='https://wa.me/?text='+encodeURIComponent(text);
+  window.open(url,'_blank');
+}
+function szWaText(maName,monat,hotel){
+  var szH=DATA.sz[hotel]||{};
+  var mk=sk(maName);
+  var mData=(szH[maName]&&szH[maName][monat])||(szH[mk]&&szH[mk][monat])||{tage:{},istGes:0,ziGes:0};
+  var txt='Stundenzettel '+maName+'\n'+monat+' | '+hotel+'\n\n';
+  var tage=mData.tage||{};
+  var monParts=(monat||'').split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
+  for(var day=1;day<=31;day++){
+    var dt=new Date(yr,mo-1,day);
+    if(dt.getMonth()!==mo-1)continue;
+    var kd=dkey(day);
+    var sv=tage[kd]||tage[String(day)];
+    if(!sv||!sv.ist)continue;
+    var dow=['So','Mo','Di','Mi','Do','Fr','Sa'][dt.getDay()];
+    txt+=day+'.'+dow+': '+sv.von+'–'+sv.bis+' | '+sv.ist+'h | '+sv.zi+' Zi\n';
+  }
+  txt+='\nGesamt: '+mData.istGes+'h | '+mData.ziGes+' Zi';
+  return txt;
+}
+
+// ============================================================
+// UNTERSCHRIFT (CANVAS)
+// ============================================================
+function sigInit(canvasId,hintId,statusId){
+  var canvas=ge(canvasId);if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var drawing=false;
+  var hint=ge(hintId);
+  function getPos(e){
+    var r=canvas.getBoundingClientRect();
+    var t=e.touches?e.touches[0]:e;
+    return{x:(t.clientX-r.left)*(canvas.width/r.width),y:(t.clientY-r.top)*(canvas.height/r.height)};
+  }
+  function start(e){e.preventDefault();drawing=true;var p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);if(hint)hint.style.display='none';}
+  function move(e){e.preventDefault();if(!drawing)return;var p=getPos(e);ctx.lineWidth=2;ctx.strokeStyle='#c9a84c';ctx.lineCap='round';ctx.lineTo(p.x,p.y);ctx.stroke();}
+  function stop(e){if(!drawing)return;drawing=false;var s=ge(statusId);if(s)s.textContent='✓ Unterschrift gesetzt';}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',stop);
+  // Set canvas size
+  canvas.width=canvas.offsetWidth||300;canvas.height=80;
+}
+function sigClear(canvasId,hintId,statusId){
+  var canvas=ge(canvasId);if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  var h=ge(hintId);if(h)h.style.display='';
+  var s=ge(statusId);if(s)s.textContent='';
+}
+
+// ============================================================
+// DIENSTPLAN (VOLLSTÄNDIG)
+// ============================================================
+function pgDp(){
+  var c=ge('content');if(!c)return;
+  var hotel=(USER.role==='chef'&&USER.chefHotel)?USER.chefHotel:USER.hotel;
+  var now=new Date();
+  var thisM=now_ym();
+  var maList=[];
+  Object.keys(DATA.sz[hotel]||{}).forEach(function(mk){
+    var n=(DATA.sz[hotel][mk].name)||mk.replace(/_/g,' ');
+    if(maList.indexOf(n)<0)maList.push(n);
+  });
+  (DATA.ma[hotel]||[]).forEach(function(m){if(m.name&&maList.indexOf(m.name)<0)maList.push(m.name);});
+
+  var dp=DATA.dp[hotel]||{};
+  var dpM=dp[thisM]||{};
+
+  var html='<div class="card"><div class="card-hd">Dienstplan</div>';
+  html+='<div class="row"><div class="col" style="max-width:160px"><label class="lbl">Monat</label>';
+  html+='<input type="month" class="inp" id="dp-mon" value="'+thisM+'"></div>';
+  if(USER.role==='chef'||USER.role==='tl'){
+    html+='<div class="col" style="max-width:200px"><label class="lbl">MA hinzufügen</label>';
+    html+='<input class="inp" id="dp-new-ma" placeholder="Name" list="dp-ma-list">';
+    html+='<datalist id="dp-ma-list">';
+    maList.forEach(function(m){html+='<option value="'+m+'">'+m+'</option>';});
+    html+='</datalist></div>';
+  }
+  html+='</div>';
+  html+='<div class="btn-row"><button class="btn sm" id="btn-dp-add">+ Hinzufügen</button>';
+  html+='<button class="btn sm" id="btn-dp-save">💾 Speichern</button>';
+  html+='<button class="btn sm" id="btn-dp-print">🖶 Drucken A4</button></div></div>';
+  html+='<div id="dp-body"></div>';
+
+  c.innerHTML=html;
+  ge('dp-mon').onchange=function(){dpLoad(this.value);};
+  ge('btn-dp-add').onclick=function(){
+    var nm=(gv('dp-new-ma')||'').trim();
+    if(!nm)return;
+    var mon=gv('dp-mon')||thisM;
+    if(!DATA.dp[hotel])DATA.dp[hotel]={};
+    if(!DATA.dp[hotel][mon])DATA.dp[hotel][mon]={};
+    if(!DATA.dp[hotel][mon][nm])DATA.dp[hotel][mon][nm]=[];
+    dpLoad(mon);
+  };
+  ge('btn-dp-save').onclick=function(){dpSave();};
+  ge('btn-dp-print').onclick=function(){dpPrint();};
+  dpLoad(thisM);
+}
+
+function dpLoad(monat){
+  var wrap=ge('dp-body');if(!wrap)return;
+  var hotel=(USER.role==='chef'&&USER.chefHotel)?USER.chefHotel:USER.hotel;
+  var dp=DATA.dp[hotel]||{};
+  var dpM=dp[monat]||{};
+  var monParts=(monat||'').split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
+  var maList=Object.keys(dpM);
+  // Also add from sz
+  Object.keys(DATA.sz[hotel]||{}).forEach(function(mk){
+    var n=(DATA.sz[hotel][mk].name)||mk.replace(/_/g,' ');
+    if(maList.indexOf(n)<0)maList.push(n);
+  });
+
+  if(!maList.length){
+    wrap.innerHTML='<div class="card"><div class="empty">Keine MA. Mitarbeiter über "Hinzufügen" eintragen.</div></div>';
+    return;
+  }
+
+  var quick=['F','S','N','X','K','U',''];
+  var html='<div class="card"><div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:0.72rem;min-width:600px">';
+  html+='<thead><tr><th style="background:var(--bg4);color:var(--gold);padding:5px 8px;text-align:left;font-weight:500;font-size:0.56rem;border:1px solid var(--border)">MA</th>';
+  for(var day=1;day<=31;day++){
+    var dt=new Date(yr,mo-1,day);
+    if(dt.getMonth()!==mo-1)continue;
+    var dow=['S','M','D','M','D','F','S'][dt.getDay()];
+    var isWE=dt.getDay()===0||dt.getDay()===6;
+    html+='<th style="background:var(--bg4);color:'+(isWE?'var(--gold)':'var(--muted)')+';padding:3px 2px;text-align:center;font-size:0.52rem;min-width:28px;border:1px solid var(--border)">'+day+'<br>'+dow+'</th>';
+  }
+  html+='<th style="background:var(--bg4);color:var(--muted);padding:3px 4px;font-size:0.52rem;border:1px solid var(--border)">Del</th>';
+  html+='</tr></thead><tbody>';
+
+  maList.forEach(function(ma,i){
+    var maData=dpM[ma]||{};
+    html+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'"><td style="padding:4px 8px;font-weight:600;color:var(--cream);border:1px solid var(--border);white-space:nowrap">'+ma+'</td>';
+    for(var day=1;day<=31;day++){
+      var dt2=new Date(yr,mo-1,day);
+      if(dt2.getMonth()!==mo-1)continue;
+      var isWE2=dt2.getDay()===0||dt2.getDay()===6;
+      var val=maData[day]||'';
+      var bg=val==='F'?'rgba(61,186,118,0.15)':val==='K'?'rgba(224,82,82,0.15)':val==='U'?'rgba(74,159,212,0.15)':isWE2?'rgba(201,168,76,0.08)':'';
+      html+='<td style="padding:0;border:1px solid var(--border);background:'+bg+'">';
+      html+='<select class="inp" data-dp-ma="'+ma+'" data-dp-day="'+day+'" style="background:transparent!important;border:none;padding:2px 1px;font-size:0.68rem;color:var(--cream)!important;-webkit-text-fill-color:var(--cream)!important;width:100%;text-align:center;min-width:28px">';
+      quick.forEach(function(q){html+='<option'+(q===val?' selected':'')+'>'+q+'</option>';});
+      html+='</select></td>';
+    }
+    html+='<td style="padding:2px 4px;border:1px solid var(--border);text-align:center"><button class="btn sm red" onclick="dpDelMA(\''+monat+'\',\''+ma+'\')">×</button></td>';
+    html+='</tr>';
+  });
+  html+='</tbody></table></div></div>';
+  wrap.innerHTML=html;
+}
+
+function dpDelMA(monat,ma){
+  var hotel=(USER.role==='chef'&&USER.chefHotel)?USER.chefHotel:USER.hotel;
+  if(!confirm('Dienstplan von '+ma+' löschen?'))return;
+  if(DATA.dp[hotel]&&DATA.dp[hotel][monat])delete DATA.dp[hotel][monat][ma];
+  save();dpLoad(monat);
+}
+
+function dpSave(){
+  var hotel=(USER.role==='chef'&&USER.chefHotel)?USER.chefHotel:USER.hotel;
+  var monat=gv('dp-mon')||now_ym();
+  if(!DATA.dp[hotel])DATA.dp[hotel]={};
+  if(!DATA.dp[hotel][monat])DATA.dp[hotel][monat]={};
+  var sels=document.querySelectorAll('[data-dp-ma]');
+  for(var i=0;i<sels.length;i++){
+    var el=sels[i];
+    var ma=el.getAttribute('data-dp-ma');
+    var day=parseInt(el.getAttribute('data-dp-day'));
+    var val=el.value||'';
+    if(!DATA.dp[hotel][monat][ma])DATA.dp[hotel][monat][ma]={};
+    if(val)DATA.dp[hotel][monat][ma][day]=val;
+    else delete DATA.dp[hotel][monat][ma][day];
+  }
+  save();
+  fbPut('hotels/'+sk(hotel)+'/dp',DATA.dp[hotel]);
+  toast('✅ Dienstplan gespeichert','ok');
+}
+
+function dpPrint(){
+  var hotel=(USER.role==='chef'&&USER.chefHotel)?USER.chefHotel:USER.hotel;
+  var monat=gv('dp-mon')||now_ym();
+  var dp=DATA.dp[hotel]&&DATA.dp[hotel][monat]||{};
+  var maList=Object.keys(dp);
+  if(!maList.length){toast('Keine Daten','err');return;}
+  var monParts=(monat||'').split('-'),yr=parseInt(monParts[0]),mo=parseInt(monParts[1]);
+  var monNames=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  var days=[];
+  for(var d=1;d<=31;d++){var dt=new Date(yr,mo-1,d);if(dt.getMonth()===mo-1)days.push(d);}
+  var css='body{font-family:Arial,sans-serif;font-size:10px;color:#000}h2{font-size:12px;margin-bottom:5px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:3px;text-align:center;font-size:9px}th{background:#1a2e6b;color:#c8a84b}.we{background:#fff8e7}.F{background:#d4edda}.K{background:#f8d7da}.U{background:#d1ecf1}';
+  var head='<tr><th style="text-align:left;min-width:80px">Mitarbeiter</th>';
+  days.forEach(function(d){var dt=new Date(yr,mo-1,d);var dow=['S','M','D','M','D','F','S'][dt.getDay()];head+='<th>'+d+'<br>'+dow+'</th>';});
+  head+='</tr>';
+  var rows='';
+  maList.forEach(function(ma,i){
+    rows+='<tr style="'+(i%2?'background:#f9f9f9':'')+'"><td style="text-align:left;font-weight:600">'+ma+'</td>';
+    days.forEach(function(d){var val=(dp[ma]&&dp[ma][d])||'';rows+='<td class="'+(val==='F'?'F':val==='K'?'K':val==='U'?'U':new Date(yr,mo-1,d).getDay()===0||new Date(yr,mo-1,d).getDay()===6?'we':'')+'">'+val+'</td>';});
+    rows+='</tr>';
+  });
+  var leg='<div style="margin-top:8px;font-size:9px;color:#555">F=Früh · S=Spät · N=Nacht · X=Frei · K=Krank · U=Urlaub</div>';
+  prtBase('<style>'+css+'@page{size:A4 landscape;margin:8mm}<\/style><h2>Dienstplan — '+monNames[mo]+' '+yr+' — '+hotel+'<\/h2><table>'+head+rows+'<\/table>'+leg);
+}
+
+// ============================================================
+// TEAM (TL LISTE FÜR CHEF)
+// ============================================================
+function pgTeam(){
+  var c=ge('content');if(!c)return;
+  var html='<div class="card"><div class="card-hd">Team — Teamleader</div>';
+  var tls=[];try{tls=JSON.parse(localStorage.getItem('aj_tls')||'[]');}catch(e){}
+  if(!tls.length){
+    html+='<div class="empty">Keine Teamleader angelegt.<br><a href="#" onclick="switchTab(\'admin\')">→ Admin → Teamleader hinzufügen</a></div>';
+  } else {
+    html+='<table style="width:100%;border-collapse:collapse;font-size:0.78rem">';
+    html+='<tr style="background:var(--bg4)"><th style="padding:8px;text-align:left;color:var(--muted);font-size:0.56rem;font-weight:500">Name</th><th style="padding:8px;text-align:left;color:var(--muted);font-size:0.56rem;font-weight:500">Hotel</th><th style="padding:8px;text-align:center;color:var(--muted);font-size:0.56rem;font-weight:500">Status</th></tr>';
+    tls.forEach(function(tl,i){
+      var online=DATA.online&&DATA.online[tl.hotel];
+      var onlineTL=online&&Object.values(online).filter(function(o){return o.name===tl.name;})[0];
+      html+='<tr style="'+(i%2?'background:rgba(0,0,0,0.2)':'')+'border-bottom:1px solid var(--border)">';
+      html+='<td style="padding:8px;font-weight:600">'+tl.name+'</td>';
+      html+='<td style="padding:8px;font-size:0.7rem;color:var(--muted)">'+tl.hotel+'</td>';
+      html+='<td style="padding:8px;text-align:center">'+(onlineTL?'<span style="color:var(--green);font-size:0.62rem">🟢 '+onlineTL.loginTime+'</span>':'<span style="color:var(--muted);font-size:0.62rem">○ offline</span>')+'</td>';
+      html+='</tr>';
+    });
+    html+='</table>';
+  }
+  html+='</div>';
+  c.innerHTML=html;
+}
+
 </script>
 
 </body>
