@@ -597,163 +597,146 @@ function fbPush(){
 }
 
 function fbPollNow(){
-  if(!USER||!FIREBASE_BASE||FB_DISABLED)return;
-  try{
-    if(USER.role==='chef'){
-      console.log('[CHEF POLL] Starte Poll...');
-      fbGet('chef/inbox/tagesabrechnung',function(inbox){
-        console.log('[CHEF POLL] Inbox erhalten:', inbox?Object.keys(inbox).length:'NULL', 'Einträge');
-        if(!inbox||typeof inbox!=='object')return;
-        // Cache in localStorage
-        try{
-          var cached={};
-          try{cached=JSON.parse(localStorage.getItem('aj_chef_inbox')||'{}');}catch(ex){}
-          Object.keys(inbox).forEach(function(k){cached[k]=inbox[k];});
-          localStorage.setItem('aj_chef_inbox',JSON.stringify(cached));
-          // Auch in DATA.ta mergen
-          Object.keys(inbox).forEach(function(k){
-            var ta=inbox[k];
-            if(!ta||!ta.hotel||!ta.datum)return;
-            if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};
-            DATA.ta[ta.hotel][ta.datum]=ta;
-          });
-        }catch(ex){}
-        if(!window._seenInbox)window._seenInbox={};
-        var hasNew=false;
-        Object.keys(inbox).forEach(function(key){
-          var ta=inbox[key];if(!ta)return;
-          // IMMER TA in DATA mergen
-          if(ta.hotel&&ta.datum){
-            if(!DATA.ta[ta.hotel])DATA.ta[ta.hotel]={};
-            DATA.ta[ta.hotel][ta.datum]=ta;
-          }
-          // SZ+LU+SUB nur bei neuen Einträgen
-          if(!window._seenInbox[key]){
-            window._seenInbox[key]=true;
+  if(FB_DISABLED||!USER||USER.role!=='chef')return;
+  
+  // Get all hotel data
+  fbGet('hotels', function(data){
+    if(!data||typeof data!=='object')return;
+    
+    var dot=ge('fb-live-dot');
+    if(dot)dot.style.background='#3fb950';
+    
+    var hasNew=false;
+    Object.keys(data).forEach(function(hk){
+      var hdata=data[hk];
+      if(!hdata)return;
+      
+      // Find hotel name from key
+      var hotelName='';
+      Object.keys(HOTELS).forEach(function(h){
+        if(safeKey(h)===hk)hotelName=h;
+      });
+      if(!hotelName)return;
+      
+      // Merge TA
+      if(hdata.tagesabrechnung){
+        if(!DATA.ta[hotelName])DATA.ta[hotelName]={};
+        Object.keys(hdata.tagesabrechnung).forEach(function(dk){
+          var ta=hdata.tagesabrechnung[dk];
+          if(ta&&!DATA.ta[hotelName][dk]){
+            DATA.ta[hotelName][dk]=ta;
             hasNew=true;
-            if(ta.rows&&ta.hotel&&ta.datum){
-              var _h=ta.hotel;
-              var _d=ta.datum;
-              var _m='',_dk='';
-              if(_d.indexOf('.')>=0){
-                var _p=_d.split('.');
-                _m=(_p[2]||'2026')+'-'+String(_p[1]||1).padStart(2,'0');
-                _dk='d'+String(_p[0]||'01').padStart(2,'0');
-              } else if(_d.length>=10){
-                _m=_d.slice(0,7);
-                _dk='d'+_d.slice(8,10);
-              }
-              if(_m&&_dk){
-                var _cfg=getCfg(_h);
-                ta.rows.forEach(function(row){
-                  var r2={
-                    name:row.name||'',
-                    zi:Number(row.zimmer||row.zi||0),
-                    gr:Number(row.grundrein||row.gr||0),
-                    chk:Number(row.check||row.chk||0),
-                    pub:Number(row.publik||row.pub||0),
-                    son:Number(row.sonder||row.son||0),
-                    wae:Number(row.waesche||row.wae||0),
-                    auf:Number(row.aufbett||row.auf||0),
-                    ses:Number(row.sessel||row.ses||0),
-                    mini:Number(row.mini||0),
-                    ist:Number(row.istStd||row.ist||0)
-                  };
-                  if(!r2.name)return;
-                  if(!r2.ist&&(r2.zi||r2.gr)){
-                    var _t=hotelTyp(_h);
-                    if(_t==='rs')r2.ist=r2.zi/(_cfg.ziH||2.5)+r2.gr/(_cfg.aptH||2.0);
-                    else r2.ist=r2.zi/(_cfg.ziH||2.5)+r2.gr/(_cfg.ziH||2.5);
-                    r2.ist=Math.round(r2.ist*100)/100;
-                  }
-                  try{taAutoTransferRow(r2,_cfg,_h,_m,_dk);}catch(e){}
-                  try{updateSubunternehmer(r2,_h,_m,_dk);}catch(e){}
-                });
-                try{updateLeistungsuebersicht(_h,_m,_dk);}catch(e){}
-              }
-            }
-            toast('📋 Neu: '+(ta.hotel||'')+' · '+(ta.datum||'')+' von '+(ta.tl||ta.createdBy||'?'),'info',5000);
           }
         });
-        if(hasNew){
-          try{saveData();}catch(e){}
-          setTimeout(function(){
-            if(currentTab==='dash')pgDash();
-            else if(currentTab==='live')pgLive();
-            else if(currentTab==='sz')pgSz();
-            else if(currentTab==='lu')pgLu();
-            else if(currentTab==='ta')pgTa();
-          },300);
-        }
-      });
-      fbGet('hotels',function(val){
-        if(!val||typeof val!=='object')return;
-        try{
-          Object.keys(val).forEach(function(hk){
-            var hd=val[hk];if(!hd||typeof hd!=='object')return;
-            Object.keys(HOTELS).forEach(function(hn){
-              if(safeKey(hn)!==hk)return;
-              // Online-Status
-              if(hd.online){if(!DATA.online)DATA.online={};DATA.online[hn]=hd.online;}
-              // Daten
-              ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
-                if(hd[k]&&typeof hd[k]==='object'){if(!DATA[k])DATA[k]={};DATA[k][hn]=hd[k];}
-              });
-            });
-          });
-          try{localStorage.setItem('aj4',JSON.stringify(DATA));}catch(e){}
-          if(currentTab==='dash')pgDash();
-          else if(currentTab==='sz')pgSz();
-          else if(currentTab==='lu')pgLu();
-          else if(currentTab==='ta')pgTa();
-          else if(currentTab==='live')pgLive();
-        }catch(e){console.warn('[fbPoll] merge:',e.message);}
-      });
-      fbGet('global/krankmeldung',function(km){
-        if(!km||typeof km!=='object')return;
-        try{var l=JSON.parse(localStorage.getItem('aj_krankmeldung')||'{}');localStorage.setItem('aj_krankmeldung',JSON.stringify(Object.assign({},km,l)));}catch(e){}
-      });
-      fbGet('global/urlaub',function(ur){
-        if(!ur||typeof ur!=='object')return;
-        try{var l2=JSON.parse(localStorage.getItem('aj_urlaub')||'{}');localStorage.setItem('aj_urlaub',JSON.stringify(Object.assign({},ur,l2)));}catch(e){}
-      });
-      if(typeof checkFbNotifications==='function')try{checkFbNotifications();}catch(e){}
+      }
+      
+      // Merge SZ
+      if(hdata.sz){
+        if(!DATA.sz[hotelName])DATA.sz[hotelName]={};
+        Object.keys(hdata.sz).forEach(function(mk){
+          DATA.sz[hotelName][mk]=hdata.sz[mk];
+        });
+      }
+      
+      // Merge LU
+      if(hdata.lu){
+        if(!DATA.lu[hotelName])DATA.lu[hotelName]={};
+        Object.keys(hdata.lu).forEach(function(mon){
+          DATA.lu[hotelName][mon]=hdata.lu[mon];
+        });
+      }
+      
+      // Merge R1
+      if(hdata.r1){
+        if(!DATA.r1[hotelName])DATA.r1[hotelName]={};
+        Object.keys(hdata.r1).forEach(function(mon){
+          DATA.r1[hotelName][mon]=hdata.r1[mon];
+        });
+      }
+      
+      // Online status
+      if(hdata.online){
+        if(!DATA.online)DATA.online={};
+        DATA.online[hotelName]=hdata.online;
+      }
+    });
+    
+    // Save and refresh current tab
+    try{saveData();}catch(e){}
+    if(hasNew){
+      try{
+        if(currentTab==='dash')pgDash();
+        else if(currentTab==='live')pgLive();
+        else if(currentTab==='ta')pgTa();
+      }catch(e){}
     } else {
-      fbGet('hotels/'+safeKey(USER.hotel),function(val){
-        if(!val||typeof val!=='object')return;
-        try{
-          var hn=USER.hotel;
-          ['sz','ta','lu','r1','dp','ma','mb'].forEach(function(k){
-            if(val[k]&&typeof val[k]==='object'){if(!DATA[k])DATA[k]={};DATA[k][hn]=val[k];}
-          });
-          try{localStorage.setItem('aj4',JSON.stringify(DATA));}catch(e){}
-        }catch(e){console.warn('[fbPoll] TL:',e.message);}
-      });
+      try{
+        if(currentTab==='live')pgLive();
+        else if(currentTab==='dash')pgDash();
+      }catch(e){}
     }
-  }catch(e){console.warn('[fbPollNow]',e.message);}
+  }, function(){
+    // Firebase not reachable - silent
+    var dot=ge('fb-live-dot');
+    if(dot)dot.style.background='#888';
+  });
+  
+  // Also check inbox directly
+  fbGet('chef/inbox/tagesabrechnung', function(inbox){
+    if(!inbox||typeof inbox!=='object')return;
+    var hasInboxNew=false;
+    Object.keys(inbox).forEach(function(key){
+      var ta=inbox[key];
+      if(!ta||!ta.hotel)return;
+      var hotel=ta.hotel;
+      if(!DATA.ta[hotel])DATA.ta[hotel]={};
+      var datum=ta.datum||key;
+      if(!DATA.ta[hotel][datum]){
+        DATA.ta[hotel][datum]=ta;
+        // Auto-distribute to SZ/LU/SUB
+        try{
+          var cfg0=getCfg(hotel);
+          var monat='',dk='';
+          if(datum.indexOf('.')>=0){
+            var dp=datum.split('.');
+            monat=(dp[2]||new Date().getFullYear())+'-'+String(dp[1]||1).padStart(2,'0');
+            dk='d'+String(dp[0]||'01').padStart(2,'0');
+          }
+          if(ta.rows&&monat&&dk){
+            ta.rows.forEach(function(row){
+              if(row&&row.name)taAutoTransferRow(row,cfg0,hotel,monat,dk);
+            });
+            updateLeistungsuebersicht(hotel,monat,dk);
+            updateSubunternehmer(hotel,monat,dk);
+          }
+        }catch(e){}
+        hasInboxNew=true;
+      }
+    });
+    if(hasInboxNew){
+      try{saveData();}catch(e){}
+      try{
+        if(currentTab==='dash')pgDash();
+        else if(currentTab==='live')pgLive();
+      }catch(e){}
+    }
+  }, null);
 }
 
 var FB_POLL_STARTED=false;
 
 function fbStartPoll(){
-  // Guard: nur EINMAL starten
-  if(FB_POLL_STARTED){
-    console.log('[fbStartPoll] already running, skip');
-    return;
-  }
+  if(FB_POLL_STARTED)return;
   FB_POLL_STARTED=true;
   if(FB_POLL){clearInterval(FB_POLL);FB_POLL=null;}
-  // Sofort einmal holen
-  setTimeout(function(){
-    if(!FB_DISABLED)try{fbPollNow();}catch(e){console.warn('[fbPoll]',e.message);}
-  },800);
-  // Dann alle 6s
-  FB_POLL=setInterval(function(){
-    if(!FB_DISABLED&&USER){
-      try{fbPollNow();}catch(e){console.warn('[fbPoll interval]',e.message);}
-    }
-  },6000);
-  console.log('[fbStartPoll] gestartet');
+  setTimeout(function(){try{fbPollNow();}catch(e){}},800);
+  FB_POLL=setInterval(function(){try{fbPollNow();}catch(e){}},15000);
+
+
+
+
+
+
 }
 
 // ============================================================
@@ -2510,46 +2493,57 @@ function updateSubunternehmer(row,hotel,monat,dayKey){
   };
   if(idx>=0)list[idx]=entry;else list.push(entry);
 }
-function saveToFirebase(hotel,rows,payload,datumKey,inboxKey,ts){
+function saveToFirebase(hotel,monat,dayKey){
+  if(FB_DISABLED)return;
   var hk=safeKey(hotel);
-  // 1. Tagesabrechnung
-  fbPut('hotels/'+hk+'/tagesabrechnung/'+datumKey, payload,
-    function(){console.log('[FB] TA OK');},
-    function(e){console.warn('[FB] TA err:',e);}
-  );
-  // 2. Chef Inbox
-  fbPut('chef/inbox/tagesabrechnung/'+inboxKey, payload,
-    function(){console.log('[FB] Inbox OK');},
-    function(e){console.warn('[FB] Inbox err:',e);}
-  );
-  // 3. Stundenzettel
-  if(DATA.sz[hotel]&&Object.keys(DATA.sz[hotel]).length){
-    fbPut('hotels/'+hk+'/sz', fbClean(DATA.sz[hotel]),
-      function(){console.log('[FB] SZ OK');},
-      function(e){console.warn('[FB] SZ err:',e);}
-    );
+  if(!hk)return;
+  
+  // Helper: only send if data exists and is clean
+  function safePut(path, data){
+    if(!data)return;
+    var cleaned=fbClean(data);
+    if(!cleaned)return;
+    fbPut(path, cleaned, null, null);
   }
-  // 4. Leistungsübersicht
-  if(DATA.lu[hotel]&&Object.keys(DATA.lu[hotel]).length){
-    fbPut('hotels/'+hk+'/lu', fbClean(DATA.lu[hotel]),
-      function(){console.log('[FB] LU OK');},
-      function(e){console.warn('[FB] LU err:',e);}
-    );
+  
+  try{
+    // 1. Tagesabrechnung
+    if(DATA.ta[hotel]){
+      safePut('hotels/'+hk+'/tagesabrechnung', DATA.ta[hotel]);
+      // Chef Inbox
+      Object.keys(DATA.ta[hotel]).forEach(function(datum){
+        var ta=DATA.ta[hotel][datum];
+        if(!ta)return;
+        var dk=safeKey(datum)+'_'+hk;
+        safePut('chef/inbox/tagesabrechnung/'+dk, ta);
+      });
+    }
+    
+    // 2. Stundenzettel
+    if(DATA.sz[hotel] && Object.keys(DATA.sz[hotel]).length>0){
+      safePut('hotels/'+hk+'/sz', DATA.sz[hotel]);
+    }
+    
+    // 3. Leistungsübersicht
+    if(DATA.lu[hotel] && Object.keys(DATA.lu[hotel]).length>0){
+      safePut('hotels/'+hk+'/lu', DATA.lu[hotel]);
+    }
+    
+    // 4. Subunternehmer
+    if(DATA.r1[hotel] && Object.keys(DATA.r1[hotel]).length>0){
+      safePut('hotels/'+hk+'/r1', DATA.r1[hotel]);
+    }
+    
+    // 5. Notification für Chef
+    var ts=Date.now();
+    safePut('notifications/ta_'+ts, {
+      hotel:hotel, monat:monat, dayKey:dayKey,
+      ts:ts, tl:USER?USER.name:'', status:'new'
+    });
+    
+  } catch(e){
+    // Silent - don't crash app on Firebase errors
   }
-  // 5. Subunternehmer
-  if(DATA.r1[hotel]&&Object.keys(DATA.r1[hotel]).length){
-    fbPut('hotels/'+hk+'/r1', fbClean(DATA.r1[hotel]),
-      function(){console.log('[FB] R1 OK');},
-      function(e){console.warn('[FB] R1 err:',e);}
-    );
-  }
-  // 6. Notification
-  fbPut('notifications/ta_'+ts,{
-    typ:'tagesabrechnung',hotel:String(hotel),hotelKey:hk,
-    datum:payload.datum,inboxKey:inboxKey,tl:payload.createdBy,
-    count:rows.length,ts:ts,gelesen:false
-  },null,null);
-  console.log('[FB] Alle Pfade geschrieben fuer',hotel);
 }
 
 // ZENTRALE FUNKTION - wird vom Speichern-Button aufgerufen
@@ -4079,10 +4073,10 @@ function kalkPrintAngebot(name,d){
     +'<table><thead><tr><th>Leistungsposition</th><th class="r">Menge</th><th class="r">Einheitspreis</th><th class="r">Betrag/Monat</th></tr></thead>'
     +'<tbody>'+rows+'</tbody></table>'
     +'<div class="sig">'
-    +'<div class="sig-box">Für das Hotel: Datum &amp; Unterschrift</div>'
-    +'<div class="sig-box">A&amp;J Cleaning Services GmbH</div>'
+    +'<div class="sig-box">Für das Hotel: Datum & Unterschrift</div>'
+    +'<div class="sig-box">A&J Cleaning Services GmbH</div>'
     +'</div>'
-    +'<div class="footer"><span>A&amp;J Cleaning Services GmbH · HRB 126631 · Stauffenbergstr. 14-20 · 51379 Leverkusen</span><span>Erstellt: '+datum+'</span></div>'
+    +'<div class="footer"><span>A&J Cleaning Services GmbH · HRB 126631 · Stauffenbergstr. 14-20 · 51379 Leverkusen</span><span>Erstellt: '+datum+'</span></div>'
     +'<\/body><\/html>';
 
   var pd=ge('print-area');if(!pd)return;
@@ -4584,7 +4578,7 @@ function dpPrintNew(){
     +'<\/style><\/head><body>'
     +'<div class="top">'
     +'<div>'
-    +'<div style="font-size:14pt;font-weight:900;color:#1a2e6b;font-family:Georgia,serif;line-height:1">A&amp;J</div>'
+    +'<div style="font-size:14pt;font-weight:900;color:#1a2e6b;font-family:Georgia,serif;line-height:1">A&J</div>'
     +'<div style="font-size:4pt;letter-spacing:3px;color:#1a2e6b;text-transform:uppercase">Cleaning Services</div>'
     +'<div class="objekt" style="margin-top:1mm">Objekt: '+(hotelNr?hotelNr+' ':'')+hotel+'</div>'
     +'</div>'
@@ -6042,7 +6036,7 @@ function ajLogoSvg(w,h){
   // Professionelles Logo: A&J gro in Dunkelblau, Linie, CLEANING SERVICES mit Stern
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="'+w+'mm" height="'+h+'mm" style="display:block;overflow:visible">'
     // Haupt-Schriftzug A&J - Georgia Serif, krftig
-    +'<text x="8" y="122" font-family="Georgia,\'Times New Roman\',serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&amp;J</text>'
+    +'<text x="8" y="122" font-family="Georgia,\'Times New Roman\',serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&J</text>'
     // Horizontale Linie
     +'<line x1="8" y1="138" x2="290" y2="138" stroke="#1a2e6b" stroke-width="1.8"/>'
     // CLEANING SERVICES - schmale Versalien
@@ -6275,7 +6269,7 @@ function printAsPdf(){
     +'<style>'+css+'<\/style><\/head><body><div class="wrap">'
     +'<div class="top">'
     +'<div>'
-    +'<div class="logo-aj">A&amp;J</div>'
+    +'<div class="logo-aj">A&J</div>'
     +'<div class="logo-line"></div>'
     +'<div class="logo-cs">Cleaning Services GmbH</div>'
     +'</div>'
@@ -6515,7 +6509,7 @@ function dashPrintHotel(hotel){
   var css=PRT_CSS_BASE+'@page{size:A4 portrait;margin:12mm}'+PRT_CSS_HDR+PRT_CSS_TBL+PRT_CSS_FOOTER
     +'.ges td{background:#000!important;color:#fff!important;font-weight:700!important}';
   var html='<style>'+css+'<\/style>'
-    +'<div class="hdr"><div class="logo">A&amp;J<small>Cleaning Services GmbH</small></div>'
+    +'<div class="hdr"><div class="logo">A&J<small>Cleaning Services GmbH</small></div>'
     +'<div style="text-align:right"><b>'+hotel+'</b><br>'+mon+'</div></div>';
   var ta=(DATA.ta[hotel]||{})[today];
   if(ta&&ta.rows&&ta.rows.some(function(r){return r.name&&r.zi;})){
@@ -6530,7 +6524,7 @@ function dashPrintHotel(hotel){
   Object.keys(szH).forEach(function(mn){var d=szH[mn][mon];if(!d)return;var tage=Object.keys(d.tage||{}).length;mzT+=parseInt(d.ziGes||0);miT+=parseFloat(d.istGes||0);html+='<tr><td><b>'+mn+'</b></td><td>'+d.ziGes+'</td><td>'+parseFloat(d.istGes||0).toFixed(2)+' h</td><td>'+tage+'</td></tr>';});
   html+='<tr class="ges"><td>GESAMT</td><td>'+mzT+'</td><td>'+miT.toFixed(2)+' h</td><td></td></tr></tbody></table>';
   html+='<div class="sig"><div class="sb">Unterschrift Teamleader</div><div class="sb">Unterschrift Chef / Datum</div></div>';
-  html+='<div class="footer"><span>A&amp;J Cleaning Services GmbH · HRB 126631</span><span>'+new Date().toLocaleDateString('de-DE')+'</span></div>';
+  html+='<div class="footer"><span>A&J Cleaning Services GmbH · HRB 126631</span><span>'+new Date().toLocaleDateString('de-DE')+'</span></div>';
   prtBase(html);
 }
 
