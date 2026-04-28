@@ -3,426 +3,678 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="A&J Manager">
 <meta name="theme-color" content="#08090d">
-<title>A&J Manager v1777315503</title>
+<meta name="mobile-web-app-capable" content="yes">
+<title>A&J Manager</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-button,a,[role=button]{-webkit-user-select:none;user-select:none;touch-action:manipulation}
+/* ── RESET ── */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+button,a{cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+
+/* ── DESIGN TOKENS ── */
 :root{
-  --bg:#08090d;
-  --bg2:#0e1118;
-  --bg3:#131720;
-  --navy3:#181d28;
-  --gold:#d4a843;
-  --gold2:#e8c068;
-  --gold3:rgba(212,168,67,0.1);
-  --cream:#e8e0d0;
-  --muted:#5a6472;
-  --border:rgba(212,168,67,0.12);
-  --border2:rgba(212,168,67,0.22);
-  --green:#4caf7d;
-  --red:#e05555;
-  --blue:#5b9bd5;
-}
-html,body{
-  background:var(--bg);
-  color:var(--cream);
-  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
-  min-height:100vh;
-  -webkit-font-smoothing:antialiased;
-  padding-top:env(safe-area-inset-top);
+/* Colors */
+–c-bg:       #08090d;
+–c-bg1:      #0d0f15;
+–c-bg2:      #111420;
+–c-bg3:      #171c2b;
+–c-gold:     #c9a84c;
+–c-gold-lt:  #e2c47a;
+–c-cream:    #d8e2ec;
+–c-dim:      #4a5a6e;
+–c-green:    #3cb878;
+–c-red:      #d95f5f;
+–c-blue:     #5b8fd4;
+–c-border:   rgba(201,168,76,0.14);
+–c-border2:  rgba(201,168,76,0.28);
+/* Safe areas */
+–sat: env(safe-area-inset-top,0px);
+–sab: env(safe-area-inset-bottom,0px);
+/* Topbar height (used everywhere) */
+–topbar-h: 52px;
 }
 
-/* ALL INPUTS */
+/* ── BASE ── */
+html,body{
+background:var(–c-bg);
+color:var(–c-cream);
+font-family:-apple-system,BlinkMacSystemFont,“SF Pro Text”,“Segoe UI”,Helvetica,Arial,sans-serif;
+font-size:15px;
+line-height:1.5;
+min-height:100vh;
+-webkit-font-smoothing:antialiased;
+-moz-osx-font-smoothing:grayscale;
+overflow-x:hidden;
+}
+
+/* ── iOS INPUT FIX ── */
 input,select,textarea{
-color:var(–cream)!important;
--webkit-text-fill-color:var(–cream)!important;
-background:transparent;
-opacity:1!important;
 -webkit-appearance:none;
+appearance:none;
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+opacity:1!important;
+background:transparent;
+}
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active{
+-webkit-text-fill-color:var(–c-cream)!important;
+-webkit-box-shadow:0 0 0 100px var(–c-bg2) inset!important;
+caret-color:var(–c-cream)!important;
+transition:background-color 9999s;
 }
 input::placeholder,textarea::placeholder{
-color:var(–muted)!important;
--webkit-text-fill-color:var(–muted)!important;
+color:var(–c-dim)!important;
+-webkit-text-fill-color:var(–c-dim)!important;
 opacity:1!important;
 }
-input:-webkit-autofill,input:-webkit-autofill:focus{
--webkit-text-fill-color:var(–cream)!important;
--webkit-box-shadow:0 0 0 1000px #131720 inset!important;
+/* TA cell inputs forced dark bg */
+[id^=“ta_nm_”],[id^=“ta_zi_”],[id^=“ta_gr_”],[id^=“ta_ses_”],[id^=“ta_chk_”],
+[id^=“ta_pub_”],[id^=“ta_son_”],[id^=“ta_wae_”],[id^=“ta_auf_”],[id^=“ta_mini_”],
+[id^=“ta_ist_”]{
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+background:#0c1422!important;
+opacity:1!important;
+}
+[id^=“ta_zi_”]{
+color:var(–c-gold-lt)!important;
+-webkit-text-fill-color:var(–c-gold-lt)!important;
+background:#091428!important;
+}
+[id^=“ta_ist_”]{
+color:var(–c-green)!important;
+-webkit-text-fill-color:var(–c-green)!important;
 }
 
-/* LOGIN */
-.login-screen{
-min-height:100vh;
+/* ── LOGIN ── */
+#login-screen{
 display:flex;
 align-items:center;
 justify-content:center;
-padding:max(80px,calc(env(safe-area-inset-top)+60px)) 20px 40px;
-background:var(–bg);
+min-height:100vh;
+min-height:100dvh;
+padding:max(60px,calc(var(–sat) + 40px)) 20px max(40px,calc(var(–sab) + 20px));
+background:
+radial-gradient(ellipse 80% 40% at 50% 0%,rgba(201,168,76,0.08) 0%,transparent 70%),
+var(–c-bg);
 }
-.login-box{
-background:var(–bg2);
-border:1px solid rgba(212,168,67,0.2);
-padding:36px 28px;
-max-width:360px;
+.login-card{
 width:100%;
-border-radius:10px;
+max-width:360px;
+background:var(–c-bg1);
+border:1px solid var(–c-border2);
+border-radius:12px;
+padding:36px 28px 32px;
 text-align:center;
-box-shadow:0 24px 80px rgba(0,0,0,0.6);
+box-shadow:0 0 0 1px rgba(0,0,0,0.4),0 24px 64px rgba(0,0,0,0.7);
 }
 .login-logo{
-font-family:Georgia,serif;
+font-family:Georgia,“Times New Roman”,serif;
 font-size:3.2rem;
 font-weight:900;
-color:var(–gold);
-line-height:1;
+color:var(–c-gold);
 letter-spacing:-1px;
+line-height:1;
 }
-.login-sub{
-font-size:0.5rem;
-letter-spacing:0.45em;
+.login-brand{
+font-size:0.46rem;
+letter-spacing:0.48em;
 text-transform:uppercase;
-color:var(–muted);
-margin:8px 0 28px;
+color:var(–c-dim);
+margin:6px 0 28px;
+display:block;
 }
 .role-btn{
-width:100%;
-background:rgba(212,168,67,0.05);
-border:1px solid rgba(212,168,67,0.2);
-color:var(–cream);
-padding:15px 16px;
-border-radius:6px;
-text-align:left;
 display:flex;
 align-items:center;
 gap:14px;
-margin-bottom:10px;
+width:100%;
+padding:14px 16px;
+background:rgba(201,168,76,0.05);
+border:1px solid var(–c-border);
+border-radius:7px;
+color:var(–c-cream);
 text-decoration:none;
-transition:background 0.2s;
-touch-action:manipulation;
+text-align:left;
+margin-bottom:10px;
+transition:border-color .18s,background .18s;
 }
-.role-btn:active{background:rgba(212,168,67,0.12)}
+.role-btn:active{background:rgba(201,168,76,0.1);border-color:var(–c-border2)}
 .role-btn.gold{
-background:var(–gold);
+background:var(–c-gold);
+border-color:var(–c-gold);
 color:#08090d;
 font-weight:700;
-border-color:var(–gold);
 }
-.role-btn.gold:active{background:#c09030}
-.role-name{font-size:0.78rem;font-weight:600;display:block;letter-spacing:0.06em;text-transform:uppercase}
-.role-btn.gold .role-name{color:#08090d}
-.role-desc{font-size:0.6rem;color:var(–muted);display:block;margin-top:2px;text-transform:none;letter-spacing:0.03em;font-weight:400}
-.role-btn.gold .role-desc{color:rgba(8,9,13,0.65)}
-.chef-link{font-size:0.6rem;color:var(–muted);letter-spacing:0.1em;text-transform:uppercase;padding:10px;display:block;text-decoration:none;margin-top:4px;text-align:center}
-.fb-status{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;font-size:0.6rem;color:var(–muted)}
+.role-btn.gold:active{background:#b8962a;border-color:#b8962a}
+.role-title{display:block;font-size:0.78rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
+.role-btn.gold .role-title{color:#08090d}
+.role-sub{display:block;font-size:0.6rem;color:var(–c-dim);margin-top:2px;font-weight:400;letter-spacing:0;text-transform:none}
+.role-btn.gold .role-sub{color:rgba(8,9,13,0.55)}
+.login-inp{
+width:100%;
+background:var(–c-bg2)!important;
+border:1px solid rgba(201,168,76,0.18);
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+padding:10px 12px;
+font-size:0.82rem;
+border-radius:6px;
+outline:none;
+margin-bottom:10px;
+}
+.login-inp:focus{border-color:var(–c-gold)}
+.login-inp::placeholder{color:var(–c-dim)!important;-webkit-text-fill-color:var(–c-dim)!important}
+.login-err{
+display:none;
+font-size:0.68rem;
+color:var(–c-red);
+margin-bottom:10px;
+padding:8px 10px;
+background:rgba(217,95,95,0.08);
+border-radius:5px;
+text-align:left;
+}
+.fb-dot{
+display:inline-block;
+width:6px;height:6px;
+border-radius:50%;
+background:var(–c-green);
+margin-right:6px;
+vertical-align:middle;
+}
+.fb-label{font-size:0.58rem;color:var(–c-dim);margin-top:20px}
 
-/* APP */
-.app-wrap{display:none}
-.app-wrap.show{display:block}
+/* ── APP SHELL ── */
+#app-wrap{display:none}
+#app-wrap.show{display:block}
+
+/* ── TOPBAR ── */
 .topbar{
-background:rgba(13,14,18,0.97);
-border-bottom:1px solid rgba(212,168,67,0.15);
-padding:10px 16px;
-padding-top:max(10px,calc(env(safe-area-inset-top)+6px));
-display:flex;align-items:center;gap:8px;
-position:sticky;top:0;z-index:100;
-backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+position:sticky;
+top:0;
+z-index:200;
+height:calc(var(–topbar-h) + var(–sat));
+padding:var(–sat) 14px 0;
+display:flex;
+align-items:center;
+gap:9px;
+background:rgba(8,9,13,0.96);
+border-bottom:1px solid var(–c-border);
+backdrop-filter:blur(16px);
+-webkit-backdrop-filter:blur(16px);
 }
-.tb-logo{font-family:Georgia,serif;font-size:1.1rem;font-weight:900;color:var(–gold)}
-.tb-sep{width:1px;height:16px;background:rgba(212,168,67,0.15);flex-shrink:0}
-.tb-info{font-size:0.58rem;letter-spacing:0.08em;text-transform:uppercase;color:var(–muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.tb-right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-shrink:0}
-.tb-user{font-size:0.58rem;color:var(–muted);white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis}
-.out-btn{background:transparent;border:1px solid rgba(212,168,67,0.3);color:var(–gold2);font-size:0.58rem;letter-spacing:0.08em;text-transform:uppercase;padding:7px 12px;cursor:pointer;border-radius:3px;white-space:nowrap;flex-shrink:0}
-.out-btn:active{background:rgba(212,168,67,0.1)}
+.tb-logo{
+font-family:Georgia,serif;
+font-size:1.1rem;
+font-weight:900;
+color:var(–c-gold);
+flex-shrink:0;
+letter-spacing:.02em;
+}
+.tb-sep{width:1px;height:14px;background:var(–c-border);flex-shrink:0}
+.tb-hotel{
+font-size:0.56rem;
+letter-spacing:0.07em;
+text-transform:uppercase;
+color:var(–c-dim);
+flex:1;
+overflow:hidden;
+text-overflow:ellipsis;
+white-space:nowrap;
+min-width:0;
+}
+.tb-right{
+margin-left:auto;
+display:flex;
+align-items:center;
+gap:7px;
+flex-shrink:0;
+}
+.tb-name{font-size:0.56rem;color:var(–c-dim);white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis}
+#fb-live-dot{width:7px;height:7px;border-radius:50%;background:#444;flex-shrink:0;transition:background .4s}
+.out-btn{
+background:transparent;
+border:1px solid var(–c-border2);
+color:var(–c-gold-lt);
+font-size:0.52rem;
+letter-spacing:0.08em;
+text-transform:uppercase;
+padding:5px 10px;
+border-radius:4px;
+transition:background .15s;
+}
+.out-btn:active{background:rgba(201,168,76,0.08)}
 
-/* TABS */
-.tabs{background:var(–bg2);border-bottom:1px solid rgba(212,168,67,0.1);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* ── TABS ── */
+.tabs{
+position:sticky;
+top:calc(var(–topbar-h) + var(–sat));
+z-index:199;
+display:flex;
+overflow-x:auto;
+scrollbar-width:none;
+background:var(–c-bg1);
+border-bottom:1px solid var(–c-border);
+}
 .tabs::-webkit-scrollbar{display:none}
-.tab{padding:11px 14px;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:var(–muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:color 0.2s;flex-shrink:0;touch-action:manipulation}
-.tab.active{color:var(–gold2);border-bottom-color:var(–gold)}
-.content{
+.tab{
+padding:10px 13px;
+font-size:0.54rem;
+letter-spacing:0.1em;
+text-transform:uppercase;
+color:var(–c-dim);
+border-bottom:2px solid transparent;
+white-space:nowrap;
+flex-shrink:0;
+transition:color .15s;
+-webkit-user-select:none;
+}
+.tab.active{color:var(–c-gold-lt);border-bottom-color:var(–c-gold)}
+
+/* ── CONTENT ── */
+#content{
 padding:14px;
-padding-bottom:max(14px,calc(env(safe-area-inset-bottom)+14px));
+padding-bottom:max(20px,calc(var(–sab) + 16px));
 }
-@media(min-width:600px){.content{max-width:960px;margin:0 auto;padding:20px}}
+@media(min-width:600px){
+#content{max-width:960px;margin:0 auto;padding:20px}
+}
 
-/* CARDS */
-.card{background:var(–bg2);border:1px solid rgba(212,168,67,0.1);border-radius:6px;padding:14px;margin-bottom:12px}
-.card-title{font-family:Georgia,serif;font-size:0.95rem;color:var(–gold);margin-bottom:12px}
-.empty{text-align:center;padding:28px;color:var(–muted);font-size:0.76rem}
-.section-label{font-size:0.52rem;letter-spacing:0.14em;text-transform:uppercase;color:var(–muted);margin-bottom:8px;display:block}
+/* ── CARDS ── */
+.card{
+background:var(–c-bg1);
+border:1px solid var(–c-border);
+border-radius:8px;
+padding:14px;
+margin-bottom:10px;
+}
+.card-hd{
+font-family:Georgia,serif;
+font-size:0.92rem;
+color:var(–c-gold);
+margin-bottom:12px;
+}
+.empty{
+text-align:center;
+padding:32px 16px;
+color:var(–c-dim);
+font-size:0.75rem;
+line-height:1.8;
+}
 
-/* INPUTS */
-.inp{background:rgba(255,255,255,0.04);border:1px solid rgba(212,168,67,0.15);color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important;padding:8px 10px;font-size:0.8rem;outline:none;border-radius:4px;width:100%;transition:border-color 0.15s}
-.inp:focus{border-color:var(–gold)}
-.inp::placeholder{color:var(–muted)!important;-webkit-text-fill-color:var(–muted)!important;font-size:0.74rem}
-.lbl{font-size:0.52rem;letter-spacing:0.14em;text-transform:uppercase;color:var(–muted);margin-bottom:3px;display:block}
+/* ── FORM ── */
+.inp{
+background:var(–c-bg2)!important;
+border:1px solid rgba(201,168,76,0.16);
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+padding:9px 11px;
+font-size:0.8rem;
+border-radius:5px;
+outline:none;
+width:100%;
+transition:border-color .15s;
+}
+.inp:focus{border-color:var(–c-gold)}
+.inp::placeholder{color:var(–c-dim)!important;-webkit-text-fill-color:var(–c-dim)!important}
+.lbl{font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(–c-dim);margin-bottom:3px;display:block}
 .frow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.ff{display:flex;flex-direction:column;flex:1;min-width:90px}
+.ff{display:flex;flex-direction:column;flex:1;min-width:80px}
 
-/* BUTTONS */
-.btn{background:transparent;border:1px solid var(–border2);color:var(–gold);font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;padding:7px 14px;cursor:pointer;border-radius:2px;transition:all 0.2s;white-space:nowrap;touch-action:manipulation}
-.btn:active{opacity:0.7}
-.btn.primary{background:var(–gold);color:#08090d;font-weight:700;border-color:var(–gold)}
-.btn.primary:active{background:#c09030}
-.btn.sm{padding:5px 10px;font-size:0.56rem}
-.btn.danger{border-color:rgba(200,80,80,0.3);color:#e88}
-.btn.danger:active{background:rgba(200,80,80,0.1)}
-.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* ── BUTTONS ── */
+.btn{
+display:inline-flex;
+align-items:center;
+gap:5px;
+background:transparent;
+border:1px solid var(–c-border2);
+color:var(–c-gold);
+font-size:0.56rem;
+letter-spacing:0.12em;
+text-transform:uppercase;
+padding:7px 13px;
+border-radius:4px;
+white-space:nowrap;
+transition:background .15s;
+}
+.btn:active{background:rgba(201,168,76,0.08)}
+.btn.primary{
+background:var(–c-gold);
+color:#08090d;
+font-weight:700;
+border-color:var(–c-gold);
+font-size:0.6rem;
+padding:9px 18px;
+}
+.btn.primary:active{background:#b8962a;border-color:#b8962a}
+.btn.sm{padding:5px 10px;font-size:0.5rem;border-radius:3px}
+.btn.danger{border-color:rgba(217,95,95,0.3);color:var(–c-red)}
+.btn.danger:active{background:rgba(217,95,95,0.08)}
+.btn.success{border-color:rgba(60,184,120,0.3);color:var(–c-green)}
+.btn.success:active{background:rgba(60,184,120,0.08)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
 
-/* BADGES */
-.badge{display:inline-block;padding:2px 7px;border-radius:20px;font-size:0.6rem;font-weight:600}
-.b-ok{background:rgba(45,106,79,0.15);color:#5dbf8a}
-.b-warn{background:rgba(181,69,27,0.15);color:#f4845f}
-.b-pend{background:rgba(212,168,67,0.12);color:var(–gold)}
-.b-grey{background:rgba(255,255,255,0.06);color:var(–muted)}
-.b-gold{background:var(–gold3);color:var(–gold2);border:1px solid var(–border2)}
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:0.58rem;font-weight:600}
+.b-pend{background:rgba(201,168,76,0.12);color:var(–c-gold-lt);border:1px solid rgba(201,168,76,0.25)}
+.b-ok{background:rgba(60,184,120,0.1);color:var(–c-green);border:1px solid rgba(60,184,120,0.2)}
+.b-no{background:rgba(217,95,95,0.1);color:var(–c-red);border:1px solid rgba(217,95,95,0.2)}
+.b-grey{background:rgba(255,255,255,0.04);color:var(–c-dim);border:1px solid var(–c-border)}
 
-/* STATS */
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(95px,1fr));gap:8px;margin-bottom:12px}
-.stat{background:var(–bg3);border:1px solid rgba(212,168,67,0.1);padding:12px;text-align:center;border-radius:5px}
-.stat-v{font-family:Georgia,serif;font-size:1.45rem;color:var(–gold2);display:block;line-height:1}
-.stat-l{font-size:0.5rem;letter-spacing:0.14em;text-transform:uppercase;color:var(–muted);margin-top:3px;display:block}
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(86px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(–c-bg2);border:1px solid var(–c-border);padding:12px 8px;text-align:center;border-radius:7px}
+.stat-v{font-family:Georgia,serif;font-size:1.4rem;color:var(–c-gold-lt);display:block;line-height:1;margin-bottom:3px}
+.stat-l{font-size:0.46rem;letter-spacing:0.12em;text-transform:uppercase;color:var(–c-dim);display:block}
 
-/* TABLES */
-.tbl{width:100%;border-collapse:collapse;font-size:0.76rem}
-.tbl th{padding:6px 7px;text-align:left;font-size:0.52rem;letter-spacing:0.14em;text-transform:uppercase;color:var(–muted);border-bottom:1px solid var(–border2);font-weight:400}
-.tbl td{padding:7px 7px;border-bottom:1px solid rgba(30,58,82,0.4);vertical-align:middle}
-.tbl tr:last-child td{border-bottom:none}
+/* ── TA TABLE ── */
+.ta-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
+.ta-tbl{border-collapse:collapse;width:100%;min-width:480px;font-size:0.75rem}
+.ta-tbl th{
+background:var(–c-bg3);
+color:var(–c-gold);
+font-size:0.48rem;
+letter-spacing:0.08em;
+text-transform:uppercase;
+font-weight:600;
+padding:6px 3px;
+text-align:center;
+border:1px solid var(–c-border);
+line-height:1.4;
+}
+.ta-tbl td{border:1px solid rgba(8,9,13,0.9);padding:0;background:#0c1422}
+.ta-tbl tr:nth-child(even) td{background:#091020}
+.ta-tbl tr.ges-row td{background:var(–c-bg3)!important;border-top:2px solid var(–c-gold)}
+.ti{
+width:100%;
+background:#0c1422!important;
+border:none;
+outline:none;
+font-size:0.75rem;
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+padding:6px 3px;
+text-align:center;
+opacity:1!important;
+-webkit-appearance:none;
+caret-color:var(–c-cream);
+}
+.ti.nm{text-align:left;padding-left:8px;min-width:80px}
+.ti.zi{
+color:var(–c-gold-lt)!important;
+-webkit-text-fill-color:var(–c-gold-lt)!important;
+font-weight:700;
+background:#091428!important;
+}
+.ti.ai{
+color:var(–c-green)!important;
+-webkit-text-fill-color:var(–c-green)!important;
+font-weight:700;
+background:rgba(60,184,120,0.06)!important;
+cursor:default;
+}
 
-/* TABLE INPUTS */
-.ta-wrap,.sz-wrap,.lu-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.ta-tbl,.sz-tbl,.lu-tbl{border-collapse:collapse;width:100%;font-size:0.78rem}
-.ta-tbl th,.sz-tbl thead th,.lu-tbl th{background:var(–navy3);color:var(–gold);font-size:0.54rem;letter-spacing:0.07em;text-transform:uppercase;font-weight:600;padding:6px 3px;text-align:center;border:1px solid var(–border);line-height:1.3}
-.sz-tbl thead th.ac{background:#071510;color:#81c784}
-.sz-tbl thead th.zc{background:#07101a;color:#90caf9}
-.ta-tbl td,.sz-tbl tbody td,.lu-tbl td{border:1px solid rgba(30,58,82,0.5);padding:0;vertical-align:middle;background:#0b1422}
-.ta-tbl tr:nth-child(even) td,.sz-tbl tbody tr:nth-child(even) td,.lu-tbl tr:nth-child(even) td{background:#080f1c}
-.ta-tbl tr.ges-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.sz-tbl tbody tr.filled td{background:rgba(20,50,25,0.18)}
-.lu-tbl tr.sum-row td,.lu-tbl tr.mid-row td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.ti,.sz-inp,.lu-inp{width:100%;background:#0d1525!important;border:none;outline:none;font-size:0.78rem;color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important;padding:5px 3px;text-align:center;opacity:1!important;-webkit-appearance:none;-webkit-user-select:text}
-.ti.nm{text-align:left;padding-left:7px;background:#0d1525!important;color:var(–cream)!important;-webkit-text-fill-color:var(–cream)!important}
-.ti.zi,.sz-inp.zi,.lu-inp.zi{color:var(–gold2)!important;-webkit-text-fill-color:var(–gold2)!important;font-weight:700;background:#0a1830!important}
-.ti.ai,.sz-inp.ai,.lu-inp.ai{color:#81c784!important;-webkit-text-fill-color:#81c784!important;font-weight:700;cursor:default;background:rgba(20,80,40,0.15)}
-.sz-inp.at{color:#90caf9!important;-webkit-text-fill-color:#90caf9!important;font-weight:700;cursor:default;background:rgba(20,60,120,0.2)}
-.sz-inp.pa{color:rgba(200,168,75,0.5)!important;cursor:default}
-.sz-nr,.lu-nr{text-align:center;font-weight:600;font-size:0.74rem;color:var(–muted);padding:0 3px;background:rgba(0,0,0,0.2);min-width:24px}
-.sz-ges td{background:var(–navy3)!important;border-top:2px solid var(–gold)}
-.ges-v,.lu-ges-v{font-family:Georgia,serif;font-size:0.88rem;color:var(–gold);text-align:center;padding:5px 3px}
+/* ── SZ TABLE ── */
+.sz-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sz-tbl{border-collapse:collapse;width:100%;min-width:460px;font-size:0.75rem}
+.sz-tbl thead th{
+background:var(–c-bg3);
+color:var(–c-dim);
+font-size:0.48rem;
+letter-spacing:0.07em;
+text-transform:uppercase;
+font-weight:500;
+padding:6px 3px;
+text-align:center;
+border:1px solid var(–c-border);
+}
+.sz-tbl thead th.hg{color:var(–c-green)}
+.sz-tbl thead th.hz{color:var(–c-blue)}
+.sz-tbl tbody td{border:1px solid rgba(8,9,13,0.9);padding:0;background:#0c1422}
+.sz-tbl tbody tr:nth-child(even) td{background:#091020}
+.sz-tbl tbody tr.filled td{background:#071812}
+.sz-tbl tfoot td{background:var(–c-bg3)!important;border-top:2px solid var(–c-gold)}
+.si{
+width:100%;
+background:#0c1422!important;
+border:none;outline:none;
+font-size:0.75rem;
+color:var(–c-cream)!important;
+-webkit-text-fill-color:var(–c-cream)!important;
+padding:6px 3px;
+text-align:center;
+opacity:1!important;
+-webkit-appearance:none;
+caret-color:var(–c-cream);
+}
+.si.zi{color:var(–c-gold-lt)!important;-webkit-text-fill-color:var(–c-gold-lt)!important;font-weight:700;background:#091428!important}
+.si.ai{color:var(–c-green)!important;-webkit-text-fill-color:var(–c-green)!important;font-weight:700;cursor:default}
+.si.at{color:var(–c-blue)!important;-webkit-text-fill-color:var(–c-blue)!important;cursor:default}
+.si.ro{color:var(–c-dim)!important;-webkit-text-fill-color:var(–c-dim)!important;cursor:default}
+.sz-nr{
+text-align:center;font-size:0.68rem;color:var(–c-dim);
+padding:0 3px;background:var(–c-bg2)!important;min-width:22px;
+}
+.sz-ges{
+background:var(–c-bg3)!important;
+border-top:2px solid var(–c-gold);
+text-align:center;
+padding:5px 3px;
+font-family:Georgia,serif;
+color:var(–c-gold);
+font-size:0.82rem;
+font-weight:700;
+}
 
-/* SIGNATURES */
-.sig-box{background:var(–navy3);border:1px solid var(–border2);border-radius:3px;padding:12px;margin-top:10px}
-.sig-lbl{font-size:0.56rem;letter-spacing:0.15em;text-transform:uppercase;color:var(–muted);margin-bottom:6px}
-.sig-wrap{border:2px dashed var(–border2);border-radius:2px;background:rgba(255,255,255,0.02);position:relative;touch-action:none}
-.sig-canvas{display:block;width:100%;cursor:crosshair;touch-action:none}
-.sig-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:0.68rem;color:var(–muted);pointer-events:none}
-.sig-row{display:flex;gap:8px;margin-top:6px;align-items:center}
-.sig-ok{font-size:0.63rem;color:#5dbf8a;margin-left:auto}
+/* ── TOAST ── */
+#toast{
+position:fixed;
+bottom:max(18px,calc(var(–sab) + 12px));
+right:14px;
+padding:11px 16px;
+border-radius:6px;
+font-size:0.71rem;
+font-weight:600;
+z-index:9999;
+display:none;
+border:1px solid;
+max-width:280px;
+line-height:1.5;
+box-shadow:0 8px 40px rgba(0,0,0,0.6);
+}
+#toast.ok{background:rgba(40,90,60,0.18);color:#5dbf8a;border-color:rgba(40,90,60,0.45)}
+#toast.err{background:rgba(130,40,40,0.18);color:#f4845f;border-color:rgba(130,40,40,0.45)}
+#toast.info{background:rgba(30,60,120,0.25);color:#90caf9;border-color:rgba(30,60,120,0.5)}
 
-/* TOAST */
-.toast{position:fixed;bottom:max(18px,calc(env(safe-area-inset-bottom)+10px));right:18px;padding:10px 18px;border-radius:3px;font-size:0.74rem;font-weight:600;z-index:9999;display:none;border:1px solid;max-width:300px}
-.toast.ok{background:rgba(45,106,79,0.15);color:#5dbf8a;border-color:rgba(45,106,79,0.4)}
-.toast.err{background:rgba(181,69,27,0.15);color:#f4845f;border-color:rgba(181,69,27,0.4)}
-.toast.info{background:rgba(20,60,140,0.3);color:#90caf9;border-color:rgba(20,60,140,0.5)}
-
-/* PRINT */
+/* ── PRINT ── */
 @media print{
-body *{visibility:hidden!important}
-#print-area,#print-area *,#dp-print-area,#dp-print-area *{visibility:visible!important}
-#print-area,#dp-print-area{position:fixed!important;top:0!important;left:0!important;width:100%!important;height:auto!important;background:#fff!important;color:#000!important;display:block!important;overflow:visible!important;padding:0!important;margin:0!important;z-index:99999!important}
-#print-area th,#dp-print-area th{background:#1a2e6b!important;color:#c8a84b!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-.login-screen,.app-wrap{display:none!important}
-html,body{background:#fff!important;margin:0!important;padding:0!important;padding-top:0!important}
-@page{size:A4 portrait;margin:10mm}
+#login-screen,#app-wrap,.topbar,.tabs,#toast{display:none!important}
+#print-area{
+display:block!important;
+position:fixed!important;
+top:0!important;left:0!important;
+width:100%!important;height:100%!important;
+background:#fff!important;color:#000!important;
+z-index:99999!important;
 }
-#print-area,#dp-print-area{display:none;background:#fff!important;color:#000!important}
+html,body{
+background:#fff!important;
+color:#000!important;
+padding:0!important;margin:0!important;
+}
+@page{margin:0}
+}
+#print-area{display:none;background:#fff;color:#000}
 
-/* RESPONSIVE */
-@media(min-width:768px){.content{padding:20px;max-width:960px;margin:0 auto}}
-@media(min-width:1280px){
-.app-wrap{display:grid;grid-template-columns:220px 1fr;grid-template-rows:auto 1fr;min-height:100vh}
-.app-wrap.show{display:grid}
-.topbar{grid-column:1/-1}
-.tabs{grid-column:1;grid-row:2;flex-direction:column;overflow-x:visible;overflow-y:auto;border-right:1px solid var(–border);border-bottom:none;padding:16px 0;height:calc(100vh - 52px);position:sticky;top:52px;align-self:start}
-.tab{padding:12px 20px;border-bottom:none;border-left:2px solid transparent;text-align:left}
-.tab.active{border-left-color:var(–gold);border-bottom:none;background:var(–gold3)}
-.content{grid-column:2;grid-row:2;padding:24px;max-width:1100px}
+/* ── DESKTOP LAYOUT ── */
+@media(min-width:1200px){
+#app-wrap.show{
+display:grid;
+grid-template-columns:200px 1fr;
+grid-template-rows:calc(var(–topbar-h) + var(–sat)) 1fr;
+min-height:100vh;
 }
-@media(min-width:768px) and (max-width:1279px){
-.app-wrap{display:block!important}
-.tabs{display:flex!important;flex-direction:row!important;overflow-x:auto!important;border-right:none!important;height:auto!important}
+.topbar{grid-column:1/-1;grid-row:1}
+.tabs{
+grid-column:1;grid-row:2;
+flex-direction:column;
+overflow-x:visible;overflow-y:auto;
+border-right:1px solid var(–c-border);
+border-bottom:none;
+padding:12px 0;
+position:sticky;
+top:calc(var(–topbar-h) + var(–sat));
+height:calc(100vh - var(–topbar-h) - var(–sat));
+align-self:start;
+}
+.tab{
+padding:11px 18px;
+border-bottom:none;
+border-left:2px solid transparent;
+text-align:left;
+font-size:0.56rem;
+}
+.tab.active{
+border-left-color:var(–c-gold);
+border-bottom:none;
+background:rgba(201,168,76,0.06);
+}
+#content{grid-column:2;grid-row:2;max-width:none;padding:22px 26px}
+}
+@media(min-width:600px) and (max-width:1199px){
+#app-wrap.show{display:block!important}
+.tabs{display:flex!important;flex-direction:row!important;border-right:none!important;height:auto!important}
 .tab{border-left:none!important;border-bottom:2px solid transparent!important}
-.tab.active{border-left-color:transparent!important;border-bottom-color:var(–gold)!important}
-.content{display:block!important;padding:16px!important;max-width:100%!important}
+.tab.active{border-left-color:transparent!important;border-bottom-color:var(–c-gold)!important}
 }
-::-webkit-scrollbar{width:3px;height:3px}
-::-webkit-scrollbar-track{background:var(–navy3)}
-::-webkit-scrollbar-thumb{background:rgba(30,58,82,0.8);border-radius:2px}
 
-/* iOS input color fix - targeted */
-[id^=“ta_nm_”],[id^=“ta_zi_”],[id^=“ta_gr_”],[id^=“ta_ses_”],[id^=“ta_chk_”],
-[id^=“ta_pub_”],[id^=“ta_son_”],[id^=“ta_auf_”],[id^=“ta_wae_”],[id^=“ta_mini_”],[id^=“ta_ist_”]{
-color:#e8e0d0!important;
--webkit-text-fill-color:#e8e0d0!important;
-background:#0d1525!important;
-opacity:1!important;
-}
-[id^=“ta_nm_”]{color:#e8e0d0!important;-webkit-text-fill-color:#e8e0d0!important}
-[id^=“ta_zi_”]{color:#e8c068!important;-webkit-text-fill-color:#e8c068!important;font-weight:700}
-[id^=“ta_ist_”]{color:#81c784!important;-webkit-text-fill-color:#81c784!important}
-[id^=“sz_”],[id^=“lu_”],[id^=“r1_”]{
-color:#e8e0d0!important;
--webkit-text-fill-color:#e8e0d0!important;
-background:#0d1525!important;
-opacity:1!important;
-}
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:var(–c-bg1)}
+::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.18);border-radius:3px}
 </style>
 
 </head>
-</head>
-</head>
-</head>
-</head>
 <body>
-<div id="print-area"></div>
-<div id="dp-print-area"></div>
 
-<!-- LOGIN -->
+<!-- ── LOGIN ── -->
 
-<div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 0%,rgba(59,130,246,0.1) 0%,#0a0f1a 60%)">
-  <div style="background:linear-gradient(135deg,#111827,#1a2234);border:1px solid rgba(59,130,246,0.2);padding:36px 30px;max-width:360px;width:100%;border-radius:16px;text-align:center;box-shadow:0 32px 80px rgba(0,0,0,0.7)">
-    <div style="text-align:center;margin-bottom:24px">
-      <div style="font-size:56px;font-weight:900;color:#d4a843;font-family:Georgia,serif;line-height:1;margin-bottom:6px">A&amp;J</div>
-      <div style="font-size:8px;letter-spacing:5px;color:#c8a04b;text-transform:uppercase">Cleaning Services GmbH</div>
-    </div>
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">A&amp;J</div>
+    <span class="login-brand">Cleaning Services GmbH</span>
 
 ```
-<!-- STEP 1 -->
+<!-- Step 1: Wer bist du? -->
 <div id="step1">
-  <p style="color:#c0c8d8;font-size:14px;margin-bottom:16px">Wer bist du?</p>
-
-  <a href="javascript:void(0)" id="btn-tl" onclick="window.tlKlick?window.tlKlick():(document.getElementById('step1').style.display='none',document.getElementById('step-vora').style.display='block',ssHotel());return false;" style="display:flex;align-items:center;gap:14px;background:rgba(212,168,67,0.07);border:1px solid rgba(212,168,67,0.3);border-radius:6px;padding:16px;margin-bottom:12px;cursor:pointer;text-align:left;-webkit-user-select:none;user-select:none;text-decoration:none;color:inherit;box-sizing:border-box;touch-action:manipulation">
-    <span style="font-size:28px">📋</span>
-    <div>
-      <div style="color:#d4a843;font-weight:700;font-size:13px;letter-spacing:1px">TEAMLEADER</div>
-      <div style="color:#5a6a7a;font-size:10px;margin-top:2px">Tagesabrechnung · Stundenzettel · Dienstplan</div>
-    </div>
+  <p style="color:var(--c-dim);font-size:0.8rem;margin-bottom:18px">Wer bist du?</p>
+  <a href="javascript:void(0)" class="role-btn" id="btn-tl"
+     onclick="window.tlKlick&&window.tlKlick()">
+    <span style="font-size:1.5rem">📋</span>
+    <span>
+      <span class="role-title">Teamleader</span>
+      <span class="role-sub">Tagesabrechnung · Stundenzettel · Dienstplan</span>
+    </span>
   </a>
+  <a href="javascript:void(0)" class="role-btn gold" id="btn-chef"
+     onclick="window.chefLoginKlick&&window.chefLoginKlick()">
+    <span style="font-size:1.5rem">👑</span>
+    <span>
+      <span class="role-title">Chef / Admin</span>
+      <span class="role-sub">Alle Hotels · Live-Kontrolle · Auswertung</span>
+    </span>
+  </a>
+  <div class="fb-label">
+    <span class="fb-dot" id="fb-dot-login"></span>Firebase Live-Sync
+  </div>
+</div>
 
-  <a href="javascript:void(0)" id="btn-chef-goto" onclick="window.chefKlick?window.chefKlick():(document.getElementById('step1').style.display='none',document.getElementById('step-chef').style.display='block',setTimeout(function(){document.getElementById('chef-pw').focus();},100));return false;" style="display:block;color:#5a6a7a;font-size:11px;letter-spacing:2px;cursor:pointer;padding:10px;margin-top:8px;text-align:center;-webkit-user-select:none;user-select:none;text-decoration:none;touch-action:manipulation">
-    🔒 CHEF / ADMIN LOGIN
+<!-- Step 2: TL Login -->
+<div id="step2" style="display:none">
+  <p style="color:var(--c-dim);font-size:0.8rem;margin-bottom:14px;text-align:left">Teamleader Login</p>
+  <select class="login-inp" id="v-hotel">
+    <option value="">— Hotel auswählen —</option>
+    <option>RS Hotel Bruhl</option>
+    <option>Atrium Apart Bruhl</option>
+    <option>McDreams Düsseldorf</option>
+    <option>McDreams Köln</option>
+    <option>McDreams Dortmund</option>
+    <option>McDreams Düsseldorf Airport</option>
+    <option>Four Points Ratingen</option>
+    <option>Ramada Ratingen</option>
+    <option>FOUR Essen City Centre</option>
+    <option>Spark by Hilton Essen</option>
+  </select>
+  <input class="login-inp" id="v-name" type="text" placeholder="Dein Name" autocomplete="off">
+  <div class="login-err" id="v-err"></div>
+  <a href="javascript:void(0)" class="role-btn gold" id="btn-tl-login"
+     onclick="window.tlKlick&&window.tlKlick()">
+    <span>🔐</span>
+    <span class="role-title">Einloggen</span>
+  </a>
+  <a href="javascript:void(0)" class="role-btn" style="margin-top:8px"
+     onclick="document.getElementById('step2').style.display='none';document.getElementById('step1').style.display=''">
+    <span style="color:var(--c-dim)">← Zurück</span>
   </a>
 </div>
 
-<!-- STEP 2: Teamleader -->
-<div id="step-vora" style="display:none">
-  <p style="color:#d4a843;font-weight:700;font-size:14px;margin-bottom:16px">Teamleader Login</p>
-  
-  <div style="margin-bottom:10px;text-align:left">
-    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">HOTEL</div>
-    <select id="v-hotel" style="width:100%;background:#0e1118;border:1px solid #2a3448;color:#c0c8d8;font-size:14px;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
-      <option value="">Hotel auswählen...</option>
-    </select>
-  </div>
-  
-  <div style="margin-bottom:10px;text-align:left">
-    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">NAME</div>
-    <input id="v-name" type="text" placeholder="Name eingeben..." style="width:100%;background:#0e1118;border:1px solid #2a3448;color:#d4a843;font-size:15px;font-weight:700;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
-  </div>
-  
-  <div style="margin-bottom:16px;text-align:left">
-    <div style="color:#5a6a7a;font-size:10px;letter-spacing:1px;margin-bottom:4px">PASSWORT <span style="color:#333">(optional)</span></div>
-    <input id="v-pw" type="password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid #d4a843;color:#000;font-size:15px;font-weight:700;padding:10px;border-radius:4px;box-sizing:border-box;outline:none">
-    <div id="v-pw-err" style="color:#f4845f;font-size:11px;margin-top:4px;display:none">Falsches Passwort!</div>
-  </div>
-  
-  <a href="javascript:void(0)" id="btn-vora-login" onclick="window.loginKlick?window.loginKlick():doVoraLogin();return false;" style="display:block;background:#d4a843;color:#08090d;font-weight:700;font-size:15px;letter-spacing:2px;padding:15px;border-radius:4px;cursor:pointer;margin-bottom:10px;text-align:center;text-decoration:none;touch-action:manipulation">
-    EINLOGGEN
+<!-- Step 3: Chef Login -->
+<div id="step3" style="display:none">
+  <p style="color:var(--c-dim);font-size:0.8rem;margin-bottom:14px;text-align:left">Chef Login</p>
+  <input class="login-inp" id="c-pw" type="password" placeholder="Chef-Passwort (optional)">
+  <div class="login-err" id="c-err"></div>
+  <a href="javascript:void(0)" class="role-btn gold" id="btn-chef-login"
+     onclick="window.chefLoginKlick&&window.chefLoginKlick()">
+    <span>🔐</span>
+    <span class="role-title">Als Chef einloggen</span>
   </a>
-  <a href="javascript:void(0)" id="btn-back-vora" onclick="window.backKlick?window.backKlick():(document.getElementById('step-vora').style.display='none',document.getElementById('step1').style.display='block');return false;" style="display:block;color:#5a6a7a;font-size:11px;cursor:pointer;padding:8px;text-align:center;text-decoration:none;touch-action:manipulation">
-    ← Zurück
+  <a href="javascript:void(0)" class="role-btn" style="margin-top:8px"
+     onclick="document.getElementById('step3').style.display='none';document.getElementById('step1').style.display=''">
+    <span style="color:var(--c-dim)">← Zurück</span>
   </a>
-</div>
-
-<!-- STEP 3: Chef -->
-<div id="step-chef" style="display:none">
-  <p style="color:#d4a843;font-weight:700;font-size:14px;margin-bottom:16px">🔒 Chef / Admin</p>
-
-  <input id="chef-pw" type="password" placeholder="Passwort..." style="width:100%;background:#fff;border:2px solid #d4a843;color:#000;font-size:15px;font-weight:700;padding:12px;border-radius:4px;box-sizing:border-box;outline:none;margin-bottom:8px">
-  <div id="chef-pw-err" style="color:#f4845f;font-size:11px;margin-bottom:10px;display:none">Falsches Passwort</div>
-
-  <a href="javascript:void(0)" id="btn-chef-login" onclick="window.chefLoginKlick?window.chefLoginKlick():loginChef();return false;" style="display:block;background:#d4a843;color:#08090d;font-weight:700;font-size:15px;letter-spacing:1px;padding:15px;border-radius:4px;cursor:pointer;margin-bottom:10px;text-align:center;text-decoration:none;touch-action:manipulation">
-    ✓ ALS CHEF EINLOGGEN
-  </a>
-  <a href="javascript:void(0)" id="btn-back-chef" onclick="window.backKlick?window.backKlick():(document.getElementById('step-chef').style.display='none',document.getElementById('step1').style.display='block');return false;" style="display:block;color:#5a6a7a;font-size:11px;cursor:pointer;padding:8px;text-align:center;text-decoration:none;touch-action:manipulation">
-    ← Zurück
-  </a>
-</div>
-
-<div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;font-size:10px;color:#64748b">
-  <span id="fb-live-dot" style="width:6px;height:6px;border-radius:50%;background:#4caf7d;display:inline-block"></span>
-  Firebase Live-Sync
 </div>
 ```
 
   </div>
 </div>
 
-<!-- APP -->
+<!-- ── APP ── -->
 
-<div class="app-wrap" id="app-wrap">
+<div id="app-wrap">
   <div class="topbar">
-      <div style="min-width:0;flex:1;display:flex;align-items:center;gap:10px">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="44px" height="23px" style="display:block;flex-shrink:0;overflow:visible">
-          <text x="8" y="122" font-family="Georgia,'Times New Roman',serif" font-size="138" font-weight="900" fill="#d4a843" letter-spacing="-4">A&amp;J</text>
-          <line x1="8" y1="138" x2="290" y2="138" stroke="#d4a843" stroke-width="1.8"/>
-          <text x="8" y="162" font-family="'Helvetica Neue',Arial,sans-serif" font-size="23" font-weight="600" fill="#c8a04b" letter-spacing="5">CLEANING SERVICES</text>
-          <path d="M296,128 L299,136 L307,136 L301,141 L304,149 L296,144 L289,149 L292,141 L286,136 L294,136 Z" fill="#c8a04b" opacity="0.9"/>
-        </svg>
-        <div>
-          <div class="tb-info" id="tb-info" style="font-size:0.55rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px"></div>
-        </div>
-      </div>
-    <div class="tb-right" id="tb-right">
-      <span id="tb-user" class="tb-user"></span>
-      <span id="fb-live-dot" title="Verbindungsstatus" style="width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;flex-shrink:0;transition:background 0.3s"></span>
+    <span class="tb-logo">A&amp;J</span>
+    <span class="tb-sep"></span>
+    <span class="tb-hotel" id="tb-info"></span>
+    <div class="tb-right">
+      <span id="fb-live-dot"></span>
+      <span class="tb-name" id="tb-user"></span>
       <button class="out-btn" id="btn-logout">Abmelden</button>
     </div>
   </div>
   <div class="tabs" id="tabs"></div>
-  <div class="content" id="content"></div>
+  <div id="content"></div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ── TOAST ── -->
 
-<div id="aj-ios" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0e1118;border-top:1px solid rgba(212,168,67,0.3);padding:14px 16px;z-index:9999;flex-direction:column;gap:8px">
-  <div style="display:flex;align-items:center;justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:38px;height:38px;background:var(--gold);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:900;font-size:0.82rem;color:#08090d">A&amp;J</div>
-      <div><div style="font-size:0.82rem;font-weight:700;color:var(--cream)">A&amp;J Manager</div><div style="font-size:0.65rem;color:var(--muted)">Als App installieren</div></div>
-    </div>
-    <button id="btn-ios-close" style="background:transparent;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:4px">✕</button>
-  </div>
-  <div style="background:rgba(212,168,67,0.06);border:1px solid rgba(212,168,67,0.15);border-radius:8px;padding:10px 12px;font-size:0.72rem;color:#a0b0c0;line-height:1.6">
-    1. Tippe auf <strong style="color:var(--gold)">⬆ Teilen</strong> in Safari<br>
-    2. <strong style="color:var(--gold)">"Zum Home-Bildschirm"</strong><br>
-    3. <strong style="color:var(--gold)">Hinzufügen</strong>
-  </div>
-</div>
+<div id="toast"></div>
+
+<!-- ── PRINT AREA ── -->
+
+<div id="print-area"></div>
+<div id="dp-print-area"></div>
+<div id="pra"></div>
 
 <script>
+
 
 // ============================================================
 // UTILITIES
@@ -463,6 +715,7 @@ var FIREBASE_BASE='https://aj-manager-28a6c-default-rtdb.europe-west1.firebaseda
 var FB_URL=FIREBASE_BASE;
 var FB_POLL=null;
 var FB_FAIL_COUNT=0;
+var currentTab="";
 var FB_DISABLED=false;
 var FB_TOAST_SHOWN=false;
 var FB_CONFIRMED=false;
@@ -2584,7 +2837,16 @@ function saveTa(){
 
   // 3. In DATA.ta speichern
   if(!DATA.ta[hotel])DATA.ta[hotel]={};
-  DATA.ta[hotel][datum]={datum:datum,hotel:hotel,tl:USER.name,rows:rows,savedAt:Date.now()};
+  DATA.ta[hotel][datum]={
+    datum:datum,
+    hotel:hotel,
+    tl:USER.name,
+    tlLoginTime:USER.loginTime||new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr',
+    tlLoginDate:USER.loginDate||new Date().toLocaleDateString('de-DE'),
+    rows:rows,
+    savedAt:Date.now(),
+    status:'pending'
+  };
 
   // 4. Datum parsen für Stundenzettel/Leistung
   var monat='',dayKey='';
@@ -2622,7 +2884,7 @@ function saveTa(){
   var payload={
     datum:datumIso,hotel:String(hotel),hotelKey:hk,
     createdBy:String(USER.name||''),
-    tlLoginTime:String(USER.loginTime||''),
+    tlLoginTime:String(USER.loginTime||new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})+' Uhr'),
     tlLoginDate:String(USER.loginDate||''),
     createdAt:new Date().toISOString(),
     status:'pending',
@@ -2643,7 +2905,12 @@ function saveTa(){
   var hasR1=DATA.r1[hotel]&&DATA.r1[hotel][monat]&&DATA.r1[hotel][monat][dayKey]&&DATA.r1[hotel][monat][dayKey].length>0;
   var _msg='✅ Gespeichert! '+rows.length+' MA · '+luZi+' Zi';
   if(hasR1)_msg+=' · SUB✓';
-  toast(_msg,'ok',4000);
+  _msg+='\n🔥 '+hotel+'\n📅 '+datum;
+  toast(_msg,'ok',5000);
+  console.log('[SAVE OK] Hotel='+hotel+' Datum='+datum+' MA='+rows.length);
+  console.log('[SAVE OK] FB-Pfad: chef/inbox/tagesabrechnung/'+safeKey(datum)+'_'+safeKey(hotel));
+  console.log('[SAVE OK] SZ-Keys:', Object.keys(DATA.sz[hotel]||{}));
+  console.log('[SAVE OK] LU-d27:', DATA.lu[hotel]&&DATA.lu[hotel][monat]&&DATA.lu[hotel][monat].rows&&DATA.lu[hotel][monat].rows[dayKey]);
   console.log('[SAVE OK]',rows.map(function(r){return r.name+':'+r.zi+'zi/'+r.ist+'h';}));
 
   // 12. Tab aktualisieren
@@ -3100,7 +3367,7 @@ function luDraw(hotel,monat){
 
   // Header like the template
   html+='<div style="display:flex;align-items:center;gap:16px;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--gold)">';
-  html+='<div style="font-family:Georgia,serif;font-size:1.8rem;font-weight:900;color:var(--gold);line-height:1">A&amp;J</div>';
+  html+='<div style="font-family:Georgia,serif;font-size:1.8rem;font-weight:900;color:var(--gold);line-height:1">A&J</div>';
   html+='<div>';
   html+='<div style="font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted)">Cleaning Services GmbH</div>';
   html+='<div style="font-size:0.9rem;font-weight:700;color:var(--cream);margin-top:2px">Leistungsübersicht Objekt: <span style="color:var(--gold)">'+hotel+'</span></div>';
@@ -3289,7 +3556,7 @@ function luPrint(hotel,monat){
   rows+='<tr class="sum"><td>Summe</td><td>'+totZi+'</td><td>'+totGr+'</td><td>'+totSes+'</td><td>'+totChk+'</td><td>'+totIst.toFixed(2)+'</td><td>'+totZi+'</td></tr>';
 
   var html='<style>'+css+'<\/style>';
-  html+='<div class="header"><div class="logo">A&amp;J<\/div><div><div class="sub">Cleaning Services GmbH<\/div><div class="title">Leistungsübersicht Objekt: '+hotel+'<\/div><\/div><\/div>';
+  html+='<div class="header"><div class="logo">A&J<\/div><div><div class="sub">Cleaning Services GmbH<\/div><div class="title">Leistungsübersicht Objekt: '+hotel+'<\/div><\/div><\/div>';
   html+='<div class="meta"><div class="meta-item"><div class="meta-label">Monat<\/div><div class="meta-val">'+monNames[mo]+' '+yr+'<\/div><\/div><div class="meta-item"><div class="meta-label">Teamleader<\/div><div class="meta-val">'+(tlName||'_______________')+'<\/div><\/div><\/div>';
   html+='<table><thead><tr>';
   html+='<th style="min-width:36px">Tag<\/th>';
@@ -3798,7 +4065,7 @@ function delMa(idx){
 function kmPdf(km){
   if(!km)return;
   var css=PRT_BASE+'@page{size:A4 portrait;margin:15mm}h2{font-size:13pt;margin-bottom:6mm}.field{border-bottom:1px solid #ccc;padding:4px 0;margin-bottom:4mm;font-size:9pt}.lbl{font-size:6pt;letter-spacing:0.15em;text-transform:uppercase;color:#777;display:block;margin-bottom:1px}img{max-width:100%;max-height:120mm;margin-top:4mm;border:1px solid #ddd}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +'<div class="prt-hdr">'+ajLogoHtml(28,17)
     +'<div style="text-align:right"><b style="font-size:11pt">KRANKMELDUNG</b><br><span style="font-size:7pt;color:#555">'+km.datum+'</span></div></div>'
     +'<h2 style="color:#c00;margin-top:4mm">🤒 Krankmeldung</h2>'
@@ -3819,7 +4086,7 @@ function urlPdf(u){
   if(!u)return;
   var sc=u.status==='genehmigt'?'#1a5e20':u.status==='abgelehnt'?'#c00':'#555';
   var css=PRT_BASE+'@page{size:A4 portrait;margin:15mm}.field{border-bottom:1px solid #ccc;padding:4px 0;margin-bottom:4mm;font-size:9pt}.lbl{font-size:6pt;letter-spacing:0.15em;text-transform:uppercase;color:#777;display:block;margin-bottom:1px}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +'<div class="prt-hdr">'+ajLogoHtml(28,17)
     +'<div style="text-align:right"><b style="font-size:11pt">URLAUBSANTRAG</b><br><span style="font-size:7pt;color:#555">'+u.datum+'</span></div></div>'
     +'<h2 style="font-size:13pt;color:#1a3a6b;margin:4mm 0">🏖 Urlaubsantrag</h2>'
@@ -4234,7 +4501,7 @@ function kalkPrintAngebot(name,d){
   }
   rows+='<tr class="total-row"><td colspan="3">ANGEBOTSPREIS GESAMT / MONAT (netto)</td><td class="r">'+uGes.toFixed(2)+' €</td></tr>';
 
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +'<div class="hdr">'
     +''+ajLogoHtml(28,18)+''
     +'<div class="anschrift">Stauffenbergstr. 14-20 · 51379 Leverkusen<br>HRB 126631 Amtsgericht Köln<br>Datum: '+datum+'</div>'
@@ -4253,10 +4520,10 @@ function kalkPrintAngebot(name,d){
     +'<table><thead><tr><th>Leistungsposition</th><th class="r">Menge</th><th class="r">Einheitspreis</th><th class="r">Betrag/Monat</th></tr></thead>'
     +'<tbody>'+rows+'</tbody></table>'
     +'<div class="sig">'
-    +'<div class="sig-box">Für das Hotel: Datum &amp; Unterschrift</div>'
-    +'<div class="sig-box">A&amp;J Cleaning Services GmbH</div>'
+    +'<div class="sig-box">Für das Hotel: Datum & Unterschrift</div>'
+    +'<div class="sig-box">A&J Cleaning Services GmbH</div>'
     +'</div>'
-    +'<div class="footer"><span>A&amp;J Cleaning Services GmbH · HRB 126631 · Stauffenbergstr. 14-20 · 51379 Leverkusen</span><span>Erstellt: '+datum+'</span></div>'
+    +'<div class="footer"><span>A&J Cleaning Services GmbH · HRB 126631 · Stauffenbergstr. 14-20 · 51379 Leverkusen</span><span>Erstellt: '+datum+'</span></div>'
     +'<\/body><\/html>';
 
   var pd=ge('print-area');if(!pd)return;
@@ -4755,10 +5022,10 @@ function dpPrintNew(){
     +'.even td{background:#fafafa}'
     +'.bel-row td{background:#e0e0e0!important;font-weight:700}'
     +'.footer-note{font-size:5pt;margin-top:1.5mm;display:flex;justify-content:space-between;align-items:flex-end}'
-    +'<\/style><\/head><body>'
+    +'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +'<div class="top">'
     +'<div>'
-    +'<div style="font-size:14pt;font-weight:900;color:#1a2e6b;font-family:Georgia,serif;line-height:1">A&amp;J</div>'
+    +'<div style="font-size:14pt;font-weight:900;color:#1a2e6b;font-family:Georgia,serif;line-height:1">A&J</div>'
     +'<div style="font-size:4pt;letter-spacing:3px;color:#1a2e6b;text-transform:uppercase">Cleaning Services</div>'
     +'<div class="objekt" style="margin-top:1mm">Objekt: '+(hotelNr?hotelNr+' ':'')+hotel+'</div>'
     +'</div>'
@@ -6171,7 +6438,7 @@ function lohnPdf(maList,lohnCfg,mon){
     rows+='<tr><td>'+ma.name+'</td><td>'+Object.keys(ma.hotels).join(', ')+'</td><td>'+ma.totIst.toFixed(2)+'</td><td>'+ma.totZi+'</td><td>'+satz.toFixed(2)+' €</td><td><b>'+brutto.toFixed(2)+' €</b></td></tr>';
   });
   var css=PRT_BASE+'@page{size:A4 portrait;margin:12mm}th{font-size:7pt}td{font-size:7.5pt}.tot td{background:#000!important;color:#fff!important;font-weight:900!important}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +'<div class="prt-hdr">'+ajLogoHtml(28,17)
     +'<div style="text-align:right"><b style="font-size:12pt;letter-spacing:0.05em">LOHNABRECHNUNG</b><br><span style="font-size:7pt;color:#555">'+datStr+' · Vertraulich</span></div></div>'
     +'<div class="prt-meta"><div class="prt-mc"><label>Monat</label><span>'+datStr+'</span></div><div class="prt-mc"><label>Mitarbeiter</label><span>'+maList.length+'</span></div><div class="prt-mc"><label>Gesamt Brutto</label><span>'+totBrutto.toFixed(2)+' €</span></div></div>'
@@ -6216,7 +6483,7 @@ function ajLogoSvg(w,h){
   // Professionelles Logo: A&J gro in Dunkelblau, Linie, CLEANING SERVICES mit Stern
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 170" width="'+w+'mm" height="'+h+'mm" style="display:block;overflow:visible">'
     // Haupt-Schriftzug A&J - Georgia Serif, krftig
-    +'<text x="8" y="122" font-family="Georgia,\'Times New Roman\',serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&amp;J</text>'
+    +'<text x="8" y="122" font-family="Georgia,\'Times New Roman\',serif" font-size="138" font-weight="900" fill="#1a2e6b" letter-spacing="-4">A&J</text>'
     // Horizontale Linie
     +'<line x1="8" y1="138" x2="290" y2="138" stroke="#1a2e6b" stroke-width="1.8"/>'
     // CLEANING SERVICES - schmale Versalien
@@ -6446,10 +6713,10 @@ function printAsPdf(){
     +'.nm-line{border-bottom:1.5px solid #000;min-width:55mm;display:inline-block;padding-bottom:1px;font-weight:400}';
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
-    +'<style>'+css+'<\/style><\/head><body><div class="wrap">'
+    +'<style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef"><div class="wrap">'
     +'<div class="top">'
     +'<div>'
-    +'<div class="logo-aj">A&amp;J</div>'
+    +'<div class="logo-aj">A&J</div>'
     +'<div class="logo-line"></div>'
     +'<div class="logo-cs">Cleaning Services GmbH</div>'
     +'</div>'
@@ -6552,7 +6819,7 @@ function printAsPdf(){
   }
 
   var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'+
-    '<style>'+css+'<\/style><\/head><body>'+
+    '<style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'+
     '<h2>Stundenzettel — '+monName+' '+yr+'</h2>'+
     '<div class="meta">'+
       '<b>'+maName+'</b>'+(pnr?' | Pers.-Nr.: '+pnr:'')+' | Hotel: '+hotel+
@@ -6618,7 +6885,7 @@ function monatsPdf(){
       +'<div class="prt-sig"><div class="prt-sb">Unterschrift Mitarbeiter</div><div class="prt-sb">Unterschrift Teamleader</div><div class="prt-sb">Unterschrift Chef · Datum</div></div>'
       +'<div class="prt-foot"><span>A&J Cleaning Services GmbH · HRB 126631 · Leverkusen</span><span>'+new Date().toLocaleDateString('de-DE')+'</span></div></div>';
   }).join('');
-  prtBase('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'+pages+'<\/body><\/html>');
+  prtBase('<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'+pages+'<\/body><\/html>');
 }
 
 // -- LEISTUNGSBERSICHT DRUCK --
@@ -6631,7 +6898,7 @@ function luPrint(){
   var monNm2=['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
   var datStr2=monNm2[mo2]+' '+monP[0];
   var css=PRT_BASE+'@page{size:A4 portrait;margin:8mm}table{font-size:6pt}th{font-size:5.5pt}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +prtHdr('LEISTUNGSÜBERSICHT',hotel+' · '+datStr2)
     +'<div class="prt-meta"><div class="prt-mc"><label>Hotel</label><span>'+hotel+'</span></div>'
     +'<div class="prt-mc"><label>Monat</label><span>'+datStr2+'</span></div>'
@@ -6650,7 +6917,7 @@ function taPrint(){
   var tblClone=tbl.cloneNode(true);
   tblClone.querySelectorAll('[style]').forEach(function(el){el.removeAttribute('style');});
   var css=PRT_BASE+'@page{size:A4 landscape;margin:8mm}table{font-size:6.5pt}th{font-size:6pt}';
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +prtHdr('TAGESABRECHNUNG',hotel+(datum?' · '+datum:''))
     +tblClone.outerHTML
     +'<div class="prt-sig"><div class="prt-sb">Unterschrift Teamleader</div><div class="prt-sb">Unterschrift Chef · Datum</div></div>'
@@ -6674,7 +6941,7 @@ function dashPrintToday(){
   var rhtml=rows.map(function(r,i){
     return '<tr><td>'+(i+1)+'</td><td><b>'+r.name+'</b></td><td>'+r.hotel+'</td><td>'+r.zi+'</td><td>'+(r.gr||'-')+'</td><td>'+(r.chk||'-')+'</td><td>'+(r.ist?r.ist+' h':'-')+'</td></tr>';
   }).join('');
-  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body>'
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8"><style>'+css+'<\/style><\/head><body style="background:#08090d;color:#dde6ef">'
     +prtHdr('TAGESÜBERSICHT',today)
     +'<table><thead><tr><th>#</th><th>Name</th><th>Hotel</th><th>Zimmer</th><th>GR</th><th>Check</th><th>Ist-Std</th></tr></thead>'
     +'<tbody>'+rhtml+'<tr class="prt-ges"><td colspan="3" style="text-align:right">GESAMT</td><td>'+totZi+'</td><td colspan="3"></td></tr></tbody></table>'
@@ -6689,7 +6956,7 @@ function dashPrintHotel(hotel){
   var css=PRT_CSS_BASE+'@page{size:A4 portrait;margin:12mm}'+PRT_CSS_HDR+PRT_CSS_TBL+PRT_CSS_FOOTER
     +'.ges td{background:#000!important;color:#fff!important;font-weight:700!important}';
   var html='<style>'+css+'<\/style>'
-    +'<div class="hdr"><div class="logo">A&amp;J<small>Cleaning Services GmbH</small></div>'
+    +'<div class="hdr"><div class="logo">A&J<small>Cleaning Services GmbH</small></div>'
     +'<div style="text-align:right"><b>'+hotel+'</b><br>'+mon+'</div></div>';
   var ta=(DATA.ta[hotel]||{})[today];
   if(ta&&ta.rows&&ta.rows.some(function(r){return r.name&&r.zi;})){
@@ -6704,7 +6971,7 @@ function dashPrintHotel(hotel){
   Object.keys(szH).forEach(function(mn){var d=szH[mn][mon];if(!d)return;var tage=Object.keys(d.tage||{}).length;mzT+=parseInt(d.ziGes||0);miT+=parseFloat(d.istGes||0);html+='<tr><td><b>'+mn+'</b></td><td>'+d.ziGes+'</td><td>'+parseFloat(d.istGes||0).toFixed(2)+' h</td><td>'+tage+'</td></tr>';});
   html+='<tr class="ges"><td>GESAMT</td><td>'+mzT+'</td><td>'+miT.toFixed(2)+' h</td><td></td></tr></tbody></table>';
   html+='<div class="sig"><div class="sb">Unterschrift Teamleader</div><div class="sb">Unterschrift Chef / Datum</div></div>';
-  html+='<div class="footer"><span>A&amp;J Cleaning Services GmbH · HRB 126631</span><span>'+new Date().toLocaleDateString('de-DE')+'</span></div>';
+  html+='<div class="footer"><span>A&J Cleaning Services GmbH · HRB 126631</span><span>'+new Date().toLocaleDateString('de-DE')+'</span></div>';
   prtBase(html);
 }
 
@@ -6814,6 +7081,7 @@ window.saveDp=function(){if(typeof dpSaveNew==='function')dpSaveNew();};
 window.dpWhatsApp=function(){if(typeof dpWhatsAppNew==='function')dpWhatsAppNew();};
 window.dienstplanPdf=function(){if(typeof dpPrintNew==='function')dpPrintNew();};
 window.dashPrintToday=function(){if(typeof _dashPrintToday==='function')_dashPrintToday();};
+
 </script>
 
 </body>
