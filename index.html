@@ -75,22 +75,25 @@ color:var(–c-dim)!important;
 opacity:1!important;
 }
 /* TA cell inputs forced dark bg */
-[id^=“ta_nm_”],[id^=“ta_zi_”],[id^=“ta_gr_”],[id^=“ta_ses_”],[id^=“ta_chk_”],
-[id^=“ta_pub_”],[id^=“ta_son_”],[id^=“ta_wae_”],[id^=“ta_auf_”],[id^=“ta_mini_”],
-[id^=“ta_ist_”]{
-color:var(–c-cream)!important;
--webkit-text-fill-color:var(–c-cream)!important;
-background:#0c1422!important;
+[id^=“ta_nm_”],[id^=“ta_gr_”],[id^=“ta_ses_”],[id^=“ta_chk_”],
+[id^=“ta_pub_”],[id^=“ta_son_”],[id^=“ta_wae_”],[id^=“ta_auf_”],[id^=“ta_mini_”]{
+color:#f5d060!important;
+-webkit-text-fill-color:#f5d060!important;
+background:#091e3a!important;
 opacity:1!important;
 }
 [id^=“ta_zi_”]{
-color:var(–c-gold-lt)!important;
--webkit-text-fill-color:var(–c-gold-lt)!important;
-background:#091428!important;
+color:#ffe066!important;
+-webkit-text-fill-color:#ffe066!important;
+background:#071830!important;
+font-weight:700;
+opacity:1!important;
 }
 [id^=“ta_ist_”]{
-color:var(–c-green)!important;
--webkit-text-fill-color:var(–c-green)!important;
+color:#3cb878!important;
+-webkit-text-fill-color:#3cb878!important;
+background:rgba(60,184,120,0.08)!important;
+opacity:1!important;
 }
 
 /* ── LOGIN ── */
@@ -379,8 +382,8 @@ padding:9px 18px;
 .ta-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px}
 .ta-tbl{border-collapse:collapse;width:100%;min-width:480px;font-size:0.75rem}
 .ta-tbl th{
-background:var(–c-bg3);
-color:var(–c-gold);
+background:#0d1e3a;
+color:#f5d060;
 font-size:0.48rem;
 letter-spacing:0.08em;
 text-transform:uppercase;
@@ -390,29 +393,29 @@ text-align:center;
 border:1px solid var(–c-border);
 line-height:1.4;
 }
-.ta-tbl td{border:1px solid rgba(8,9,13,0.9);padding:0;background:#0c1422}
-.ta-tbl tr:nth-child(even) td{background:#091020}
-.ta-tbl tr.ges-row td{background:var(–c-bg3)!important;border-top:2px solid var(–c-gold)}
+.ta-tbl td{border:1px solid rgba(0,40,100,0.6);padding:0;background:#0a1628}
+.ta-tbl tr:nth-child(even) td{background:#071220}
+.ta-tbl tr.ges-row td{background:#0d1e3a!important;border-top:2px solid var(–c-gold)}
 .ti{
 width:100%;
-background:#0c1422!important;
+background:#091e3a!important;
 border:none;
 outline:none;
 font-size:0.75rem;
-color:var(–c-cream)!important;
--webkit-text-fill-color:var(–c-cream)!important;
+color:#f5d060!important;
+-webkit-text-fill-color:#f5d060!important;
 padding:6px 3px;
 text-align:center;
 opacity:1!important;
 -webkit-appearance:none;
-caret-color:var(–c-cream);
+caret-color:#f5d060;
 }
-.ti.nm{text-align:left;padding-left:8px;min-width:80px}
+.ti.nm{text-align:left;padding-left:8px;min-width:80px;color:#f5d060!important;-webkit-text-fill-color:#f5d060!important;background:#091e3a!important}
 .ti.zi{
-color:var(–c-gold-lt)!important;
--webkit-text-fill-color:var(–c-gold-lt)!important;
+color:#ffe066!important;
+-webkit-text-fill-color:#ffe066!important;
 font-weight:700;
-background:#091428!important;
+background:#071830!important;
 }
 .ti.ai{
 color:var(–c-green)!important;
@@ -653,7 +656,7 @@ background:rgba(201,168,76,0.06);
     <span class="tb-logo">A&amp;J</span>
     <span class="tb-sep"></span>
     <span class="tb-hotel" id="tb-info"></span>
-    <div class="tb-right">
+    <div class="tb-right" id="tb-right">
       <span id="fb-live-dot"></span>
       <span class="tb-name" id="tb-user"></span>
       <button class="out-btn" id="btn-logout">Abmelden</button>
@@ -749,6 +752,15 @@ function fbClean(val){
     return obj;
   }
   return 0;
+}
+function fbDel(path){
+  if(FB_DISABLED)return;
+  try{
+    var xhr=new XMLHttpRequest();
+    xhr.open('DELETE',FIREBASE_BASE+'/'+path+'.json',true);
+    xhr.timeout=8000;
+    xhr.send(null);
+  }catch(e){console.warn('[fbDel]',e.message);}
 }
 function fbPut(path,data,onOk,onErr){
   if(FB_DISABLED){if(onErr)onErr('disabled');return;}
@@ -1178,8 +1190,8 @@ function initVoraLogin(){
 }
 
 function doVoraLogin(){
-  var hotel=gv('v-hotel'),name=gv('v-name').trim(),pw=gv('v-pw').trim();
-  var errEl=ge('v-pw-err');
+  var hotel=gv('v-hotel'),name=(gv('v-name')||'').trim();
+  var errEl=ge('v-err');
   if(!hotel){toast('Hotel auswählen!','err');return;}
   if(!name){toast('Name eingeben!','err');return;}
   var active=true;
@@ -1197,7 +1209,7 @@ function doVoraLogin(){
 }
 
 function loginChef(){
-  var pw=gv('chef-pw').trim();
+  var pw=(gv('c-pw')||'').trim();
 
   var _chefHotel=localStorage.getItem('aj_chef_last_hotel')||Object.keys(HOTELS)[0];
   USER={role:'chef',hotel:_chefHotel,chefHotel:_chefHotel,name:localStorage.getItem('aj_chef_name')||'Akram'};
@@ -7009,26 +7021,41 @@ window.addEventListener('unhandledrejection',function(e){
 // === GLOBALE LOGIN FUNKTIONEN (direkt auf window) ===
 // Diese Funktionen müssen global sein für inline onclick
 window.tlKlick=function(){
-  console.log('Teamleader geklickt');
-  showStep('step-vora');
-  initVoraLogin();
+  // Show TL login form (step2)
+  var s1=ge('step1'),s2=ge('step2'),s3=ge('step3');
+  if(s2&&s2.style.display!=='none'){
+    // Already on step2 - do login
+    doVoraLogin();
+  } else {
+    if(s1)s1.style.display='none';
+    if(s2)s2.style.display='';
+    if(s3)s3.style.display='none';
+    setTimeout(function(){var h=ge('v-hotel');if(h)h.focus();},100);
+  }
 };
 window.chefKlick=function(){
-  console.log('Admin geklickt');
-  showStep('step-chef');
-  setTimeout(function(){var p=ge('chef-pw');if(p)p.focus();},100);
+  window.chefLoginKlick();
 };
 window.loginKlick=function(){
-  console.log('Login geklickt');
   doVoraLogin();
 };
 window.chefLoginKlick=function(){
-  console.log('Chef Login geklickt');
-  loginChef();
+  var s1=ge('step1'),s2=ge('step2'),s3=ge('step3');
+  if(s3&&s3.style.display!=='none'){
+    // Already on step3 - do login
+    loginChef();
+  } else {
+    if(s1)s1.style.display='none';
+    if(s2)s2.style.display='none';
+    if(s3)s3.style.display='';
+    setTimeout(function(){var p=ge('c-pw');if(p)p.focus();},100);
+  }
 };
 window.backKlick=function(){
-  console.log('Zurück geklickt');
-  showStep('step1');
+  var s1=ge('step1'),s2=ge('step2'),s3=ge('step3');
+  if(s2)s2.style.display='none';
+  if(s3)s3.style.display='none';
+  if(s1)s1.style.display='';
 };
 var _loginButtonsInit=false;
 function initLoginButtons(){
